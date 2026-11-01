@@ -1,0 +1,108 @@
+/** Reusable presentation primitives. No business logic lives here. */
+import type { ReactNode } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+export function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="mb-6 flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      {actions && <div className="flex gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+export function DemoBadge() {
+  return (
+    <Badge variant="outline" className="border-warning bg-warning/15 font-medium text-warning-foreground">
+      Demo data
+    </Badge>
+  );
+}
+
+export function StatCard({
+  label,
+  value,
+  hint,
+  className,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  className?: string;
+}) {
+  return (
+    <Card className={cn("gap-1 rounded-md p-4 shadow-none", className)}>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="tabular text-lg font-semibold">{value}</div>
+      {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+    </Card>
+  );
+}
+
+export function SectionCard({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="gap-0 overflow-hidden rounded-md p-0 shadow-none">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </Card>
+  );
+}
+
+export interface Column<T> {
+  header: string;
+  cell: (row: T) => ReactNode;
+  align?: "left" | "right";
+}
+
+export function DataTable<T>({ columns, rows, rowKey }: { columns: Column<T>[]; rows: T[]; rowKey: (r: T) => string }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
+          <tr>
+            {columns.map((c) => (
+              <th key={c.header} className={cn("px-4 py-2 font-medium", c.align === "right" ? "text-right" : "text-left")}>
+                {c.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={rowKey(r)} className="border-t">
+              {columns.map((c) => (
+                <td key={c.header} className={cn("whitespace-nowrap px-4 py-2.5", c.align === "right" && "text-right")}>
+                  {c.cell(r)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
