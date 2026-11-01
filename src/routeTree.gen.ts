@@ -17,6 +17,7 @@ import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as EmployeesRouteImport } from './routes/employees'
 import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as ForexRouteImport } from './routes/forex'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MobileMoneyRouteImport } from './routes/mobile-money'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -61,6 +62,11 @@ const ForexRoute = ForexRouteImport.update({
   path: '/forex',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MobileMoneyRoute = MobileMoneyRouteImport.update({
   id: '/mobile-money',
   path: '/mobile-money',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/employees': typeof EmployeesRoute
   '/expenses': typeof ExpensesRoute
   '/forex': typeof ForexRoute
+  '/login': typeof LoginRoute
   '/mobile-money': typeof MobileMoneyRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/employees': typeof EmployeesRoute
   '/expenses': typeof ExpensesRoute
   '/forex': typeof ForexRoute
+  '/login': typeof LoginRoute
   '/mobile-money': typeof MobileMoneyRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/employees': typeof EmployeesRoute
   '/expenses': typeof ExpensesRoute
   '/forex': typeof ForexRoute
+  '/login': typeof LoginRoute
   '/mobile-money': typeof MobileMoneyRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/expenses'
     | '/forex'
+    | '/login'
     | '/mobile-money'
     | '/reports'
     | '/settings'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/expenses'
     | '/forex'
+    | '/login'
     | '/mobile-money'
     | '/reports'
     | '/settings'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/expenses'
     | '/forex'
+    | '/login'
     | '/mobile-money'
     | '/reports'
     | '/settings'
@@ -168,6 +180,7 @@ export interface RootRouteChildren {
   EmployeesRoute: typeof EmployeesRoute
   ExpensesRoute: typeof ExpensesRoute
   ForexRoute: typeof ForexRoute
+  LoginRoute: typeof LoginRoute
   MobileMoneyRoute: typeof MobileMoneyRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mobile-money': {
       id: '/mobile-money'
       path: '/mobile-money'
@@ -264,6 +284,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmployeesRoute: EmployeesRoute,
   ExpensesRoute: ExpensesRoute,
   ForexRoute: ForexRoute,
+  LoginRoute: LoginRoute,
   MobileMoneyRoute: MobileMoneyRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
