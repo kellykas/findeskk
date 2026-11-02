@@ -1,5 +1,12 @@
 # Current work
 - [x] Create staff profiles, branches, assignments, and protected roles.
-- [ ] Connect staff sign-in and sign-out.
-- [ ] Connect branch and employee management.
-- [ ] Validate security, tests, and public sign-in flow; document initial administrator setup.
+- [x] Connect staff sign-in and sign-out (Supabase Auth session, viewer roles and branches).
+- [x] Connect branch and employee management (create/edit branches, roles, branch access, deactivation).
+- [x] Document initial administrator setup and the permission model.
+- [x] Unit tests: permission matrix, form validation, staff aggregation, auth errors, ledger rules, route matching.
+- [x] Phase 3 engine: chart of accounts, double-entry journal, atomic posting, idempotency, immutability, derived balances.
+- [x] Execute the migrations and posting rules against a local PostgreSQL cluster (balanced/unbalanced, idempotent replay, reversals, role and branch scoping, raw-write guards).
+- [ ] Manual verification against the live Supabase project: sign in with a real staff account, post through the API once the app has a ledger screen or a transaction module.
+- [ ] Ledger interface: journal list, trial balance and account drilldown (no `/ledger` route yet).
+- [ ] Wire the dashboard to ledger balances and recent entries; today it is still labelled demo data.
+- [ ] Audit trail table and `/audit` module.

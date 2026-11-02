@@ -55,6 +55,15 @@ export function isNegative(m: Money): boolean {
   return m.minor < 0n;
 }
 
+/** Plain decimal string for storage/transport, e.g. "1250000" or "1250.50". */
+export function toDecimalString(m: Money): string {
+  const { decimals } = getCurrency(m.currency);
+  const negative = m.minor < 0n;
+  const abs = (negative ? -m.minor : m.minor).toString().padStart(decimals + 1, "0");
+  const body = decimals ? `${abs.slice(0, -decimals)}.${abs.slice(-decimals)}` : abs;
+  return `${negative ? "-" : ""}${body}`;
+}
+
 /** Format as "UGX 1,250,000" / "USD 1,250.50" without floating point. */
 export function formatMoney(m: Money, opts: { showCode?: boolean } = {}): string {
   const { decimals } = getCurrency(m.currency);

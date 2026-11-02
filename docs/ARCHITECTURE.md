@@ -30,10 +30,62 @@ Route loader -> service query options -> (demo | Supabase) -> domain types -> co
 ```
 Components only receive typed domain objects. Switching a service from demo to Supabase must not change any component.
 
+## Authentication and staff access (Phase 2)
+
+```text
+/login -> auth.service (Supabase Auth) -> SessionProvider -> viewer (profile + roles + branches)
+      -> AppShell (requires session, filters navigation by permission)
+      -> /employees, /branches (staff admins only, enforced by RLS + save_staff_access)
+```
+
+- The session is resolved in the browser only (`src/hooks/use-session.tsx`); SSR renders a loading
+  state and protected pages never render without a viewer. This is a UX gate — PostgreSQL RLS is the
+  security boundary.
+- The viewer is `profiles` + `user_roles` + `branch_assignments` for the signed-in user. Inactive
+  profiles and profiles without roles see an access screen instead of the app.
+- `src/domain/access.ts` maps roles to permissions for navigation and gating. It intentionally
+  mirrors `public.is_staff_admin()`: only `super_admin` and `company_owner` can manage staff and
+  branches.
+- Staff accounts are created in the authentication provider (Supabase dashboard); the trigger
+  `create_staff_profile()` creates the matching profile. Roles and branches are assigned in
+  `/employees` through the atomic `save_staff_access()` function.
+- The first administrator is appointed with `claim_initial_admin()`, which only succeeds while
+  `public.user_roles` is empty. It is one-time by construction; later claims return `false`.
+- Branches are deactivated, never deleted, so historical data and assignments stay intact.
+
+## Accounting ledger (Phase 3)
+
+```text
+post_journal_entry(entry_date, description, branch, lines, idempotency_key)
+   -> validates staff, roles, branch, lines, balance
+   -> journal_entries + journal_lines (balanced, immutable)
+   -> account_balances view (security invoker) -> ledger.service -> future UI
+```
+
+- `public.accounts` is the chart of accounts: asset, liability, equity, income and expense,
+  each with a normal balance enforced by a check constraint, and a seeded set of system accounts.
+- `public.journal_entries` / `public.journal_lines` store double-entry postings. Entries carry a
+  yearly reference (`JV-2026-000001`), an optional branch, an optional idempotency key and a
+  one-to-one `reverses_entry_id` link for corrections.
+- `post_journal_entry()` is the only write path. It requires an active staff profile with a ledger
+  role (`super_admin`, `company_owner`, `accountant`), rejects future dates, unknown or inactive
+  accounts, fewer than two lines, non-positive amounts and unbalanced entries, and checks branch
+  access. Replaying an idempotency key returns the original entry id instead of posting twice.
+- Corrections are reversing entries. Update/delete triggers refuse any change to posted entries,
+  and a deferred constraint trigger re-verifies debits = credits, so even `service_role` cannot
+  write an unbalanced entry.
+- `public.account_balances` is a security-invoker view, so RLS on `journal_lines` still applies: a
+  teller sees balances derived only from their assigned branches. Company-wide roles are
+  `super_admin`, `company_owner`, `accountant`, `auditor` and `general_manager`.
+- The ledger is kept in the base currency (UGX). Foreign currency holdings post their UGX value at
+  acquisition cost; rate history and inventory arrive in Phase 4.
+- `src/domain/ledger.ts` holds the pure rules (line validation, normal balances, trial balance) and
+  `src/services/ledger.service.ts` the typed reads/posting. No ledger screen exists yet.
+
 ## Key decisions
 1. **Money as bigint minor units** on the client (`domain/money.ts`); NUMERIC in PostgreSQL. No floats.
 2. **Ledger is the source of truth.** Balances are derived from balanced double-entry postings created atomically by database functions with idempotency keys. No "balance += x" updates from the UI.
-3. **Authorization in the database.** Roles in a separate `user_roles` table, checked by `has_role()` security-definer functions and RLS, scoped by branch.
+3. **Authorization in the database.** Roles in a separate `user_roles` table, checked by `has_role()` security-definer functions and RLS, scoped by branch. Access changes go through `save_staff_access()`; direct writes to `user_roles`, `branch_assignments` and `profiles` are revoked from clients.
 4. **Reversals, not deletes.** Posted transactions are immutable; corrections are reversing entries with approval and audit records.
 5. **Manual vs verified.** Mobile money entries carry a `verification` field; manual entries are never displayed as network-verified.
 6. **Exchange rates are data**, versioned with history, never hardcoded.

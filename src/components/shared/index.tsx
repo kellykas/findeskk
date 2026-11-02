@@ -1,5 +1,6 @@
 /** Reusable presentation primitives. No business logic lives here. */
 import type { ReactNode } from "react";
+import { ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -24,9 +25,24 @@ export function PageHeader({
   );
 }
 
+export function AccessDenied({ title, description }: { title: string; description: string }) {
+  return (
+    <Card className="items-center gap-2 rounded-md p-8 text-center shadow-none">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+        <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <h2 className="text-sm font-semibold">{title}</h2>
+      <p className="max-w-md text-sm text-muted-foreground">{description}</p>
+    </Card>
+  );
+}
+
 export function DemoBadge() {
   return (
-    <Badge variant="outline" className="border-warning bg-warning/15 font-medium text-warning-foreground">
+    <Badge
+      variant="outline"
+      className="border-warning bg-warning/15 font-medium text-warning-foreground"
+    >
       Demo data
     </Badge>
   );
@@ -45,7 +61,9 @@ export function StatCard({
 }) {
   return (
     <Card className={cn("gap-1 rounded-md p-4 shadow-none", className)}>
-      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
       <div className="tabular text-lg font-semibold">{value}</div>
       {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
     </Card>
@@ -78,14 +96,28 @@ export interface Column<T> {
   align?: "left" | "right";
 }
 
-export function DataTable<T>({ columns, rows, rowKey }: { columns: Column<T>[]; rows: T[]; rowKey: (r: T) => string }) {
+export function DataTable<T>({
+  columns,
+  rows,
+  rowKey,
+}: {
+  columns: Column<T>[];
+  rows: T[];
+  rowKey: (r: T) => string;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             {columns.map((c) => (
-              <th key={c.header} className={cn("px-4 py-2 font-medium", c.align === "right" ? "text-right" : "text-left")}>
+              <th
+                key={c.header}
+                className={cn(
+                  "px-4 py-2 font-medium",
+                  c.align === "right" ? "text-right" : "text-left",
+                )}
+              >
                 {c.header}
               </th>
             ))}
@@ -95,7 +127,13 @@ export function DataTable<T>({ columns, rows, rowKey }: { columns: Column<T>[]; 
           {rows.map((r) => (
             <tr key={rowKey(r)} className="border-t">
               {columns.map((c) => (
-                <td key={c.header} className={cn("whitespace-nowrap px-4 py-2.5", c.align === "right" && "text-right")}>
+                <td
+                  key={c.header}
+                  className={cn(
+                    "whitespace-nowrap px-4 py-2.5",
+                    c.align === "right" && "text-right",
+                  )}
+                >
                   {c.cell(r)}
                 </td>
               ))}

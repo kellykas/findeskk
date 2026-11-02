@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounts: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          description: string
+          id: string
+          is_system: boolean
+          name: string
+          normal_balance: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_system?: boolean
+          name: string
+          normal_balance: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          normal_balance?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       branch_assignments: {
         Row: {
           branch_id: string
@@ -83,11 +122,111 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_entries: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string
+          description: string
+          entry_date: string
+          entry_type: string
+          id: string
+          idempotency_key: string | null
+          reference: string
+          reverses_entry_id: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by: string
+          description: string
+          entry_date: string
+          entry_type?: string
+          id?: string
+          idempotency_key?: string | null
+          reference: string
+          reverses_entry_id?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          idempotency_key?: string | null
+          reference?: string
+          reverses_entry_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_reverses_entry_id_fkey"
+            columns: ["reverses_entry_id"]
+            isOneToOne: true
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_lines: {
+        Row: {
+          account_id: string
+          amount: number
+          branch_id: string | null
+          entry_id: string
+          id: string
+          memo: string
+          side: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          branch_id?: string | null
+          entry_id: string
+          id?: string
+          memo?: string
+          side: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          branch_id?: string | null
+          entry_id?: string
+          id?: string
+          memo?: string
+          side?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
           created_at: string
           display_name: string
+          email: string
           id: string
           updated_at: string
         }
@@ -95,6 +234,7 @@ export type Database = {
           active?: boolean
           created_at?: string
           display_name?: string
+          email?: string
           id: string
           updated_at?: string
         }
@@ -102,6 +242,7 @@ export type Database = {
           active?: boolean
           created_at?: string
           display_name?: string
+          email?: string
           id?: string
           updated_at?: string
         }
@@ -133,9 +274,26 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      account_balances: {
+        Row: {
+          account_id: string | null
+          active: boolean | null
+          balance: number | null
+          code: string | null
+          name: string | null
+          normal_balance: string | null
+          total_credit: number | null
+          total_debit: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      claim_initial_admin: {
+        Args: never
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -144,6 +302,18 @@ export type Database = {
         Returns: boolean
       }
       is_staff_admin: { Args: never; Returns: boolean }
+      post_journal_entry: {
+        Args: {
+          _branch_id: string | null
+          _description: string
+          _entry_date: string
+          _entry_type: string
+          _idempotency_key?: string | null
+          _lines: Json
+          _reverses_entry_id?: string | null
+        }
+        Returns: string
+      }
       save_staff_access: {
         Args: {
           _active: boolean

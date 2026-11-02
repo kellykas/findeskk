@@ -1,9 +1,14 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
-import { Menu, LogOut } from "lucide-react";
+import { Link, Navigate } from "@tanstack/react-router";
+import { Menu, LogOut, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import { MODULES, type AppModule } from "@/config/modules";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { can, isStaffAdmin } from "@/domain/access";
+import { ROLE_LABELS } from "@/domain/roles";
+import { useSession } from "@/hooks/use-session";
+import { claimInitialAdmin } from "@/services/auth.service";
 
 const GROUPS: AppModule["group"][] = ["Overview", "Operations", "Administration", "Oversight"];
 
@@ -22,29 +27,63 @@ function Brand() {
 }
 
 function NavList({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+  const { viewer } = useSession();
+  const roles = viewer?.roles ?? [];
+
   return (
     <nav className="flex-1 overflow-y-auto px-3 pb-6">
-      {GROUPS.map((group) => (
-        <div key={group} className="mt-4">
-          <div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50">
-            {group}
+      {GROUPS.map((group) => {
+        const modules = MODULES.filter((m) => m.group === group && can(roles, m.permission));
+        if (modules.length === 0) return null;
+        return (
+          <div key={group} className="mt-4">
+            <div className="px-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50">
+              {group}
+            </div>
+            {modules.map((m) => (
+              <Link
+                key={m.path}
+                to={m.path}
+                onClick={onNavigate}
+                activeOptions={{ exact: true }}
+                className="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                activeProps={{
+                  className: "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+                }}
+              >
+                <m.icon className="h-4 w-4 shrink-0" />
+                {m.title}
+              </Link>
+            ))}
           </div>
-          {MODULES.filter((m) => m.group === group).map((m) => (
-            <Link
-              key={m.path}
-              to={m.path}
-              onClick={onNavigate}
-              activeOptions={{ exact: true }}
-              className="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              activeProps={{ className: "bg-sidebar-accent text-sidebar-accent-foreground font-medium" }}
-            >
-              <m.icon className="h-4 w-4 shrink-0" />
-              {m.title}
-            </Link>
-          ))}
-        </div>
-      ))}
+        );
+      })}
     </nav>
+  );
+}
+
+function SidebarFooter() {
+  const { viewer, signOut } = useSession();
+  if (!viewer) return null;
+
+  return (
+    <div className="border-t border-sidebar-border p-3">
+      <div className="px-2 pb-2 leading-tight">
+        <div className="truncate text-sm font-medium text-sidebar-primary">
+          {viewer.displayName || viewer.email || "Staff"}
+        </div>
+        <div className="truncate text-[11px] text-sidebar-foreground/70">
+          {viewer.roles.map((role) => ROLE_LABELS[role]).join(" · ")}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => void signOut()}
+        className="flex w-full items-center gap-3 rounded-sm px-2 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+      >
+        <LogOut className="h-4 w-4" /> Sign out
+      </button>
+    </div>
   );
 }
 
@@ -53,20 +92,133 @@ function SidebarBody({ onNavigate }: { onNavigate?: (() => void) | undefined }) 
     <div className="flex h-full flex-col bg-sidebar">
       <Brand />
       <NavList onNavigate={onNavigate} />
-      <div className="border-t border-sidebar-border p-3">
-        <Link
-          to="/login"
-          className="flex items-center gap-3 rounded-sm px-2 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent"
-        >
-          <LogOut className="h-4 w-4" /> Sign out
-        </Link>
+      <SidebarFooter />
+    </div>
+  );
+}
+
+function WorkspaceLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-6">
+      <div className="text-center">
+        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-foreground" />
+        <p className="mt-3 text-sm text-muted-foreground">Loading your workspace…</p>
       </div>
     </div>
   );
 }
 
+function AccountGate({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children?: ReactNode;
+}) {
+  const { signOut } = useSession();
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-6">
+      <div className="w-full max-w-md space-y-4 text-center">
+        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+          <ShieldAlert className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <h1 className="text-lg font-semibold">{title}</h1>
+        <p className="text-sm text-muted-foreground">{description}</p>
+        {children}
+        <Button variant="outline" className="mt-2" onClick={() => void signOut()}>
+          Sign out
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ClaimAdminButton() {
+  const { refreshViewer } = useSession();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function claim() {
+    setPending(true);
+    setError(null);
+    try {
+      const granted = await claimInitialAdmin();
+      if (granted) {
+        toast.success("You are now the initial administrator.");
+        await refreshViewer();
+      } else {
+        setError("An administrator already exists. Ask them to grant you access.");
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not claim administrator access.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 text-left">
+      <Button variant="outline" className="w-full" onClick={() => void claim()} disabled={pending}>
+        {pending ? "Checking…" : "Claim initial administrator"}
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Only works while the company has no staff roles at all. Use it once, immediately after
+        creating your own account, then assign real roles from the Employees screen.
+      </p>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
+  const { status, viewer, viewerError } = useSession();
   const [open, setOpen] = useState(false);
+
+  if (status === "loading" || status === "loading_viewer") return <WorkspaceLoading />;
+  if (status === "signed_out") return <Navigate to="/login" />;
+  if (!viewer) {
+    return (
+      <AccountGate
+        title="Staff profile not found"
+        description={
+          viewerError ??
+          "Your sign-in works, but no staff profile is linked to it. Ask your administrator to set one up."
+        }
+      />
+    );
+  }
+  if (!viewer.active) {
+    return (
+      <AccountGate
+        title="Account deactivated"
+        description="This staff account has been deactivated. Contact a super admin or the company owner to restore access."
+      />
+    );
+  }
+  if (viewer.roles.length === 0) {
+    return (
+      <AccountGate
+        title="No access assigned yet"
+        description="Your staff profile exists, but no roles have been assigned. Ask an administrator to grant access."
+      >
+        <ClaimAdminButton />
+      </AccountGate>
+    );
+  }
+
+  const scope = isStaffAdmin(viewer.roles)
+    ? "All branches"
+    : viewer.branches.length > 0
+      ? viewer.branches.map((branch) => branch.name).join(", ")
+      : "No branch assigned";
+
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 lg:block">
@@ -80,16 +232,26 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Sheet>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-card px-4 lg:px-8">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+          >
             <Menu className="h-5 w-5" />
           </Button>
-          <div className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">All branches</span>
+          <div className="truncate text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{scope}</span>
           </div>
           <div className="ml-auto flex items-center gap-2 text-sm">
-            <div className="hidden text-right leading-tight sm:block">
-              <div className="font-medium">Signed out</div>
-              <div className="text-xs text-muted-foreground">Authentication in Phase 2</div>
+            <div className="hidden max-w-[16rem] text-right leading-tight sm:block">
+              <div className="truncate font-medium">
+                {viewer.displayName || viewer.email || "Staff"}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
+                {viewer.roles.map((role) => ROLE_LABELS[role]).join(" · ")}
+              </div>
             </div>
           </div>
         </header>
