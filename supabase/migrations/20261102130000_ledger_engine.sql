@@ -14,7 +14,7 @@
 CREATE SEQUENCE IF NOT EXISTS public.journal_entry_ref_seq START 1;
 REVOKE ALL ON SEQUENCE public.journal_entry_ref_seq FROM PUBLIC, anon, authenticated;
 
-CREATE TABLE public.accounts (
+CREATE TABLE IF NOT EXISTS public.accounts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   code text NOT NULL UNIQUE,
   name text NOT NULL,
@@ -31,10 +31,11 @@ CREATE TABLE public.accounts (
   )
 );
 
+DROP TRIGGER IF EXISTS accounts_updated ON public.accounts;
 CREATE TRIGGER accounts_updated BEFORE UPDATE ON public.accounts
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
-CREATE TABLE public.journal_entries (
+CREATE TABLE IF NOT EXISTS public.journal_entries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   reference text NOT NULL UNIQUE,
   entry_date date NOT NULL,
@@ -47,7 +48,7 @@ CREATE TABLE public.journal_entries (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.journal_lines (
+CREATE TABLE IF NOT EXISTS public.journal_lines (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   entry_id uuid NOT NULL REFERENCES public.journal_entries(id),
   account_id uuid NOT NULL REFERENCES public.accounts(id),
@@ -57,10 +58,10 @@ CREATE TABLE public.journal_lines (
   memo text NOT NULL DEFAULT ''
 );
 
-CREATE INDEX journal_entries_date_idx ON public.journal_entries (entry_date DESC);
-CREATE INDEX journal_entries_branch_idx ON public.journal_entries (branch_id);
-CREATE INDEX journal_lines_entry_idx ON public.journal_lines (entry_id);
-CREATE INDEX journal_lines_account_idx ON public.journal_lines (account_id);
+CREATE INDEX IF NOT EXISTS journal_entries_date_idx ON public.journal_entries (entry_date DESC);
+CREATE INDEX IF NOT EXISTS journal_entries_branch_idx ON public.journal_entries (branch_id);
+CREATE INDEX IF NOT EXISTS journal_lines_entry_idx ON public.journal_lines (entry_id);
+CREATE INDEX IF NOT EXISTS journal_lines_account_idx ON public.journal_lines (account_id);
 
 -- Access helpers -----------------------------------------------------------
 
@@ -118,6 +119,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS journal_lines_balanced ON public.journal_lines;
 CREATE CONSTRAINT TRIGGER journal_lines_balanced
   AFTER INSERT ON public.journal_lines
   DEFERRABLE INITIALLY DEFERRED
@@ -130,8 +132,10 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS journal_entries_immutable ON public.journal_entries;
 CREATE TRIGGER journal_entries_immutable BEFORE UPDATE OR DELETE ON public.journal_entries
   FOR EACH ROW EXECUTE FUNCTION private.block_ledger_changes();
+DROP TRIGGER IF EXISTS journal_lines_immutable ON public.journal_lines;
 CREATE TRIGGER journal_lines_immutable BEFORE UPDATE OR DELETE ON public.journal_lines
   FOR EACH ROW EXECUTE FUNCTION private.block_ledger_changes();
 
@@ -296,19 +300,24 @@ ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.journal_lines ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS accounts_read ON public.accounts;
 CREATE POLICY accounts_read ON public.accounts FOR SELECT TO authenticated USING (
   EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.active)
 );
+DROP POLICY IF EXISTS accounts_manage ON public.accounts;
 CREATE POLICY accounts_manage ON public.accounts FOR INSERT TO authenticated WITH CHECK (
   private.can_post_journal()
 );
+DROP POLICY IF EXISTS accounts_update ON public.accounts;
 CREATE POLICY accounts_update ON public.accounts FOR UPDATE TO authenticated
   USING (private.can_post_journal()) WITH CHECK (private.can_post_journal());
 
+DROP POLICY IF EXISTS journal_entries_read ON public.journal_entries;
 CREATE POLICY journal_entries_read ON public.journal_entries FOR SELECT TO authenticated USING (
   private.can_view_branch(branch_id)
   AND EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.active)
 );
+DROP POLICY IF EXISTS journal_lines_read ON public.journal_lines;
 CREATE POLICY journal_lines_read ON public.journal_lines FOR SELECT TO authenticated USING (
   EXISTS (
     SELECT 1 FROM public.journal_entries e

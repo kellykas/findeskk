@@ -14,11 +14,10 @@ src/
   components/
     ui/              shadcn primitives (do not add business logic)
     layout/          AppShell (sidebar, top bar, mobile drawer)
-    shared/          PageHeader, StatCard, SectionCard, DataTable, DemoBadge, ModulePlaceholder
+    shared/          PageHeader, StatCard, SectionCard, DataTable, AccessDenied, ModulePlaceholder
   config/modules.ts  Module registry: navigation, titles, permissions, delivery phase
   domain/            Pure TypeScript: money, currency, roles. No React, no I/O.
   services/          Data access behind typed interfaces + TanStack Query options
-    demo/            Clearly labelled demonstration data (to be removed)
   integrations/      (Phase 2) Supabase clients, generated types
 supabase/migrations/ (Phase 2) Ordered SQL migrations
 docs/                Architecture and roadmap
@@ -28,7 +27,7 @@ docs/                Architecture and roadmap
 ```text
 Route loader -> service query options -> (demo | Supabase) -> domain types -> components
 ```
-Components only receive typed domain objects. Switching a service from demo to Supabase must not change any component.
+Components only receive typed domain objects. The dashboard now reads ledger balances and journal entries directly; an empty ledger renders zeros and an explicit empty state, never sample data.
 
 ## Authentication and staff access (Phase 2)
 
@@ -80,7 +79,8 @@ post_journal_entry(entry_date, description, branch, lines, idempotency_key)
 - The ledger is kept in the base currency (UGX). Foreign currency holdings post their UGX value at
   acquisition cost; rate history and inventory arrive in Phase 4.
 - `src/domain/ledger.ts` holds the pure rules (line validation, normal balances, trial balance) and
-  `src/services/ledger.service.ts` the typed reads/posting. No ledger screen exists yet.
+  `src/services/ledger.service.ts` the typed reads/posting. `/ledger` renders the trial balance and
+  recent journal lines read-only for roles with `reports.view`.
 
 ## Key decisions
 1. **Money as bigint minor units** on the client (`domain/money.ts`); NUMERIC in PostgreSQL. No floats.

@@ -5,6 +5,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
+  BookOpen,
   ArrowLeftRight,
   Smartphone,
   Wallet,
@@ -27,6 +28,7 @@ export interface AppModule {
     | "/customers"
     | "/employees"
     | "/branches"
+    | "/ledger"
     | "/expenses"
     | "/reports"
     | "/audit"
@@ -160,6 +162,16 @@ export const MODULES: AppModule[] = [
       "Financial summaries",
       "Profit and loss",
     ],
+  },
+  {
+    path: "/ledger",
+    title: "Ledger",
+    description: "Chart of accounts, trial balance and posted journal entries.",
+    icon: BookOpen,
+    group: "Oversight",
+    permission: "reports.view",
+    phase: 3,
+    plannedFeatures: [],
   },
   {
     path: "/reports",

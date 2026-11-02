@@ -1,7 +1,6 @@
 /** Reusable presentation primitives. No business logic lives here. */
 import type { ReactNode } from "react";
 import { ShieldAlert } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -34,17 +33,6 @@ export function AccessDenied({ title, description }: { title: string; descriptio
       <h2 className="text-sm font-semibold">{title}</h2>
       <p className="max-w-md text-sm text-muted-foreground">{description}</p>
     </Card>
-  );
-}
-
-export function DemoBadge() {
-  return (
-    <Badge
-      variant="outline"
-      className="border-warning bg-warning/15 font-medium text-warning-foreground"
-    >
-      Demo data
-    </Badge>
   );
 }
 

@@ -46,15 +46,19 @@
   an entry can be reversed only once.
 - **Derived balances** — `account_balances` security-invoker view feeds `ledger.service.ts`, with
   RLS preserved so branch users only see their branches.
+- **Ledger screen** — `/ledger` shows the chart of accounts with debit, credit and signed balances
+  (trial balance totals and a balanced/out-of-balance badge), plus the latest journal lines. It is
+  read-only and gated by `reports.view`; the database remains the authority.
 - **Verified locally** — the migrations and posting rules were executed against a throwaway
   PostgreSQL cluster: balanced/unbalanced posting, idempotent replay, double reversal, role and
   branch scoping, immutability and raw-write balance guards all behave as intended.
 
 ## Still pending in Phase 3
 
-- Dashboard still shows demonstration data; wiring it to ledger balances and recent entries needs
-  real postings from the operations modules.
-- No ledger screen yet (journal list, trial balance, account drilldown).
+- Dashboard now reads ledger balances, recent postings and branch activity; it shows zeros and an
+  empty state until the first entry is posted.
+- No account drilldown or date filtering yet; the screen shows the whole trial balance and the
+  latest 25 entries.
 - Audit trail table and `/audit` module are not built; access changes and postings are not yet
   recorded in a dedicated audit log.
 
@@ -67,7 +71,7 @@
 
 ## Still demo / pending after Phase 1
 
-- Dashboard figures: `src/services/demo/dashboard.demo.ts` (labelled "Demo data" in UI)
+- Dashboard figures: ledger-derived only (`src/services/dashboard.service.ts`); an empty ledger shows zeros and an explicit empty state
 - All operations modules (forex, mobile money, cash, customers, expenses, reports): placeholders
   listing planned capabilities; no operations possible
 - No ledger, posting functions or audit trail yet
