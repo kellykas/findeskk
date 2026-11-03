@@ -45,10 +45,23 @@ function Employees() {
 
   const [editing, setEditing] = useState<StaffMember | null>(null);
   const [creating, setCreating] = useState(false);
+  const [setupIssue, setSetupIssue] = useState<string | null>(null);
 
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ["staff"] });
     void queryClient.invalidateQueries({ queryKey: ["viewer"] });
+  }
+
+  /**
+   * A missing server key is a deployment problem, not something the user did
+   * wrong, so it stays on screen instead of disappearing with the toast.
+   */
+  function reportError(error: Error) {
+    if (/missing supabase environment variable/i.test(error.message)) {
+      setSetupIssue(error.message);
+      return;
+    }
+    toast.error(staffErrorMessage(error.message));
   }
 
   const create = useMutation({
@@ -58,7 +71,7 @@ function Employees() {
       setCreating(false);
       refresh();
     },
-    onError: (error: Error) => toast.error(staffErrorMessage(error.message)),
+    onError: (error: Error) => reportError(error),
   });
 
   const update = useMutation({
@@ -68,7 +81,7 @@ function Employees() {
       setEditing(null);
       refresh();
     },
-    onError: (error: Error) => toast.error(staffErrorMessage(error.message)),
+    onError: (error: Error) => reportError(error),
   });
 
   const remove = useMutation({
@@ -78,7 +91,7 @@ function Employees() {
       setEditing(null);
       refresh();
     },
-    onError: (error: Error) => toast.error(staffErrorMessage(error.message)),
+    onError: (error: Error) => reportError(error),
   });
 
   if (!allowed) {
@@ -123,6 +136,22 @@ function Employees() {
           </>
         }
       />
+
+      {setupIssue && (
+        <div
+          role="alert"
+          className="mb-6 rounded-2xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm"
+        >
+          <p className="font-medium text-destructive">
+            Employee accounts cannot be changed on this deployment yet.
+          </p>
+          <p className="mt-1 text-muted-foreground">{setupIssue}</p>
+          <p className="mt-1 text-muted-foreground">
+            An administrator must add the missing variable in Vercel under Settings → Environment
+            Variables, then redeploy. The steps are in docs/ADMIN-SETUP.md.
+          </p>
+        </div>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Employees" value={String(rows.length)} />

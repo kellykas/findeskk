@@ -68,6 +68,30 @@ where lower(u.email) = lower('administrator@example.com'); -- << replace
 
 Then sign out and back in (or reload) — the sidebar shows every module and the header shows the role.
 
+## Server environment variables (deployed builds)
+
+Employee account writes run on the server, so the deployment needs its own copies of these. Secrets
+belong in the host's dashboard, never in the repository.
+
+| Variable | Where to find it |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase → Settings → API → Project URL (`https://<ref>.supabase.co`). Baked into the browser bundle at build time. |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase → Settings → API Keys → **Publishable key** (or the legacy `anon` key). Also baked in at build time. |
+| `SUPABASE_URL` | The same project URL. The **unprefixed** name is what server functions read. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → **API Keys → Secret keys → `service_role`** (`sb_secret_…`), or on older dashboards **Settings → API → Project API keys → `service_role`** (a long `eyJ…` JWT). |
+
+In Vercel: project → **Settings → Environment Variables**, add each key for Production (and Preview if
+used), then **Deployments → Redeploy**. A variable only reaches a *new* deployment, so an existing
+build keeps failing until it is rebuilt.
+
+Never give the service-role key a `VITE_` prefix: that would compile it into the browser bundle. It
+bypasses row-level security entirely, so treat it like a password — roll it in Supabase if it is ever
+exposed, then update the host.
+
+If a required variable is missing, the Employees screen keeps a message on screen naming the missing
+variable instead of failing silently. `SUPABASE_SERVICE_ROLE_KEY` is what makes **Add employee**
+possible at all.
+
 ## Why not in the app?
 
 Creating auth accounts requires the Supabase **service role** key, which must never reach the
