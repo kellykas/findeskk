@@ -333,7 +333,7 @@ export async function postJournalEntry(input: PostJournalEntryInput): Promise<st
     })),
     _idempotency_key: input.idempotencyKey ?? null,
     _reverses_entry_id: input.reversesEntryId ?? null,
-  });
+  } as never);
   if (error) throw new Error(ledgerErrorMessage(error.message));
   return data as string;
 }
