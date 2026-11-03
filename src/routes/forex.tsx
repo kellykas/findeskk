@@ -232,9 +232,9 @@ function Forex() {
           hint="UGX value traded"
         />
         <StatCard
-          label="Margin (profit)"
+          label="Gross margin"
           value={formatMoney(money(margin, BASE_CURRENCY))}
-          hint="UGX"
+          hint="Profit on the trades shown, before running costs"
         />
         <StatCard
           label="Currencies traded"
@@ -247,11 +247,11 @@ function Forex() {
           {positions.map((pos) => (
             <StatCard
               key={pos.currency}
-              label={`${pos.currency} position`}
+              label={`${pos.currency} net bought`}
               value={`${pos.minor >= 0n ? "+" : ""}${(pos.minor / 100n).toString()}.${String(
                 Math.abs(Number(pos.minor % 100n)),
               ).padStart(2, "0")} ${pos.currency}`}
-              hint={pos.label}
+              hint={`${pos.label} · buys minus sells in the trades shown`}
             />
           ))}
         </div>

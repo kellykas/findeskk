@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/shared/FormError";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -63,14 +64,7 @@ export function StaffAccountDialog({ open, saving, onOpenChange, onSave }: Props
             </DialogDescription>
           </DialogHeader>
 
-          {error && (
-            <div
-              role="alert"
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
-            </div>
-          )}
+          <FormError message={error} />
 
           <div className="space-y-2">
             <Label htmlFor="account-name">Full name</Label>
@@ -108,6 +102,10 @@ export function StaffAccountDialog({ open, saving, onOpenChange, onSave }: Props
               autoComplete="new-password"
               required
             />
+            <p className="text-xs text-muted-foreground">
+              At least 8 characters. Give it to the employee, and they can change it after signing
+              in.
+            </p>
           </div>
 
           <fieldset className="space-y-2">

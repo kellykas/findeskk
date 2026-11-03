@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { FormError } from "@/components/shared/FormError";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -89,14 +90,7 @@ export function CustomerDialog({ customer, branches, open, saving, onOpenChange,
             </DialogDescription>
           </DialogHeader>
 
-          {error && (
-            <div
-              role="alert"
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
-            </div>
-          )}
+          <FormError message={error} />
 
           <div className="space-y-2">
             <Label htmlFor="customer-name">Name</Label>
@@ -109,7 +103,7 @@ export function CustomerDialog({ customer, branches, open, saving, onOpenChange,
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="customer-phone">Phone</Label>
               <Input
@@ -132,7 +126,7 @@ export function CustomerDialog({ customer, branches, open, saving, onOpenChange,
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Identification</Label>
               <Select value={idType} onValueChange={setIdType}>

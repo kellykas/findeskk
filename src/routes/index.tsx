@@ -176,9 +176,9 @@ function DashboardContent() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total balance"
+          label="Total assets"
           value={fmt(totalFor("asset"))}
-          hint="Assets across all branches"
+          hint="Everything the company owns, all branches"
         />
         <StatCard
           label="Income"
@@ -211,8 +211,8 @@ function DashboardContent() {
                 or estimated.
               </p>
               <p>
-                Balances and activity appear as soon as the first journal entry is posted — an
-                opening balance, or a transaction from the forex and mobile money modules.
+                Figures appear as soon as you record your first transaction: an expense or income, a
+                forex trade, or a mobile money entry.
               </p>
             </div>
           </SectionCard>

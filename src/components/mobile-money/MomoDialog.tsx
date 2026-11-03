@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { FormError } from "@/components/shared/FormError";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -149,16 +150,9 @@ export function MomoDialog({ branches, customers, open, saving, onOpenChange, on
             </DialogDescription>
           </DialogHeader>
 
-          {error && (
-            <div
-              role="alert"
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
-            </div>
-          )}
+          <FormError message={error} />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Type</Label>
               <Select
@@ -197,7 +191,7 @@ export function MomoDialog({ branches, customers, open, saving, onOpenChange, on
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="momo-amount">Amount (UGX)</Label>
               <Input
@@ -237,7 +231,7 @@ export function MomoDialog({ branches, customers, open, saving, onOpenChange, on
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Customer</Label>
               <Select value={customerId} onValueChange={setCustomerId}>
@@ -267,7 +261,7 @@ export function MomoDialog({ branches, customers, open, saving, onOpenChange, on
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="momo-network-ref">Network reference</Label>
               <Input

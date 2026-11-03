@@ -107,7 +107,7 @@ function Reports() {
     <AppShell>
       <PageHeader
         title="Reports"
-        description="Derived from posted journal lines, so every figure agrees with the ledger."
+        description="Financial figures come from posted journal lines. Forex and mobile money totals cover the latest 200 records in the period."
         actions={
           <>
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={!report}>

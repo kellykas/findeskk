@@ -89,7 +89,7 @@ function Cash() {
             <StatCard
               label="Physical cash"
               value={formatMoney(snap.totals.physical)}
-              hint="Cash on hand + 1010 + 1200"
+              hint="Notes and coins on hand"
             />
             <StatCard label="Bank" value={formatMoney(snap.totals.bank)} hint="Bank account" />
             <StatCard
@@ -98,9 +98,9 @@ function Cash() {
               hint="MTN + Airtel"
             />
             <StatCard
-              label="Imprest"
+              label="Staff advances"
               value={formatMoney(snap.totals.imprest)}
-              hint="Teller advances"
+              hint="Money held by tellers"
             />
             <StatCard
               label="Total position"
