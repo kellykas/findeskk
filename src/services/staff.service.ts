@@ -153,16 +153,32 @@ export async function listBranches(): Promise<BranchRecord[]> {
   }));
 }
 
+/**
+ * The access token for server functions. The browser session lives in local
+ * storage, and framework server-function calls carry no Authorization header,
+ * so the token is sent with the payload and verified on the server.
+ */
+async function currentAccessToken(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const existing = data.session?.access_token ?? "";
+  if (existing) return existing;
+
+  const refreshed = await supabase.auth.refreshSession();
+  const token = refreshed.data.session?.access_token ?? "";
+  if (!token) throw new Error("Unauthorized: your session expired. Sign in again.");
+  return token;
+}
+
 export async function createStaffAccount(input: StaffAccountInput): Promise<void> {
-  await createStaffAccountFn({ data: input });
+  await createStaffAccountFn({ data: { ...input, accessToken: await currentAccessToken() } });
 }
 
 export async function updateStaffAccount(input: StaffUpdateInput): Promise<void> {
-  await updateStaffAccountFn({ data: input });
+  await updateStaffAccountFn({ data: { ...input, accessToken: await currentAccessToken() } });
 }
 
 export async function deleteStaffAccount(userId: string): Promise<void> {
-  await deleteStaffAccountFn({ data: { userId } });
+  await deleteStaffAccountFn({ data: { userId, accessToken: await currentAccessToken() } });
 }
 
 export const staffQuery = queryOptions({

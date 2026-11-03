@@ -3,28 +3,44 @@
  *
  * Runs on the server because creating, renaming or deleting a sign-in requires
  * the Supabase service role, which must never reach the browser. Every handler
- * first proves the caller is a staff admin using their own token, and only then
- * uses the service client — so a normal employee cannot call these by hand.
+ * first proves the caller is a staff admin, and only then uses the service
+ * client — so a normal employee cannot call these by hand.
+ *
+ * The caller's access token travels in the payload rather than an Authorization
+ * header: the browser keeps its Supabase session in local storage and framework
+ * server-function calls do not carry that header, which made every call fail as
+ * "Unauthorized". The token is verified with Supabase before anything happens,
+ * so this is no weaker than the header check it replaces.
  */
 import { createServerFn } from "@tanstack/react-start";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
 import { ROLES, type Role } from "@/domain/roles";
 
 const ROLE_SET = new Set<string>(ROLES);
 const MIN_PASSWORD = 8;
 
-interface AuthContext {
-  supabase: SupabaseClient<Database>;
+interface Caller {
   userId: string;
 }
 
-async function assertStaffAdmin(context: AuthContext): Promise<void> {
-  const { data, error } = await context.supabase
+/** Verifies the token with Supabase; throws when it is missing or invalid. */
+async function requireCaller(accessToken: string): Promise<Caller> {
+  if (!accessToken) throw new Error("Unauthorized: sign in again.");
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
+
+  if (error || !data.user) {
+    throw new Error("Unauthorized: your session expired. Sign in again.");
+  }
+  return { userId: data.user.id };
+}
+
+async function assertStaffAdmin(caller: Caller): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
     .from("user_roles")
     .select("role")
-    .eq("user_id", context.userId);
+    .eq("user_id", caller.userId);
 
   if (error) throw new Error(error.message);
 
@@ -38,6 +54,10 @@ function readText(value: unknown, max: number): string {
   return String(value ?? "")
     .trim()
     .slice(0, max);
+}
+
+function readToken(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function readRoles(value: unknown): Role[] {
@@ -81,11 +101,10 @@ function friendlyAuthError(message: string): string {
   return message;
 }
 
+/** One company, one branch: everyone is scoped to it automatically. */
 async function assignSingleBranch(userId: string): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  // One company, one branch: everyone is scoped to it, so there is nothing for
-  // an administrator to choose.
   const { data: branch } = await supabaseAdmin
     .from("branches")
     .select("id")
@@ -113,18 +132,19 @@ async function staffAdminCount(): Promise<number> {
 }
 
 export const createStaffAccountFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .validator((input: unknown) => {
     const record = (input ?? {}) as Record<string, unknown>;
     return {
+      accessToken: readToken(record["accessToken"]),
       displayName: readText(record["displayName"], 80),
       email: readEmail(record["email"]),
       password: readPassword(record["password"], true) as string,
       roles: readRoles(record["roles"]),
     };
   })
-  .handler(async ({ data, context }): Promise<{ userId: string }> => {
-    await assertStaffAdmin(context as unknown as AuthContext);
+  .handler(async ({ data }): Promise<{ userId: string }> => {
+    const caller = await requireCaller(data.accessToken);
+    await assertStaffAdmin(caller);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     if (data.displayName.length < 2) throw new Error("Enter the employee's full name.");
@@ -159,10 +179,10 @@ export const createStaffAccountFn = createServerFn({ method: "POST" })
   });
 
 export const updateStaffAccountFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .validator((input: unknown) => {
     const record = (input ?? {}) as Record<string, unknown>;
     return {
+      accessToken: readToken(record["accessToken"]),
       userId: String(record["userId"] ?? ""),
       displayName: readText(record["displayName"], 80),
       active: Boolean(record["active"]),
@@ -170,12 +190,13 @@ export const updateStaffAccountFn = createServerFn({ method: "POST" })
       password: readPassword(record["password"], false),
     };
   })
-  .handler(async ({ data, context }): Promise<void> => {
-    await assertStaffAdmin(context as unknown as AuthContext);
+  .handler(async ({ data }): Promise<void> => {
+    const caller = await requireCaller(data.accessToken);
+    await assertStaffAdmin(caller);
     if (!data.userId) throw new Error("Choose an employee.");
     if (data.displayName.length < 2) throw new Error("Enter the employee's full name.");
 
-    const isSelf = data.userId === context.userId;
+    const isSelf = data.userId === caller.userId;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: currentRoles, error: roleError } = await supabaseAdmin
@@ -220,15 +241,18 @@ export const updateStaffAccountFn = createServerFn({ method: "POST" })
   });
 
 export const deleteStaffAccountFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .validator((input: unknown) => {
     const record = (input ?? {}) as Record<string, unknown>;
-    return { userId: String(record["userId"] ?? "") };
+    return {
+      accessToken: readToken(record["accessToken"]),
+      userId: String(record["userId"] ?? ""),
+    };
   })
-  .handler(async ({ data, context }): Promise<void> => {
-    await assertStaffAdmin(context as unknown as AuthContext);
+  .handler(async ({ data }): Promise<void> => {
+    const caller = await requireCaller(data.accessToken);
+    await assertStaffAdmin(caller);
     if (!data.userId) throw new Error("Choose an employee.");
-    if (data.userId === context.userId) throw new Error("You cannot delete your own account.");
+    if (data.userId === caller.userId) throw new Error("You cannot delete your own account.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

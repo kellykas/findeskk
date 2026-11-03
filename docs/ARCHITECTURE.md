@@ -45,8 +45,11 @@ Components only receive typed domain objects. The dashboard now reads ledger bal
 - `src/domain/access.ts` maps roles to permissions for navigation and gating. It intentionally
   mirrors `public.is_staff_admin()`: only `super_admin` and `company_owner` can manage staff.
 - Staff accounts are created, edited and deleted in `/employees` through the server functions in
-  `src/functions/staffAccounts.ts`. They authorize the caller with `requireSupabaseAuth`, then use
-  the service-role client, whose key never reaches the browser; the trigger `create_staff_profile()`
+  `src/functions/staffAccounts.ts`. Each call carries the caller's Supabase access token in its
+  payload, because the browser session lives in local storage and framework server-function calls
+  send no Authorization header; the server verifies that token with Supabase, checks the caller is a
+  staff admin, then uses the service-role client, whose key never reaches the browser. The trigger
+  `create_staff_profile()`
   still creates the matching profile. The server refuses changing your own access, removing the last
   administrator, and deleting a staff member who already posted ledger entries.
 - The first administrator is appointed with `claim_initial_admin()`, which only succeeds while
