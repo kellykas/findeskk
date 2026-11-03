@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +65,21 @@ export function TransferDialog({
   const [notes, setNotes] = useState("");
   const [entryDate, setEntryDate] = useState(todayUtcDate());
   const [error, setError] = useState<string | null>(null);
+
+  // Branches load after mount: pick sensible endpoints rather than leaving both
+  // empty, which would keep the submit button disabled forever.
+  useEffect(() => {
+    const first = branches[0];
+    if (!fromBranchId && first) setFromBranchId(first.id);
+  }, [branches, fromBranchId]);
+
+  useEffect(() => {
+    const destinations = branches.filter((branch) => branch.id !== fromBranchId);
+    if (!destinations.some((branch) => branch.id === toBranchId)) {
+      const next = destinations[0];
+      setToBranchId(next ? next.id : "");
+    }
+  }, [branches, fromBranchId, toBranchId]);
 
   const parsed = parseTransferAmount(amount, currency);
 

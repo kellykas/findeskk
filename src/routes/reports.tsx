@@ -20,7 +20,7 @@ import { momoCashMovement } from "@/domain/momo";
 import { expensesQuery } from "@/services/expenses.service";
 import { incomesQuery } from "@/services/income.service";
 import { branchesQuery, staffQuery } from "@/services/staff.service";
-import { Download } from "lucide-react";
+import { Printer } from "lucide-react";
 
 export const Route = createFileRoute("/reports")({
   head: () => ({
@@ -98,7 +98,8 @@ function Reports() {
     URL.revokeObjectURL(url);
   }
 
-  const exportPdf = () => {
+  // No PDF library: the browser's own print dialog can save the page as PDF.
+  const printReport = () => {
     window.print();
   };
 
@@ -112,9 +113,14 @@ function Reports() {
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={!report}>
               Export P&L (CSV)
             </Button>
-            <Button variant="default" size="sm" onClick={exportPdf}>
-              <Download className="mr-2 h-4 w-4" />
-              Export PDF
+            <Button
+              variant="default"
+              size="sm"
+              onClick={printReport}
+              title="Opens the print dialog, where you can save the report as a PDF"
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Print / Save PDF
             </Button>
           </>
         }

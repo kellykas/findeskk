@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -80,6 +80,12 @@ export function MomoDialog({ branches, customers, open, saving, onOpenChange, on
   const [notes, setNotes] = useState("");
   const [entryDate, setEntryDate] = useState(todayUtcDate());
   const [error, setError] = useState<string | null>(null);
+
+  // The branch list loads after this dialog mounts; adopt the only branch then.
+  useEffect(() => {
+    const first = branches[0];
+    if (!branchId && first) setBranchId(first.id);
+  }, [branches, branchId]);
 
   const parsedAmount = parseLedgerAmount(amount);
   const parsedCommission = parseLedgerAmount(commission);

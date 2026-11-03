@@ -60,7 +60,7 @@ function Login() {
           <p className="max-w-sm text-2xl font-medium leading-snug text-sidebar-primary">
             Forex Bureau and Mobile Money agency operations, on one ledger.
           </p>
-          <p className="mt-3 text-sm">Kampala · Multi-branch</p>
+          <p className="mt-3 text-sm">Kampala · Uganda</p>
         </div>
         <div className="text-xs opacity-60">© FinDesk</div>
       </div>

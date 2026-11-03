@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -71,6 +71,12 @@ export function IncomeDialog({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Adopt the only branch once the query resolves; see ExpenseDialog.
+  useEffect(() => {
+    const first = branches[0];
+    if (!branchId && first) setBranchId(first.id);
+  }, [branches, branchId]);
 
   const preview = parseIncomeAmount(amount);
 

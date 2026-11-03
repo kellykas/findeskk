@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/domain/money";
 import { can } from "@/domain/access";
 import { useSession } from "@/hooks/use-session";
@@ -61,14 +62,14 @@ function Cash() {
         title="Cash & Float"
         description="Tills, safes, mobile money float and reconciliation."
         actions={
-          <Badge
+          <Button
             variant="outline"
-            className="text-xs cursor-pointer hover:bg-muted/80"
+            size="sm"
             onClick={() => void snapshot.refetch()}
-            title="Refresh"
+            disabled={snapshot.isFetching}
           >
-            Refresh
-          </Badge>
+            {snapshot.isFetching ? "Refreshing…" : "Refresh"}
+          </Button>
         }
       />
 

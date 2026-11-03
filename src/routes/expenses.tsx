@@ -281,21 +281,27 @@ function Expenses() {
         Company-wide profit and loss lives in Reports, computed from the same ledger postings.
       </p>
 
-      <ExpenseDialog
-        branches={branchOptions}
-        open={recordForm}
-        saving={save.isPending}
-        suggestCategory={suggestExpenseCategory}
-        onOpenChange={setRecordForm}
-        onSave={(values) => save.mutate(values)}
-      />
-      <IncomeDialog
-        branches={branchOptions}
-        open={recordIncomeForm}
-        saving={saveIncome.isPending}
-        onOpenChange={setRecordIncomeForm}
-        onSave={(values) => saveIncome.mutate(values)}
-      />
+      {/* Mounted only while open: each form starts blank instead of keeping the
+          previous amount and error banner. */}
+      {recordForm && (
+        <ExpenseDialog
+          branches={branchOptions}
+          open
+          saving={save.isPending}
+          suggestCategory={suggestExpenseCategory}
+          onOpenChange={setRecordForm}
+          onSave={(values) => save.mutate(values)}
+        />
+      )}
+      {recordIncomeForm && (
+        <IncomeDialog
+          branches={branchOptions}
+          open
+          saving={saveIncome.isPending}
+          onOpenChange={setRecordIncomeForm}
+          onSave={(values) => saveIncome.mutate(values)}
+        />
+      )}
     </AppShell>
   );
 }

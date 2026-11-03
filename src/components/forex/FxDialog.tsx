@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +73,12 @@ export function FxDialog({
   const [notes, setNotes] = useState("");
   const [entryDate, setEntryDate] = useState(todayUtcDate());
   const [error, setError] = useState<string | null>(null);
+
+  // Rates and branches both load asynchronously; adopt the only branch once known.
+  useEffect(() => {
+    const first = branches[0];
+    if (!branchId && first) setBranchId(first.id);
+  }, [branches, branchId]);
 
   const chosenRate = latestRates.find((rate) => rate.currency === currency);
   const preview = chosenRate
@@ -298,9 +304,14 @@ export function FxDialog({
                   </span>
                 </div>
               </>
-            ) : (
+            ) : chosenRate ? (
               <p className="text-muted-foreground">
                 Enter an amount to preview the UGX value at the published rate.
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                No {currency} rate has been published yet. A rate manager must publish one before
+                this trade can be recorded.
               </p>
             )}
           </div>

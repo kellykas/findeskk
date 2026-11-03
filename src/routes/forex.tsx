@@ -211,7 +211,8 @@ function Forex() {
                 Publish rate
               </Button>
             )}
-            {canTransfer && (
+            {/* A transfer needs a second branch; with one branch there is nowhere to send it. */}
+            {canTransfer && branchOptions.length > 1 && (
               <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
                 Transfer
               </Button>
@@ -375,7 +376,9 @@ function Forex() {
           )}
           {!transfers.isPending && !transfers.isError && (transfers.data ?? []).length === 0 && (
             <p className="px-4 py-6 text-sm text-muted-foreground">
-              No currency has been moved between branches yet.
+              {branchOptions.length < 2
+                ? "This company works from one branch, so there is nothing to transfer between branches."
+                : "No currency has been moved between branches yet."}
             </p>
           )}
           {(transfers.data ?? []).length > 0 && (
@@ -384,27 +387,34 @@ function Forex() {
         </SectionCard>
       </div>
 
-      <FxDialog
-        latestRates={currentRates}
-        branches={branchOptions}
-        open={recordTrade}
-        saving={saveTrade.isPending}
-        onOpenChange={setRecordTrade}
-        onSave={(values) => saveTrade.mutate(values)}
-      />
-      <RateDialog
-        open={publishRate}
-        saving={saveRate.isPending}
-        onOpenChange={setPublishRate}
-        onSave={(values) => saveRate.mutate(values)}
-      />
-      <TransferDialog
-        branches={branchOptions}
-        open={transferOpen}
-        saving={saveTransfer.isPending}
-        onOpenChange={setTransferOpen}
-        onSave={(values) => saveTransfer.mutate(values)}
-      />
+      {/* Mounted only while open: reopening starts a blank form rather than the last one. */}
+      {recordTrade && (
+        <FxDialog
+          latestRates={currentRates}
+          branches={branchOptions}
+          open
+          saving={saveTrade.isPending}
+          onOpenChange={setRecordTrade}
+          onSave={(values) => saveTrade.mutate(values)}
+        />
+      )}
+      {publishRate && (
+        <RateDialog
+          open
+          saving={saveRate.isPending}
+          onOpenChange={setPublishRate}
+          onSave={(values) => saveRate.mutate(values)}
+        />
+      )}
+      {transferOpen && (
+        <TransferDialog
+          branches={branchOptions}
+          open
+          saving={saveTransfer.isPending}
+          onOpenChange={setTransferOpen}
+          onSave={(values) => saveTransfer.mutate(values)}
+        />
+      )}
       <FxReceiptDialog
         open={Boolean(receipt)}
         trade={receipt}

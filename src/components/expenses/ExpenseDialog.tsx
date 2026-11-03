@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   Dialog,
   DialogContent,
@@ -77,6 +77,13 @@ export function ExpenseDialog({
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
   const [suggesting, setSuggesting] = useState(false);
+
+  // Branches arrive after this dialog mounts, so select the only branch once it
+  // is known instead of leaving the form with no branch and a failing submit.
+  useEffect(() => {
+    const first = branches[0];
+    if (!branchId && first) setBranchId(first.id);
+  }, [branches, branchId]);
 
   async function handleSuggest() {
     if (!suggestCategory) return;

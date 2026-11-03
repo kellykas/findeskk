@@ -231,14 +231,17 @@ function MobileMoney() {
 
       <PlannedNext features={["Authorized reversals"]} />
 
-      <MomoDialog
-        branches={branchOptions}
-        customers={customerOptions}
-        open={recordForm}
-        saving={saveMomo.isPending}
-        onOpenChange={setRecordForm}
-        onSave={(values) => saveMomo.mutate(values)}
-      />
+      {/* Mounted only while open, so the form always starts blank. */}
+      {recordForm && (
+        <MomoDialog
+          branches={branchOptions}
+          customers={customerOptions}
+          open
+          saving={saveMomo.isPending}
+          onOpenChange={setRecordForm}
+          onSave={(values) => saveMomo.mutate(values)}
+        />
+      )}
     </AppShell>
   );
 }
