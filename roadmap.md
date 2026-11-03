@@ -10,4 +10,5 @@
 - [x] Execute the migrations and posting rules against a local PostgreSQL cluster (balanced/unbalanced, idempotent replay, reversals, role and branch scoping, raw-write guards).
 - [ ] Manual verification against the live Supabase project: sign in, open `/ledger`, then post the first opening balance and confirm the trial balance updates.
 - [ ] Account drilldown and date filtering on the ledger screen.
-- [ ] Audit trail table and `/audit` module.
+- [x] Audit trail table and `/audit` module.
+- [x] Phone menu, active page highlight, central sign-in gate.
