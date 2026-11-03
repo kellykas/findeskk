@@ -4,6 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { MomoDialog, type MomoFormValues } from "@/components/mobile-money/MomoDialog";
+import {
+  MomoReceiptDialog,
+  type MomoReceiptData,
+} from "@/components/mobile-money/MomoReceiptDialog";
 import { ReverseMomoDialog } from "@/components/mobile-money/ReverseMomoDialog";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +26,7 @@ import {
 } from "@/services/momo.service";
 import { branchesQuery } from "@/services/staff.service";
 import { customersQuery } from "@/services/customers.service";
+import { settingsQuery } from "@/services/settings.service";
 
 export const Route = createFileRoute("/mobile-money")({
   head: () => ({
@@ -45,19 +50,59 @@ function MobileMoney() {
   const transactions = useQuery({ ...momoQuery(100), enabled: allowed });
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
   const customers = useQuery({ ...customersQuery, enabled: allowed });
+  const settings = useQuery({ ...settingsQuery, enabled: allowed });
   const queryClient = useQueryClient();
   const [recordForm, setRecordForm] = useState(false);
   const [reversing, setReversing] = useState<MomoRecord | null>(null);
+  const [receipt, setReceipt] = useState<MomoReceiptData | null>(null);
   const [search, setSearch] = useState("");
+
+  const branchOptions = (branches.data ?? []).map((b) => ({
+    id: b.id,
+    code: b.code,
+    name: b.name,
+  }));
+  const branchNames = useMemo(
+    () => new Map(branchOptions.map((b) => [b.id, `${b.code} · ${b.name}`])),
+    [branchOptions],
+  );
+  const customerOptions = useMemo(
+    () =>
+      (customers.data ?? []).map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name,
+      })),
+    [customers.data],
+  );
+  const customerNames = useMemo(
+    () => new Map(customerOptions.map((c) => [c.id, c.name])),
+    [customerOptions],
+  );
 
   const saveMomo = useMutation({
     mutationFn: (values: MomoFormValues) =>
       recordMomo({ ...values, idempotencyKey: crypto.randomUUID() }),
-    onSuccess: () => {
+    onSuccess: (id, values) => {
       toast.success("Transaction recorded and posted to the ledger.");
       void queryClient.invalidateQueries({ queryKey: ["momo"] });
       void queryClient.invalidateQueries({ queryKey: ["ledger"] });
       setRecordForm(false);
+      // Receipts are optional: offer one, and the teller can close it.
+      setReceipt({
+        id,
+        branchId: values.branchId,
+        network: values.network,
+        type: values.type,
+        amount: values.amount,
+        commission: values.commission,
+        entryDate: values.entryDate,
+        customer:
+          (values.customerId ? customerNames.get(values.customerId) : values.customerRef) ||
+          "Walk-in",
+        networkRef: values.networkRef,
+        notes: values.notes,
+      });
     },
     onError: (error: Error) => toast.error(momoErrorMessage(error.message)),
   });
@@ -72,25 +117,6 @@ function MobileMoney() {
     },
     onError: (error: Error) => toast.error(momoErrorMessage(error.message)),
   });
-
-  const branchOptions = (branches.data ?? []).map((b) => ({
-    id: b.id,
-    code: b.code,
-    name: b.name,
-  }));
-  const customerOptions = useMemo(
-    () =>
-      (customers.data ?? []).map((c) => ({
-        id: c.id,
-        code: c.code,
-        name: c.name,
-      })),
-    [customers.data],
-  );
-  const customerNames = useMemo(
-    () => new Map(customerOptions.map((c) => [c.id, c.name])),
-    [customerOptions],
-  );
 
   const rows = useMemo(() => transactions.data ?? [], [transactions.data]);
   const visibleRows = useMemo(() => {
@@ -110,6 +136,21 @@ function MobileMoney() {
         .includes(needle);
     });
   }, [rows, search, customerNames]);
+
+  function receiptFor(row: MomoRecord): MomoReceiptData {
+    return {
+      id: row.id,
+      branchId: row.branchId,
+      network: row.network,
+      type: row.type,
+      amount: row.amount,
+      commission: row.commission,
+      entryDate: row.entryDate,
+      customer: (row.customerId ? customerNames.get(row.customerId) : row.customerRef) || "Walk-in",
+      networkRef: row.networkRef,
+      notes: row.notes,
+    };
+  }
 
   if (!allowed) {
     return (
@@ -263,6 +304,20 @@ function MobileMoney() {
                     </Badge>
                   ),
               },
+              {
+                header: "",
+                align: "right",
+                cell: (row) => (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Show the customer receipt"
+                    onClick={() => setReceipt(receiptFor(row))}
+                  >
+                    Receipt
+                  </Button>
+                ),
+              },
               ...(canReverse
                 ? [
                     {
@@ -318,6 +373,19 @@ function MobileMoney() {
             if (!next) setReversing(null);
           }}
           onConfirm={(reason) => reverse.mutate({ momoId: reversing.id, reason })}
+        />
+      )}
+
+      {receipt && (
+        <MomoReceiptDialog
+          receipt={receipt}
+          settings={settings.data ?? null}
+          branchName={branchNames.get(receipt.branchId) ?? "—"}
+          servedBy={viewer?.displayName ?? "—"}
+          open
+          onOpenChange={(next) => {
+            if (!next) setReceipt(null);
+          }}
         />
       )}
     </AppShell>
