@@ -54,6 +54,7 @@ export interface FxRecord {
   receiptNo: string;
   notes: string;
   entryDate: string;
+  createdBy: string | null;
   createdAt: string;
 }
 
@@ -73,6 +74,7 @@ export interface FxRow {
   receipt_no: string;
   notes: string;
   entry_date: string;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -128,6 +130,7 @@ export function mapFxTransaction(row: FxRow): FxRecord {
     receiptNo: row.receipt_no,
     notes: row.notes,
     entryDate: row.entry_date,
+    createdBy: row.created_by ?? null,
     createdAt: row.created_at,
   };
 }

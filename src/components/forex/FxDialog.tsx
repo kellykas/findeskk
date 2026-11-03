@@ -29,6 +29,7 @@ import {
   formatRate,
   fxSchema,
   previewTrade,
+  tradeRateFor,
   type FxCurrency,
   type FxRate,
   type FxSettlement,
@@ -107,7 +108,7 @@ export function FxDialog({
     setError(null);
     onSave({
       ...parsed.data,
-      rate: chosenRate.sellRate,
+      rate: tradeRateFor(type, chosenRate),
       costRate: chosenRate.buyRate,
     });
   }

@@ -24,6 +24,7 @@ export interface IncomeRow {
   reference: string;
   notes: string;
   journal_entry_id: string | null;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -45,6 +46,7 @@ export function mapIncome(row: IncomeRow): IncomeRecord {
     reference: row.reference,
     notes: row.notes,
     journalEntryId: row.journal_entry_id,
+    createdBy: row.created_by ?? null,
     createdAt: row.created_at,
   };
 }

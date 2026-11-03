@@ -78,6 +78,7 @@ export interface ExpenseRecord {
   reference: string;
   notes: string;
   journalEntryId: string | null;
+  createdBy: string | null;
   createdAt: string;
 }
 

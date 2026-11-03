@@ -120,6 +120,18 @@ export function previewTrade(input: {
   };
 }
 
+/**
+ * The published rate that prices this side of a trade: a buy pays UGX at the
+ * buy rate, a sell receives UGX at the sell rate. record_fx_transaction()
+ * rejects a trade priced off the other side, so this is the rate to send.
+ */
+export function tradeRateFor(
+  type: FxType,
+  rate: { buyRate: string; sellRate: string },
+): string {
+  return type === "buy" ? rate.buyRate : rate.sellRate;
+}
+
 export const fxSchema = z.object({
   type: z.enum(FX_TYPES),
   currency: z.enum(FX_CURRENCIES),

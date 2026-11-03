@@ -25,6 +25,7 @@ export interface MomoRecord {
   notes: string;
   entryDate: string;
   journalEntryId: string | null;
+  createdBy: string | null;
   createdAt: string;
 }
 
@@ -41,6 +42,7 @@ export interface MomoRow {
   notes: string;
   entry_date: string;
   journal_entry_id: string | null;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -64,6 +66,7 @@ export function mapMomoRow(row: MomoRow): MomoRecord {
     notes: row.notes,
     entryDate: row.entry_date,
     journalEntryId: row.journal_entry_id,
+    createdBy: row.created_by ?? null,
     createdAt: row.created_at,
   };
 }

@@ -21,6 +21,7 @@ function record(overrides: Partial<ExpenseRecord> = {}): ExpenseRecord {
     reference: "",
     notes: "",
     journalEntryId: null,
+    createdBy: null,
     createdAt: "2026-10-05T09:00:00Z",
     ...overrides,
   };

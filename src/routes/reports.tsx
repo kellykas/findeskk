@@ -6,7 +6,6 @@ import {
   AccessDenied,
   DataTable,
   PageHeader,
-  PlannedNext,
   SectionCard,
   StatCard,
 } from "@/components/shared";
@@ -16,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatMoney, money, type Money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
-import { ACCOUNT_TYPE_LABELS } from "@/domain/ledger";
+import { ACCOUNT_TYPE_LABELS, signedBalance } from "@/domain/ledger";
 import { buildPeriodReport, profitAndLossCsv, type ProfitAndLossRow } from "@/domain/reports";
 import { can } from "@/domain/access";
 import { useSession } from "@/hooks/use-session";
@@ -346,10 +345,9 @@ function Reports() {
                   entry.momoCount += 1;
                   branchMap.set(key, entry);
                 }
-                const expRows = (expenses.data ?? []).filter((e: any) => {
-                  const d = e.expenseDate;
-                  return d >= from && d <= to;
-                });
+                const expRows = (expenses.data ?? []).filter(
+                  (row) => row.expenseDate >= from && row.expenseDate <= to,
+                );
                 for (const e of expRows) {
                   const key = e.branchId;
                   const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
@@ -357,10 +355,9 @@ function Reports() {
                   entry.expenseCount += 1;
                   branchMap.set(key, entry);
                 }
-                const incRows = (incomes.data ?? []).filter((i: any) => {
-                  const d = i.incomeDate;
-                  return d >= from && d <= to;
-                });
+                const incRows = (incomes.data ?? []).filter(
+                  (row) => row.incomeDate >= from && row.incomeDate <= to,
+                );
                 for (const i of incRows) {
                   const key = i.branchId;
                   const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
@@ -403,10 +400,9 @@ function Reports() {
                   e.value += t.ugxAmount.minor;
                   tellerMap.set(key, e);
                 }
-                const expRows = (expenses.data ?? []).filter((e: any) => {
-                  const d = e.expenseDate;
-                  return d >= from && d <= to;
-                });
+                const expRows = (expenses.data ?? []).filter(
+                  (row) => row.expenseDate >= from && row.expenseDate <= to,
+                );
                 for (const ex of expRows) {
                   if (!ex.createdBy) continue;
                   const key = ex.createdBy;
@@ -415,10 +411,9 @@ function Reports() {
                   e.value += ex.amount.minor;
                   tellerMap.set(key, e);
                 }
-                const incRows = (incomes.data ?? []).filter((i: any) => {
-                  const d = i.incomeDate;
-                  return d >= from && d <= to;
-                });
+                const incRows = (incomes.data ?? []).filter(
+                  (row) => row.incomeDate >= from && row.incomeDate <= to,
+                );
                 for (const inc of incRows) {
                   if (!inc.createdBy) continue;
                   const key = inc.createdBy;
@@ -457,24 +452,46 @@ function Reports() {
           <div className="mt-6">
             <SectionCard title="Cash reconciliation report">
               {(() => {
-                const cashAccounts = (report?.accounts ?? []).filter((a) => a.code === "1000");
-                if (cashAccounts.length === 0) {
-                  return <p className="px-4 py-6 text-sm text-muted-foreground">No cash account (1000) found in this period.</p>;
+                const cashRows = (report?.trial.rows ?? []).filter((row) => row.code === "1000");
+                if (cashRows.length === 0) {
+                  return (
+                    <p className="px-4 py-6 text-sm text-muted-foreground">
+                      No cash account (1000) found in this period.
+                    </p>
+                  );
                 }
                 return (
                   <div className="divide-y text-sm">
-                    {cashAccounts.map((acc) => (
-                      <div key={acc.code} className="flex items-center justify-between px-4 py-3">
-                        <div>
-                          <div className="font-medium">{acc.code} · {acc.name}</div>
-                          <div className="text-xs text-muted-foreground">{ACCOUNT_TYPE_LABELS[acc.type]}</div>
+                    {cashRows.map((row) => {
+                      const balance = signedBalance({
+                        normalBalance: row.normalBalance,
+                        debit: row.debit,
+                        credit: row.credit,
+                      });
+                      return (
+                        <div
+                          key={row.code}
+                          className="flex items-center justify-between px-4 py-3"
+                        >
+                          <div>
+                            <div className="font-medium">
+                              {row.code} · {row.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {ACCOUNT_TYPE_LABELS[row.type]}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="tabular font-medium">
+                              Balance: {formatMoney(balance)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Debits {formatMoney(row.debit)} · Credits {formatMoney(row.credit)}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="tabular font-medium">Balance: {formatMoney(acc.balance)}</div>
-                          <div className="text-xs text-muted-foreground">Debits {formatMoney(acc.debitTotal)} · Credits {formatMoney(acc.creditTotal)}</div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })()}
