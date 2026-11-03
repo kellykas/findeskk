@@ -123,9 +123,16 @@ function ReceiptSheet({
       {settings.receiptFooter && (
         <div className="text-center text-muted-foreground">{settings.receiptFooter}</div>
       )}
-      <div className="mt-4 flex justify-between gap-4">
-        <span>Signature: ______________</span>
-        <span>Date: {day(receipt.entryDate)}</span>
+      <div className="mt-4 flex items-end justify-between gap-4">
+        <span className="min-w-0 flex-1">
+          {servedBy && servedBy !== "—" && (
+            <span className="receipt-signature block">{servedBy}</span>
+          )}
+          <span className="mt-0.5 block border-t border-dashed pt-0.5 text-muted-foreground">
+            Signature
+          </span>
+        </span>
+        <span className="shrink-0">Date: {day(receipt.entryDate)}</span>
       </div>
     </div>
   );

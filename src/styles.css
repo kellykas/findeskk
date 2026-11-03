@@ -187,6 +187,22 @@
   display: none;
 }
 
+/*
+ * Handwriting signature on receipts.
+ *
+ * Script faces already installed on the device are preferred over a webfont: a
+ * receipt must print the signature itself, not a fallback, and must not wait on
+ * a download to do it. The stack covers Windows, macOS and Linux devices.
+ */
+.receipt-signature {
+  font-family:
+    "Segoe Script", "Bradley Hand", "Brush Script MT", "Lucida Handwriting", "Snell Roundhand",
+    cursive;
+  font-size: 1.45em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
 @media print {
   body > *:not(.receipt-print-root) {
     display: none !important;
