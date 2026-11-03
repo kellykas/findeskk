@@ -9,6 +9,10 @@
 --     deactivated: history must keep resolving.
 --   * Writes go through the functions below; the tables are read-only to
 --     clients, so a code path cannot quietly invent a network or currency.
+--   * Who decides differs on purpose: a network moves money through a company
+--     float account, so only an owner/general manager may change it. A currency
+--     and its rate are day-to-day counter work, so any active staff member may
+--     keep them correct even when no manager is around. Auditors stay read-only.
 --
 -- Foreign currency amounts stay two-decimal (numeric(20,2)) exactly as the
 -- ledger stores them, which is why added currencies need no decimals setting.
@@ -60,6 +64,16 @@ $$;
 
 REVOKE ALL ON FUNCTION private.can_manage_reference() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION private.can_manage_reference() TO authenticated;
+
+-- Counter work: any active staff member, except an auditor (read-only by design).
+CREATE OR REPLACE FUNCTION private.can_manage_currencies()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.active)
+     AND NOT private.has_role(auth.uid(),'auditor')
+$$;
+
+REVOKE ALL ON FUNCTION private.can_manage_currencies() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION private.can_manage_currencies() TO authenticated;
 
 -- Mobile money networks: add / edit / deactivate / delete -------------------
 
@@ -141,8 +155,8 @@ BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
-  IF NOT private.can_manage_reference() THEN
-    RAISE EXCEPTION 'Forbidden: your roles cannot change currencies';
+  IF NOT private.can_manage_currencies() THEN
+    RAISE EXCEPTION 'Forbidden: your profile cannot change currencies';
   END IF;
   IF _normalised !~ '^[A-Z]{3}$' OR _normalised = 'UGX' THEN
     RAISE EXCEPTION 'Use a three letter currency code such as AED, and not the base currency';
@@ -173,8 +187,8 @@ BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
-  IF NOT private.can_manage_reference() THEN
-    RAISE EXCEPTION 'Forbidden: your roles cannot change currencies';
+  IF NOT private.can_manage_currencies() THEN
+    RAISE EXCEPTION 'Forbidden: your profile cannot change currencies';
   END IF;
   IF EXISTS (SELECT 1 FROM public.fx_rates r WHERE r.currency = _normalised)
      OR EXISTS (SELECT 1 FROM public.fx_transactions t WHERE t.currency = _normalised) THEN
@@ -375,3 +389,11 @@ CREATE POLICY fx_currencies_read ON public.fx_currencies FOR SELECT TO authentic
 GRANT SELECT ON public.momo_networks, public.fx_currencies TO authenticated;
 GRANT ALL ON public.momo_networks, public.fx_currencies TO service_role;
 REVOKE INSERT, UPDATE, DELETE ON public.momo_networks, public.fx_currencies FROM authenticated, anon;
+
+-- Publishing a rate is also counter work, so the insert policy follows the same
+-- rule as save_fx_currency(). Rates stay append-only: there is still no UPDATE or
+-- DELETE grant, so a published rate cannot be rewritten.
+DROP POLICY IF EXISTS fx_rates_insert ON public.fx_rates;
+CREATE POLICY fx_rates_insert ON public.fx_rates FOR INSERT TO authenticated WITH CHECK (
+  private.can_manage_currencies()
+);

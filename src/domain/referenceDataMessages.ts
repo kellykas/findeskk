@@ -1,11 +1,10 @@
 /** Plain-language messages for reference-data writes. */
 export function referenceErrorMessage(message: string): string {
   const text = message.toLowerCase();
-  if (
-    text.includes("cannot change mobile money networks") ||
-    text.includes("cannot change currencies")
-  )
-    return "Only a super admin, company owner or general manager can change these settings.";
+  if (text.includes("cannot change mobile money networks"))
+    return "Only a super admin, company owner or general manager can change mobile money networks.";
+  if (text.includes("cannot change currencies"))
+    return "Your profile cannot change currencies. Ask an administrator to activate it, or check that you are not signed in as an auditor.";
   if (text.includes("deactivate it instead"))
     return "This is already used by a transaction, so it cannot be deleted. Switch it off instead — history stays intact.";
   if (text.includes("float account")) return "Choose an active float account for this wallet.";

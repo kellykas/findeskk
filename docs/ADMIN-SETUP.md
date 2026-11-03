@@ -135,8 +135,11 @@ where proname in ('save_momo_network','delete_momo_network','save_fx_currency','
 
 What the rules are, so nobody is surprised:
 
-- Only a super admin, company owner or general manager can add or change these, in the app and in the
-  database. Everyone else can read them.
+- Mobile money networks are a manager decision: only a super admin, company owner or general manager
+  can add, change or switch one off, in the app and in the database. Everyone else can read them.
+- Currencies and exchange rates are counter work: any active staff member can add a currency, change
+  its name, switch it off, or publish a new rate, so the bureau keeps working when no manager is
+  around. Only the auditor cannot, because that role is read-only by design.
 - MTN and Airtel, and USD, EUR, GBP and KES, are created by the migration, so nothing existing is lost.
 - A network or currency that already has transactions (or published rates) cannot be deleted — switch
   it off instead. Recorded history must keep resolving.

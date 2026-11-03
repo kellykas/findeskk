@@ -74,9 +74,10 @@ const day = (value: string) =>
 function Forex() {
   const { viewer } = useSession();
   const allowed = Boolean(viewer && can(viewer.roles, "forex.transact"));
-  const canManageRates = Boolean(viewer && can(viewer.roles, "forex.rates.manage"));
   const canTransfer = Boolean(viewer && can(viewer.roles, "forex.transfer"));
-  const canManageCurrencies = Boolean(viewer && can(viewer.roles, "reference.manage"));
+  // Currencies and their rates are every staff member's job: a teller cannot wait
+  // for a manager to be around. Adding a network stays a manager decision.
+  const canManageCurrencies = Boolean(viewer && can(viewer.roles, "currencies.manage"));
   const [search, setSearch] = useState("");
   const [recordTrade, setRecordTrade] = useState(false);
   // Null when closed; an empty object opens on the first currency, and a code
@@ -262,7 +263,7 @@ function Forex() {
         description="Buy and sell foreign currency and manage exchange rates."
         actions={
           <>
-            {canManageRates && (
+            {canManageCurrencies && (
               <Button variant="outline" size="sm" onClick={() => setPublishRate({})}>
                 Publish rate
               </Button>
@@ -396,7 +397,7 @@ function Forex() {
                     </Badge>
                   ),
               },
-              ...(canManageRates
+              ...(canManageCurrencies
                 ? [
                     {
                       header: "",
