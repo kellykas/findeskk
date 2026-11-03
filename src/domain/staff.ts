@@ -1,48 +1,43 @@
 /**
- * Validation for staff and branch administration forms.
+ * Validation for staff administration forms.
  *
- * The same rules exist in the database; these checks only give staff fast,
- * readable feedback before a request is sent.
+ * The same rules exist in the database and in the server functions; these checks
+ * only give staff fast, readable feedback before a request is sent.
  */
 import { z } from "zod";
 import { ROLES } from "./roles";
 
-const branchCode = z
+const displayName = z
   .string()
   .trim()
-  .min(2, "Branch code needs at least 2 characters")
-  .max(12, "Branch code can have at most 12 characters")
-  .transform((value) => value.toUpperCase())
-  .refine((value) => /^[A-Z0-9][A-Z0-9-]*$/.test(value), "Use letters, digits and dashes only");
+  .min(2, "Enter the employee's full name")
+  .max(80, "Name can have at most 80 characters");
 
-export const branchInputSchema = z.object({
-  code: branchCode,
-  name: z
-    .string()
-    .trim()
-    .min(2, "Branch name needs at least 2 characters")
-    .max(80, "Branch name can have at most 80 characters"),
-  address: z.string().trim().max(160, "Address can have at most 160 characters").default(""),
+const roles = z.array(z.enum(ROLES)).min(1, "Select at least one role");
+
+const password = z
+  .string()
+  .min(8, "Use at least 8 characters")
+  .max(72, "Password can have at most 72 characters");
+
+/** Creating a sign-in needs an email and an initial password. */
+export const staffAccountSchema = z.object({
+  displayName,
+  email: z.string().trim().email("Enter a valid email address"),
+  password,
+  roles,
 });
-export type BranchInput = z.infer<typeof branchInputSchema>;
+export type StaffAccountInput = z.infer<typeof staffAccountSchema>;
 
-export const branchFormSchema = branchInputSchema.extend({
-  active: z.boolean(),
-});
-export type BranchFormInput = z.infer<typeof branchFormSchema>;
-
-export const staffAccessSchema = z.object({
+/** Editing leaves the password alone unless a new one is typed. */
+export const staffUpdateSchema = z.object({
   userId: z.string().uuid(),
-  displayName: z
-    .string()
-    .trim()
-    .min(2, "Full name needs at least 2 characters")
-    .max(80, "Full name can have at most 80 characters"),
+  displayName,
   active: z.boolean(),
-  roles: z.array(z.enum(ROLES)).min(1, "Select at least one role"),
-  branchIds: z.array(z.string().uuid()),
+  roles,
+  password: password.or(z.literal("")),
 });
-export type StaffAccessInput = z.infer<typeof staffAccessSchema>;
+export type StaffUpdateInput = z.infer<typeof staffUpdateSchema>;
 
 /** Trim an email and reject blanks so the UI never renders empty labels. */
 export function normalizeEmail(value: unknown): string | null {

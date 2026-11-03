@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -13,24 +14,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ROLES, ROLE_LABELS, type Role } from "@/domain/roles";
-import { staffAccessSchema, type StaffAccessInput } from "@/domain/staff";
-import type { BranchRecord, StaffMember } from "@/services/staff.service";
+import { staffUpdateSchema, type StaffUpdateInput } from "@/domain/staff";
+import type { StaffMember } from "@/services/staff.service";
 
 interface Props {
   staff: StaffMember;
-  branches: BranchRecord[];
   open: boolean;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (input: StaffAccessInput) => void;
+  onSave: (input: StaffUpdateInput) => void;
+  onDelete: (userId: string) => void;
 }
 
-/** Edits a staff member's name, status, roles and branch assignments. */
-export function StaffAccessDialog({ staff, branches, open, saving, onOpenChange, onSave }: Props) {
+/**
+ * Edits name, status, roles and password, and can delete the account. The
+ * database and server functions re-check every rule; this form only explains
+ * them.
+ */
+export function StaffAccessDialog({ staff, open, saving, onOpenChange, onSave, onDelete }: Props) {
   const [displayName, setDisplayName] = useState(staff.displayName);
   const [active, setActive] = useState(staff.active);
   const [selectedRoles, setSelectedRoles] = useState<Role[]>(staff.roles);
-  const [branchIds, setBranchIds] = useState<string[]>(staff.branchIds);
+  const [password, setPassword] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function toggleRole(role: Role) {
@@ -39,22 +45,14 @@ export function StaffAccessDialog({ staff, branches, open, saving, onOpenChange,
     );
   }
 
-  function toggleBranch(branchId: string) {
-    setBranchIds((current) =>
-      current.includes(branchId)
-        ? current.filter((item) => item !== branchId)
-        : [...current, branchId],
-    );
-  }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsed = staffAccessSchema.safeParse({
+    const parsed = staffUpdateSchema.safeParse({
       userId: staff.id,
       displayName,
       active,
       roles: selectedRoles,
-      branchIds,
+      password,
     });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
@@ -69,7 +67,7 @@ export function StaffAccessDialog({ staff, branches, open, saving, onOpenChange,
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
-            <DialogTitle>Manage staff access</DialogTitle>
+            <DialogTitle>Edit employee</DialogTitle>
             <DialogDescription>
               {staff.email ?? "Staff account"} · Changes are validated and enforced by the database.
             </DialogDescription>
@@ -99,7 +97,7 @@ export function StaffAccessDialog({ staff, branches, open, saving, onOpenChange,
             <div>
               <div className="text-sm font-medium">Account active</div>
               <p className="text-xs text-muted-foreground">
-                Inactive staff cannot sign in or use assigned branches.
+                Inactive staff cannot sign in or use the ledger.
               </p>
             </div>
             <Switch checked={active} onCheckedChange={setActive} aria-label="Account active" />
@@ -123,46 +121,64 @@ export function StaffAccessDialog({ staff, branches, open, saving, onOpenChange,
             </div>
           </fieldset>
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Branches</legend>
-            {branches.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No branches exist yet. Create a branch before assigning staff.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {branches.map((branch) => {
-                  const selectable = branch.active || branchIds.includes(branch.id);
-                  return (
-                    <div key={branch.id} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`branch-${branch.id}`}
-                        checked={branchIds.includes(branch.id)}
-                        disabled={!selectable}
-                        onCheckedChange={() => toggleBranch(branch.id)}
-                      />
-                      <Label htmlFor={`branch-${branch.id}`} className="text-sm font-normal">
-                        {branch.name}
-                        <span className="ml-1 font-mono text-xs text-muted-foreground">
-                          {branch.code}
-                        </span>
-                        {!branch.active && (
-                          <span className="ml-1 text-xs text-muted-foreground">(inactive)</span>
-                        )}
-                      </Label>
-                    </div>
-                  );
-                })}
+          <div className="space-y-2">
+            <Label htmlFor="staff-password">New password</Label>
+            <Input
+              id="staff-password"
+              type="text"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Leave blank to keep the current password"
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-3">
+            <div className="text-sm font-medium text-destructive">Delete this account</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Removes the sign-in and its access. Employees who already posted transactions cannot
+              be deleted — deactivate them instead.
+            </p>
+            {confirmDelete ? (
+              <div className="mt-2 flex gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => onDelete(staff.id)}
+                >
+                  {saving ? "Deleting…" : "Confirm delete"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Keep account
+                </Button>
               </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete employee
+              </Button>
             )}
-          </fieldset>
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save access"}
+              {saving ? "Saving…" : "Save changes"}
             </Button>
           </DialogFooter>
         </form>

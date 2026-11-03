@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditRouteImport } from './routes/audit'
-import { Route as BranchesRouteImport } from './routes/branches'
 import { Route as CashRouteImport } from './routes/cash'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as EmployeesRouteImport } from './routes/employees'
@@ -31,11 +30,6 @@ const IndexRoute = IndexRouteImport.update({
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BranchesRoute = BranchesRouteImport.update({
-  id: '/branches',
-  path: '/branches',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CashRoute = CashRouteImport.update({
@@ -92,7 +86,6 @@ const SettingsRoute = SettingsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
-  '/branches': typeof BranchesRoute
   '/cash': typeof CashRoute
   '/customers': typeof CustomersRoute
   '/employees': typeof EmployeesRoute
@@ -107,7 +100,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
-  '/branches': typeof BranchesRoute
   '/cash': typeof CashRoute
   '/customers': typeof CustomersRoute
   '/employees': typeof EmployeesRoute
@@ -123,7 +115,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/audit': typeof AuditRoute
-  '/branches': typeof BranchesRoute
   '/cash': typeof CashRoute
   '/customers': typeof CustomersRoute
   '/employees': typeof EmployeesRoute
@@ -140,7 +131,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/audit'
-    | '/branches'
     | '/cash'
     | '/customers'
     | '/employees'
@@ -155,7 +145,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/audit'
-    | '/branches'
     | '/cash'
     | '/customers'
     | '/employees'
@@ -170,7 +159,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/audit'
-    | '/branches'
     | '/cash'
     | '/customers'
     | '/employees'
@@ -186,7 +174,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuditRoute: typeof AuditRoute
-  BranchesRoute: typeof BranchesRoute
   CashRoute: typeof CashRoute
   CustomersRoute: typeof CustomersRoute
   EmployeesRoute: typeof EmployeesRoute
@@ -213,13 +200,6 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AuditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/branches': {
-      id: '/branches'
-      path: '/branches'
-      fullPath: '/branches'
-      preLoaderRoute: typeof BranchesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cash': {
@@ -298,7 +278,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuditRoute: AuditRoute,
-  BranchesRoute: BranchesRoute,
   CashRoute: CashRoute,
   CustomersRoute: CustomersRoute,
   EmployeesRoute: EmployeesRoute,

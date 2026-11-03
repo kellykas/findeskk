@@ -63,10 +63,16 @@ describe("buildStaffMembers", () => {
 describe("staffErrorMessage", () => {
   it("turns database constraints into readable guidance", () => {
     expect(staffErrorMessage("Forbidden")).toContain("super admin or company owner");
-    expect(staffErrorMessage("Administrators cannot change their own access")).toContain(
-      "your own access",
+    expect(staffErrorMessage("Only a super admin or the company owner can manage")).toContain(
+      "super admin or company owner",
     );
-    expect(staffErrorMessage("Invalid or inactive branch")).toContain("inactive");
+    expect(staffErrorMessage("You cannot delete your own account.")).toContain("your own");
+    expect(staffErrorMessage("The company needs at least one administrator.")).toContain(
+      "at least one administrator",
+    );
+    expect(staffErrorMessage("An employee with that email already exists.")).toContain(
+      "already exists",
+    );
   });
 
   it("passes unknown messages through", () => {

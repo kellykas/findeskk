@@ -13,7 +13,6 @@ import {
   Wallet,
   Users,
   IdCard,
-  Building2,
   Receipt,
   FileBarChart,
   ShieldCheck,
@@ -78,13 +77,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: IdCard,
     group: "Administration",
     permission: "employees.manage",
-  },
-  {
-    path: "/branches",
-    title: "Branches",
-    icon: Building2,
-    group: "Administration",
-    permission: "branches.manage",
   },
   {
     path: "/expenses",

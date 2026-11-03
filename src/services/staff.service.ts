@@ -1,27 +1,25 @@
 /**
- * Staff, branch and assignment data access.
+ * Staff data access.
  *
- * Reads and writes go through Supabase; RLS and save_staff_access() enforce
- * authorization. The pure helpers below are covered by unit tests.
+ * Reads are branch- and role-scoped by RLS. Account writes go through server
+ * functions, because creating or deleting a sign-in needs the service role.
  */
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLES, type Role } from "@/domain/roles";
+import type { StaffAccountInput, StaffUpdateInput } from "@/domain/staff";
 import {
-  normalizeEmail,
-  type BranchInput,
-  type BranchFormInput,
-  type StaffAccessInput,
-} from "@/domain/staff";
-
-const ROLE_SET = new Set<string>(ROLES);
+  createStaffAccountFn,
+  deleteStaffAccountFn,
+  updateStaffAccountFn,
+} from "@/functions/staffAccounts";
 
 export interface StaffProfileRow {
   id: string;
   display_name: string;
+  email: string | null;
   active: boolean;
   created_at: string;
-  email?: string | null;
 }
 
 export interface StaffMember {
@@ -54,7 +52,14 @@ interface AssignmentRow {
   branch_id: string;
 }
 
-/** Group the flat rows returned by PostgREST into the staff list the UI renders. */
+const ROLE_SET = new Set<string>(ROLES);
+
+export function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
 export function buildStaffMembers(
   profiles: StaffProfileRow[],
   roles: RoleRow[],
@@ -93,12 +98,16 @@ export function buildStaffMembers(
 
 export function staffErrorMessage(message: string): string {
   const text = message.toLowerCase();
-  if (text.includes("cannot change their own access")) return "You cannot change your own access.";
-  if (text.includes("forbidden"))
-    return "Only a super admin or company owner can change staff access.";
-  if (text.includes("invalid or inactive branch"))
-    return "One of the selected branches is inactive. Refresh and try again.";
+  if (text.includes("only a super admin") || text.includes("forbidden")) {
+    return "Only a super admin or company owner can manage employee accounts.";
+  }
+  if (text.includes("already exists")) return "An employee with that email already exists.";
+  if (text.includes("at least one administrator")) {
+    return "The company needs at least one administrator. Appoint another first.";
+  }
+  if (text.includes("your own")) return "You cannot change or delete your own account here.";
   if (text.includes("staff profile not found")) return "That staff profile no longer exists.";
+  if (text.includes("unauthorized")) return "Your session expired. Sign in again.";
   return message;
 }
 
@@ -112,7 +121,11 @@ export async function listStaff(): Promise<StaffMember[]> {
   const failure = [profiles.error, roles.error, assignments.error].find((error) => error !== null);
   if (failure) throw new Error(failure.message);
 
-  return buildStaffMembers(profiles.data ?? [], roles.data ?? [], assignments.data ?? []);
+  return buildStaffMembers(
+    (profiles.data ?? []) as unknown as StaffProfileRow[],
+    (roles.data ?? []) as unknown as RoleRow[],
+    (assignments.data ?? []) as unknown as AssignmentRow[],
+  );
 }
 
 export async function listBranches(): Promise<BranchRecord[]> {
@@ -140,38 +153,16 @@ export async function listBranches(): Promise<BranchRecord[]> {
   }));
 }
 
-export async function saveStaffAccess(input: StaffAccessInput): Promise<void> {
-  const { error } = await supabase.rpc("save_staff_access", {
-    _user_id: input.userId,
-    _display_name: input.displayName,
-    _active: input.active,
-    _roles: input.roles,
-    _branches: input.branchIds,
-  });
-  if (error) throw new Error(staffErrorMessage(error.message));
+export async function createStaffAccount(input: StaffAccountInput): Promise<void> {
+  await createStaffAccountFn({ data: input });
 }
 
-export async function createBranch(input: BranchInput): Promise<void> {
-  const { error } = await supabase
-    .from("branches")
-    .insert({ code: input.code, name: input.name, address: input.address });
-  if (error) throw new Error(branchErrorMessage(error));
+export async function updateStaffAccount(input: StaffUpdateInput): Promise<void> {
+  await updateStaffAccountFn({ data: input });
 }
 
-export async function updateBranch(input: BranchFormInput & { id: string }): Promise<void> {
-  const { error } = await supabase
-    .from("branches")
-    .update({ name: input.name, address: input.address, active: input.active })
-    .eq("id", input.id);
-  if (error) throw new Error(branchErrorMessage(error));
-}
-
-function branchErrorMessage(error: { code?: string; message: string }): string {
-  if (error.code === "23505" || error.message.toLowerCase().includes("duplicate key"))
-    return "That branch code is already in use.";
-  if (error.message.toLowerCase().includes("row-level security"))
-    return "Only a super admin or company owner can change branches.";
-  return error.message;
+export async function deleteStaffAccount(userId: string): Promise<void> {
+  await deleteStaffAccountFn({ data: { userId } });
 }
 
 export const staffQuery = queryOptions({

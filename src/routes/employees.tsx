@@ -2,19 +2,25 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { UserPlus } from "lucide-react";
+
 import { AppShell } from "@/components/layout/AppShell";
+import { StaffAccountDialog } from "@/components/employees/StaffAccountDialog";
 import { StaffAccessDialog } from "@/components/employees/StaffAccessDialog";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { can, isStaffAdmin } from "@/domain/access";
 import { ROLE_LABELS } from "@/domain/roles";
-import type { StaffAccessInput } from "@/domain/staff";
+import type { StaffAccountInput, StaffUpdateInput } from "@/domain/staff";
 import { useSession } from "@/hooks/use-session";
 import {
   branchesQuery,
-  saveStaffAccess,
+  createStaffAccount,
+  deleteStaffAccount,
+  staffErrorMessage,
   staffQuery,
+  updateStaffAccount,
   type StaffMember,
 } from "@/services/staff.service";
 
@@ -22,9 +28,9 @@ export const Route = createFileRoute("/employees")({
   head: () => ({
     meta: [
       { title: "Employees — FinDesk" },
-      { name: "description", content: "Staff profiles, roles and branch assignments." },
-      { property: "og:title", content: "Employees — FinDesk" },
-      { property: "og:description", content: "Staff profiles, roles and branch assignments." },
+      { name: "description", content: "Staff accounts, roles and access." },
+      { property: "og:title", title: "Employees — FinDesk" },
+      { property: "og:description", content: "Staff accounts, roles and access." },
     ],
   }),
   component: Employees,
@@ -36,26 +42,52 @@ function Employees() {
   const staff = useQuery({ ...staffQuery, enabled: allowed });
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
   const queryClient = useQueryClient();
-  const [editing, setEditing] = useState<StaffMember | null>(null);
 
-  const save = useMutation({
-    mutationFn: (input: StaffAccessInput) => saveStaffAccess(input),
+  const [editing, setEditing] = useState<StaffMember | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  function refresh() {
+    void queryClient.invalidateQueries({ queryKey: ["staff"] });
+    void queryClient.invalidateQueries({ queryKey: ["viewer"] });
+  }
+
+  const create = useMutation({
+    mutationFn: (input: StaffAccountInput) => createStaffAccount(input),
     onSuccess: (_result, input) => {
-      toast.success(`Access updated for ${input.displayName}.`);
-      setEditing(null);
-      void queryClient.invalidateQueries({ queryKey: ["staff"] });
-      void queryClient.invalidateQueries({ queryKey: ["viewer"] });
+      toast.success(`${input.displayName} can now sign in.`);
+      setCreating(false);
+      refresh();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error) => toast.error(staffErrorMessage(error.message)),
+  });
+
+  const update = useMutation({
+    mutationFn: (input: StaffUpdateInput) => updateStaffAccount(input),
+    onSuccess: (_result, input) => {
+      toast.success(`Account updated for ${input.displayName}.`);
+      setEditing(null);
+      refresh();
+    },
+    onError: (error: Error) => toast.error(staffErrorMessage(error.message)),
+  });
+
+  const remove = useMutation({
+    mutationFn: (userId: string) => deleteStaffAccount(userId),
+    onSuccess: () => {
+      toast.success("Employee account deleted.");
+      setEditing(null);
+      refresh();
+    },
+    onError: (error: Error) => toast.error(staffErrorMessage(error.message)),
   });
 
   if (!allowed) {
     return (
       <AppShell>
-        <PageHeader title="Employees" description="Staff profiles, roles and branch assignments." />
+        <PageHeader title="Employees" description="Staff accounts, roles and access." />
         <AccessDenied
           title="Employee management is restricted"
-          description="Only a super admin or the company owner can change staff access."
+          description="Only a super admin or the company owner can manage employee accounts."
         />
       </AppShell>
     );
@@ -64,56 +96,63 @@ function Employees() {
   const rows = staff.data ?? [];
   const activeCount = rows.filter((member) => member.active).length;
   const adminCount = rows.filter((member) => isStaffAdmin(member.roles)).length;
-  const unassignedCount = rows.filter((member) => member.branchIds.length === 0).length;
-  const branchNames = new Map((branches.data ?? []).map((branch) => [branch.id, branch.name]));
+  const inactiveCount = rows.length - activeCount;
+  const branchName = branches.data?.[0] ? `${branches.data[0].name}` : "Main branch";
+  const saving = create.isPending || update.isPending || remove.isPending;
 
   return (
     <AppShell>
       <PageHeader
         title="Employees"
-        description="Staff profiles, roles and branch assignments."
+        description={`Accounts, roles and access. Everyone works in ${branchName}.`}
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void staff.refetch()}
-            disabled={staff.isFetching}
-          >
-            {staff.isFetching ? "Refreshing…" : "Refresh"}
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => void staff.refetch()}
+              disabled={staff.isFetching}
+            >
+              {staff.isFetching ? "Refreshing…" : "Refresh"}
+            </Button>
+            <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
+              <UserPlus className="h-4 w-4" />
+              Add employee
+            </Button>
+          </>
         }
       />
 
-      <div className="mb-6 rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-        Staff accounts are created by the company administrator in the authentication provider.
-        Roles and branch access are managed here and enforced by the database.
-      </div>
-
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Staff" value={String(rows.length)} />
-        <StatCard label="Active" value={String(activeCount)} />
-        <StatCard label="Staff admins" value={String(adminCount)} hint="Super admin or owner" />
-        <StatCard label="No branch" value={String(unassignedCount)} hint="Unassigned staff" />
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Employees" value={String(rows.length)} />
+        <StatCard label="Active" value={String(activeCount)} hint="Can sign in" />
+        <StatCard label="Administrators" value={String(adminCount)} hint="Super admin or owner" />
+        <StatCard label="Inactive" value={String(inactiveCount)} hint="Sign-in blocked" />
       </div>
 
       <SectionCard title="Staff directory">
         {staff.isPending && (
-          <p className="px-4 py-6 text-sm text-muted-foreground">Loading staff…</p>
+          <p className="px-5 pb-6 text-sm text-muted-foreground">Loading staff…</p>
         )}
 
         {staff.isError && (
-          <div className="space-y-2 px-4 py-6 text-sm">
+          <div className="space-y-2 px-5 pb-6 text-sm">
             <p className="text-destructive">Could not load staff: {staff.error.message}</p>
-            <Button variant="outline" size="sm" onClick={() => void staff.refetch()}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => void staff.refetch()}
+            >
               Try again
             </Button>
           </div>
         )}
 
         {!staff.isPending && !staff.isError && rows.length === 0 && (
-          <p className="px-4 py-6 text-sm text-muted-foreground">
-            No staff profiles yet. Create a staff account in the authentication provider, then
-            reload this page to assign roles.
+          <p className="px-5 pb-6 text-sm text-muted-foreground">
+            No employees yet. Use “Add employee” to create the first account.
           </p>
         )}
 
@@ -123,7 +162,7 @@ function Employees() {
             rowKey={(member) => member.id}
             columns={[
               {
-                header: "Staff",
+                header: "Employee",
                 cell: (member) => (
                   <div className="leading-tight">
                     <div className="flex items-center gap-2">
@@ -158,21 +197,6 @@ function Employees() {
                   ),
               },
               {
-                header: "Branches",
-                cell: (member) =>
-                  member.branchIds.length > 0 ? (
-                    <div className="flex max-w-xs flex-wrap gap-1">
-                      {member.branchIds.map((branchId) => (
-                        <Badge key={branchId} variant="secondary" className="font-normal">
-                          {branchNames.get(branchId) ?? "Unknown branch"}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No branch</span>
-                  ),
-              },
-              {
                 header: "Status",
                 cell: (member) => (
                   <Badge variant={member.active ? "outline" : "secondary"} className="font-normal">
@@ -199,15 +223,14 @@ function Employees() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="rounded-full"
                     disabled={member.id === viewer?.userId}
                     title={
-                      member.id === viewer?.userId
-                        ? "Administrators cannot change their own access"
-                        : undefined
+                      member.id === viewer?.userId ? "You cannot change your own access" : undefined
                     }
                     onClick={() => setEditing(member)}
                   >
-                    Manage access
+                    Manage
                   </Button>
                 ),
               },
@@ -216,17 +239,28 @@ function Employees() {
         )}
       </SectionCard>
 
+      {creating && (
+        <StaffAccountDialog
+          open
+          saving={create.isPending}
+          onOpenChange={(next) => {
+            if (!next) setCreating(false);
+          }}
+          onSave={(input) => create.mutate(input)}
+        />
+      )}
+
       {editing && (
         <StaffAccessDialog
           key={editing.id}
           staff={editing}
-          branches={branches.data ?? []}
           open
-          saving={save.isPending}
+          saving={saving}
           onOpenChange={(next) => {
             if (!next) setEditing(null);
           }}
-          onSave={(input) => save.mutate(input)}
+          onSave={(input) => update.mutate(input)}
+          onDelete={(userId) => remove.mutate(userId)}
         />
       )}
     </AppShell>

@@ -27,7 +27,6 @@ export interface AppModule {
     | "/cash"
     | "/customers"
     | "/employees"
-    | "/branches"
     | "/ledger"
     | "/expenses"
     | "/reports"
@@ -113,21 +112,6 @@ export const MODULES: AppModule[] = [
       "Role and permission assignment",
       "Single or multi-branch assignments",
       "Activity history",
-    ],
-  },
-  {
-    path: "/branches",
-    title: "Branches",
-    description: "Branch profiles, accounts and performance.",
-    icon: Building2,
-    group: "Administration",
-    permission: "branches.manage",
-    phase: 2,
-    plannedFeatures: [
-      "Branch profiles",
-      "Branch cash, currency and float accounts",
-      "Branch employees",
-      "Branch performance",
     ],
   },
   {
