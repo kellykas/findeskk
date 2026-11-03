@@ -15,12 +15,22 @@ export function referenceErrorMessage(message: string): string {
   if (text.includes("give the network a name") || text.includes("give the currency a name"))
     return "Give it a name of at least 2 characters.";
   if (text.includes("not authenticated")) return "Your session expired. Sign in again.";
-  if (
+  if (isSetupMissing(message)) {
+    return "This needs one database step first: in Supabase open SQL Editor → New query, paste the file supabase/migrations/20261104150000_reference_data.sql, run it, then try again.";
+  }
+  return message;
+}
+
+/**
+ * True when the reference-data setup has not been run, so the interface can give
+ * the one-step explanation instead of a raw PostgREST error.
+ */
+export function isSetupMissing(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    text.includes("could not find the table") ||
     text.includes("could not find the function") ||
     text.includes("schema cache") ||
     text.includes("does not exist")
-  ) {
-    return "Managing networks and currencies needs a one-time database setup. The steps are in docs/ADMIN-SETUP.md.";
-  }
-  return message;
+  );
 }

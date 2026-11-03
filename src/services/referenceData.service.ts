@@ -79,7 +79,11 @@ export async function listFxCurrencies(): Promise<FxCurrencyRecord[]> {
   return ((data ?? []) as FxCurrencyRow[]).map(mapFxCurrency);
 }
 
-/** Asset accounts a wallet's float can be held in. */
+/**
+ * Asset accounts a wallet's float can be held in. Mobile money float accounts
+ * are listed first so a new network does not default to cash on hand, which
+ * would mix the wallet's balance into the till.
+ */
 export async function listFloatAccounts(): Promise<FloatAccountOption[]> {
   const { data, error } = await supabase
     .from("accounts")
@@ -88,7 +92,10 @@ export async function listFloatAccounts(): Promise<FloatAccountOption[]> {
     .eq("active", true)
     .order("code");
   if (error) throw new Error(error.message);
-  return (data ?? []) as AccountRow[];
+  return ((data ?? []) as AccountRow[]).sort(
+    (a, b) =>
+      Number(/float/i.test(b.name)) - Number(/float/i.test(a.name)) || a.code.localeCompare(b.code),
+  );
 }
 
 export async function saveMomoNetwork(input: MomoNetworkForm): Promise<void> {

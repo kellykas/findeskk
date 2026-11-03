@@ -10,13 +10,20 @@ import {
 } from "@/components/mobile-money/MomoReceiptDialog";
 import { MomoNetworkDialog } from "@/components/mobile-money/MomoNetworkDialog";
 import { ReverseMomoDialog } from "@/components/mobile-money/ReverseMomoDialog";
-import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
+import {
+  AccessDenied,
+  DataTable,
+  PageHeader,
+  SectionCard,
+  SetupNotice,
+  StatCard,
+} from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney, money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
 import { MOMO_TYPE_LABELS, momoCashMovement, momoNetworkLabel } from "@/domain/momo";
-import { referenceErrorMessage } from "@/domain/referenceDataMessages";
+import { isSetupMissing } from "@/domain/referenceDataMessages";
 import {
   activeNetworks,
   type MomoNetworkForm,
@@ -430,9 +437,15 @@ function MobileMoney() {
           <SectionCard
             title="Mobile money networks"
             action={
-              <Button variant="outline" size="sm" onClick={() => setNetworkForm({ network: null })}>
-                Add network
-              </Button>
+              networks.isError ? undefined : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNetworkForm({ network: null })}
+                >
+                  Add network
+                </Button>
+              )
             }
           >
             <p className="px-5 pb-3 text-sm text-muted-foreground">
@@ -441,18 +454,25 @@ function MobileMoney() {
             </p>
             {networks.isPending && (
               <p className="px-5 py-6 text-sm text-muted-foreground">Loading networks…</p>
-            )}
-            {networks.isError && (
-              <div className="space-y-2 px-5 py-6 text-sm">
-                <p className="text-destructive">{referenceErrorMessage(networks.error.message)}</p>
-                <p className="text-muted-foreground">
-                  Recording still works with MTN and Airtel until the setup file is run.
-                </p>
-                <Button variant="outline" size="sm" onClick={() => void networks.refetch()}>
-                  Try again
-                </Button>
-              </div>
-            )}
+            )}{" "}
+            {networks.isError &&
+              (isSetupMissing(networks.error.message) ? (
+                <SetupNotice file="supabase/migrations/20261104150000_reference_data.sql">
+                  <p className="text-muted-foreground">
+                    Recording keeps working with MTN and Airtel until then.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => void networks.refetch()}>
+                    Try again
+                  </Button>
+                </SetupNotice>
+              ) : (
+                <div className="space-y-2 px-5 py-6 text-sm">
+                  <p className="text-destructive">{networks.error.message}</p>
+                  <Button variant="outline" size="sm" onClick={() => void networks.refetch()}>
+                    Try again
+                  </Button>
+                </div>
+              ))}
             {!networks.isPending && !networks.isError && (networks.data ?? []).length === 0 && (
               <p className="px-5 py-6 text-sm text-muted-foreground">
                 No networks yet. Add the first one to start recording.

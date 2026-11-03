@@ -109,6 +109,24 @@ export function SectionCard({
   );
 }
 
+/**
+ * Explains a missing one-time database step in terms someone can act on,
+ * instead of leaving a raw error on screen.
+ */
+export function SetupNotice({ file, children }: { file: string; children?: ReactNode }) {
+  return (
+    <div className="space-y-2 px-5 py-6 text-sm">
+      <p className="font-medium">One database step is still needed</p>
+      <p className="text-muted-foreground">
+        In Supabase open <span className="font-medium">SQL Editor → New query</span>, paste the
+        contents of <code className="rounded bg-muted px-1 py-0.5 text-xs">{file}</code> from the
+        repository, run it, then press Try again here.
+      </p>
+      {children}
+    </div>
+  );
+}
+
 /** Honest list of capabilities a module does not have yet. */
 export function PlannedNext({ features }: { features: string[] }) {
   if (features.length === 0) return null;

@@ -8,7 +8,14 @@ import { FxReceiptDialog } from "@/components/forex/FxReceiptDialog";
 import { FxCurrencyDialog } from "@/components/forex/FxCurrencyDialog";
 import { RateDialog } from "@/components/forex/RateDialog";
 import { TransferDialog, type TransferValues } from "@/components/forex/TransferDialog";
-import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
+import {
+  AccessDenied,
+  DataTable,
+  PageHeader,
+  SectionCard,
+  SetupNotice,
+  StatCard,
+} from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney, money } from "@/domain/money";
@@ -28,7 +35,7 @@ import {
   type FxCurrencyRecord,
 } from "@/domain/referenceData";
 import { can } from "@/domain/access";
-import { referenceErrorMessage } from "@/domain/referenceDataMessages";
+import { isSetupMissing } from "@/domain/referenceDataMessages";
 import { useSession } from "@/hooks/use-session";
 import {
   fxQuery,
@@ -317,7 +324,7 @@ function Forex() {
       <SectionCard
         title="Currencies & rates"
         action={
-          canManageCurrencies ? (
+          canManageCurrencies && !currencies.isError ? (
             <Button variant="outline" size="sm" onClick={() => setCurrencyForm({ currency: null })}>
               Add currency
             </Button>
@@ -333,17 +340,24 @@ function Forex() {
         {currencies.isPending && (
           <p className="px-5 py-6 text-sm text-muted-foreground">Loading currencies…</p>
         )}
-        {currencies.isError && (
-          <div className="space-y-2 px-5 py-6 text-sm">
-            <p className="text-destructive">{referenceErrorMessage(currencies.error.message)}</p>
-            <p className="text-muted-foreground">
-              Trading still works in USD, EUR, GBP and KES until the setup file is run.
-            </p>
-            <Button variant="outline" size="sm" onClick={() => void currencies.refetch()}>
-              Try again
-            </Button>
-          </div>
-        )}
+        {currencies.isError &&
+          (isSetupMissing(currencies.error.message) ? (
+            <SetupNotice file="supabase/migrations/20261104150000_reference_data.sql">
+              <p className="text-muted-foreground">
+                Trading keeps working in USD, EUR, GBP and KES until then.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => void currencies.refetch()}>
+                Try again
+              </Button>
+            </SetupNotice>
+          ) : (
+            <div className="space-y-2 px-5 py-6 text-sm">
+              <p className="text-destructive">{currencies.error.message}</p>
+              <Button variant="outline" size="sm" onClick={() => void currencies.refetch()}>
+                Try again
+              </Button>
+            </div>
+          ))}
         {!currencies.isPending && !currencies.isError && (currencies.data ?? []).length === 0 && (
           <p className="px-5 py-6 text-sm text-muted-foreground">
             No currencies yet. Add the first one, then publish its rate.
