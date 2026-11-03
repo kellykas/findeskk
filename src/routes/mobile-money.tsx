@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { formatMoney, money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
 import { MOMO_TYPE_LABELS, momoCashMovement, momoNetworkLabel } from "@/domain/momo";
+import { referenceErrorMessage } from "@/domain/referenceDataMessages";
 import {
   activeNetworks,
   type MomoNetworkForm,
@@ -57,6 +58,15 @@ export const Route = createFileRoute("/mobile-money")({
 
 const day = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+/**
+ * The networks every company had before networks became manageable. Used only
+ * when the reference-data setup has not been run yet, so recording keeps working.
+ */
+const FALLBACK_NETWORKS = [
+  { code: "mtn", name: "MTN Mobile Money" },
+  { code: "airtel", name: "Airtel Money" },
+];
 
 function MobileMoney() {
   const { viewer } = useSession();
@@ -107,14 +117,14 @@ function MobileMoney() {
     () => new Map((networks.data ?? []).map((network) => [network.code, network.name])),
     [networks.data],
   );
-  const networkOptions = useMemo(
-    () =>
-      activeNetworks(networks.data ?? []).map((network) => ({
-        code: network.code,
-        name: network.name,
-      })),
-    [networks.data],
-  );
+  const networkOptions = useMemo(() => {
+    const managed = activeNetworks(networks.data ?? []).map((network) => ({
+      code: network.code,
+      name: network.name,
+    }));
+    if (managed.length > 0) return managed;
+    return networks.isError ? FALLBACK_NETWORKS : [];
+  }, [networks.data, networks.isError]);
   const accountNames = useMemo(
     () =>
       new Map(
@@ -434,8 +444,9 @@ function MobileMoney() {
             )}
             {networks.isError && (
               <div className="space-y-2 px-5 py-6 text-sm">
-                <p className="text-destructive">
-                  Could not load networks: {networks.error.message}
+                <p className="text-destructive">{referenceErrorMessage(networks.error.message)}</p>
+                <p className="text-muted-foreground">
+                  Recording still works with MTN and Airtel until the setup file is run.
                 </p>
                 <Button variant="outline" size="sm" onClick={() => void networks.refetch()}>
                   Try again

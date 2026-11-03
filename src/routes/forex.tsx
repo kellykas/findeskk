@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { formatMoney, money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
 import {
+  FX_CURRENCIES,
   FX_SETTLEMENT_LABELS,
   formatRate,
   fxCurrencyLabel,
@@ -27,6 +28,7 @@ import {
   type FxCurrencyRecord,
 } from "@/domain/referenceData";
 import { can } from "@/domain/access";
+import { referenceErrorMessage } from "@/domain/referenceDataMessages";
 import { useSession } from "@/hooks/use-session";
 import {
   fxQuery,
@@ -108,7 +110,15 @@ function Forex() {
     () => new Map((currencies.data ?? []).map((currency) => [currency.code, currency.name])),
     [currencies.data],
   );
-  const currencyOptions = useMemo(() => activeCurrencies(currencies.data ?? []), [currencies.data]);
+  const currencyOptions = useMemo(() => {
+    const managed = activeCurrencies(currencies.data ?? []);
+    if (managed.length > 0) return managed;
+    // Before the reference-data setup is run, trading continues in the seeded
+    // currencies so the module does not go dark.
+    return currencies.isError
+      ? FX_CURRENCIES.map((code) => ({ code, name: fxCurrencyLabel(code) }))
+      : [];
+  }, [currencies.data, currencies.isError]);
   const latestRateFor = (code: string) => currentRates.find((rate) => rate.currency === code);
 
   const saveTrade = useMutation({
@@ -324,8 +334,9 @@ function Forex() {
         )}
         {currencies.isError && (
           <div className="space-y-2 px-5 py-6 text-sm">
-            <p className="text-destructive">
-              Could not load currencies: {currencies.error.message}
+            <p className="text-destructive">{referenceErrorMessage(currencies.error.message)}</p>
+            <p className="text-muted-foreground">
+              Trading still works in USD, EUR, GBP and KES until the setup file is run.
             </p>
             <Button variant="outline" size="sm" onClick={() => void currencies.refetch()}>
               Try again
