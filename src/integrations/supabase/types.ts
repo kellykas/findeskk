@@ -53,6 +53,39 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          id: number
+          new_data: Json | null
+          occurred_at: string
+          old_data: Json | null
+          record_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          id?: never
+          new_data?: Json | null
+          occurred_at?: string
+          old_data?: Json | null
+          record_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          id?: never
+          new_data?: Json | null
+          occurred_at?: string
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       branch_assignments: {
         Row: {
           branch_id: string
