@@ -125,3 +125,34 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/*
+ * Printed receipts.
+ *
+ * A receipt is portalled to <body> as .receipt-print-root while its dialog is
+ * open. On screen it stays hidden; when printing, every other direct child of
+ * <body> (app shell, dialog overlay) is removed from the page so the browser
+ * prints the receipt and nothing else.
+ */
+.receipt-print-root {
+  display: none;
+}
+
+@media print {
+  body > *:not(.receipt-print-root) {
+    display: none !important;
+  }
+
+  .receipt-print-root {
+    display: block !important;
+    color: #000;
+  }
+
+  .receipt-print-root .text-muted-foreground {
+    color: #444 !important;
+  }
+
+  @page {
+    margin: 8mm;
+  }
+}

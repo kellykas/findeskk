@@ -4,12 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { FxDialog, type FxTradeValues } from "@/components/forex/FxDialog";
+import { FxReceiptDialog } from "@/components/forex/FxReceiptDialog";
 import { RateDialog } from "@/components/forex/RateDialog";
+import { TransferDialog, type TransferValues } from "@/components/forex/TransferDialog";
 import {
   AccessDenied,
   DataTable,
   PageHeader,
-  PlannedNext,
   SectionCard,
   StatCard,
 } from "@/components/shared";
@@ -36,6 +37,14 @@ import {
   type FxRecord,
 } from "@/services/forex.service";
 import { branchesQuery } from "@/services/staff.service";
+import { settingsQuery } from "@/services/settings.service";
+import { recordTransfer, transfersQuery } from "@/services/transfers.service";
+import {
+  TRANSFER_CURRENCY_LABELS,
+  formatTransferAmount,
+  parseTransferAmount,
+  type TransferRecord,
+} from "@/domain/transfers";
 
 export const Route = createFileRoute("/forex")({
   head: () => ({
@@ -59,13 +68,18 @@ function Forex() {
   const { viewer } = useSession();
   const allowed = Boolean(viewer && can(viewer.roles, "forex.transact"));
   const canManageRates = Boolean(viewer && can(viewer.roles, "forex.rates.manage"));
+  const canTransfer = Boolean(viewer && can(viewer.roles, "forex.transfer"));
   const [search, setSearch] = useState("");
   const [recordTrade, setRecordTrade] = useState(false);
   const [publishRate, setPublishRate] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [receipt, setReceipt] = useState<FxRecord | null>(null);
 
   const rates = useQuery({ ...fxRatesQuery, enabled: allowed });
   const trades = useQuery({ ...fxQuery(100), enabled: allowed });
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
+  const transfers = useQuery({ ...transfersQuery(100), enabled: allowed });
+  const settings = useQuery(settingsQuery);
   const queryClient = useQueryClient();
 
   const branchOptions = (branches.data ?? []).map((b) => ({
@@ -73,6 +87,7 @@ function Forex() {
     code: b.code,
     name: b.name,
   }));
+  const branchNames = new Map(branchOptions.map((b) => [b.id, `${b.code} · ${b.name}`]));
   const currentRates = latestRates(rates.data ?? []);
 
   const saveTrade = useMutation({
@@ -96,6 +111,30 @@ function Forex() {
       void queryClient.invalidateQueries({ queryKey: ["forex"] });
       void queryClient.invalidateQueries({ queryKey: ["ledger"] });
       setRecordTrade(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const saveTransfer = useMutation({
+    mutationFn: (values: TransferValues) => {
+      const amount = parseTransferAmount(values.amount, values.currency);
+      if (!amount) throw new Error("Enter an amount greater than zero.");
+      return recordTransfer({
+        currency: values.currency,
+        amount,
+        fromBranchId: values.fromBranchId,
+        toBranchId: values.toBranchId,
+        reference: values.reference,
+        notes: values.notes,
+        entryDate: values.entryDate,
+        idempotencyKey: crypto.randomUUID(),
+      });
+    },
+    onSuccess: () => {
+      toast.success("Transfer recorded and posted to both branches.");
+      void queryClient.invalidateQueries({ queryKey: ["forex"] });
+      void queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      setTransferOpen(false);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -153,6 +192,11 @@ function Forex() {
             {canManageRates && (
               <Button variant="outline" size="sm" onClick={() => setPublishRate(true)}>
                 Publish rate
+              </Button>
+            )}
+            {canTransfer && (
+              <Button variant="outline" size="sm" onClick={() => setTransferOpen(true)}>
+                Transfer
               </Button>
             )}
             <Button size="sm" onClick={() => setRecordTrade(true)}>
@@ -256,11 +300,53 @@ function Forex() {
               {search ? "No trades match that search." : "No trades recorded yet."}
             </p>
           )}
-          {visibleRows.length > 0 && <TradesTable rows={visibleRows} />}
+          {visibleRows.length > 0 && (
+            <TradesTable
+              rows={visibleRows}
+              branchNames={branchNames}
+              onReceipt={(trade) => setReceipt(trade)}
+            />
+          )}
         </SectionCard>
       </div>
 
-      <PlannedNext features={["Inter-branch currency transfers", "Printed receipts"]} />
+      <div className="mt-6">
+        <SectionCard
+          title="Branch transfers"
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void transfers.refetch()}
+              disabled={transfers.isFetching}
+            >
+              {transfers.isFetching ? "Refreshing…" : "Refresh"}
+            </Button>
+          }
+        >
+          {transfers.isPending && (
+            <p className="px-4 py-6 text-sm text-muted-foreground">Loading transfers…</p>
+          )}
+          {transfers.isError && (
+            <div className="space-y-2 px-4 py-6 text-sm">
+              <p className="text-destructive">
+                Could not load transfers: {transfers.error.message}
+              </p>
+              <Button variant="outline" size="sm" onClick={() => void transfers.refetch()}>
+                Try again
+              </Button>
+            </div>
+          )}
+          {!transfers.isPending && !transfers.isError && (transfers.data ?? []).length === 0 && (
+            <p className="px-4 py-6 text-sm text-muted-foreground">
+              No currency has been moved between branches yet.
+            </p>
+          )}
+          {(transfers.data ?? []).length > 0 && (
+            <TransfersTable rows={transfers.data ?? []} branchNames={branchNames} />
+          )}
+        </SectionCard>
+      </div>
 
       <FxDialog
         latestRates={currentRates}
@@ -276,11 +362,73 @@ function Forex() {
         onOpenChange={setPublishRate}
         onSave={(values) => saveRate.mutate(values)}
       />
+      <TransferDialog
+        branches={branchOptions}
+        open={transferOpen}
+        saving={saveTransfer.isPending}
+        onOpenChange={setTransferOpen}
+        onSave={(values) => saveTransfer.mutate(values)}
+      />
+      <FxReceiptDialog
+        open={Boolean(receipt)}
+        trade={receipt}
+        settings={settings.data ?? null}
+        branchName={receipt ? (branchNames.get(receipt.branchId) ?? "—") : "—"}
+        servedBy={viewer?.displayName ?? "—"}
+        onOpenChange={(open) => {
+          if (!open) setReceipt(null);
+        }}
+      />
     </AppShell>
   );
 }
 
-function TradesTable({ rows }: { rows: FxRecord[] }) {
+function TransfersTable({
+  rows,
+  branchNames,
+}: {
+  rows: TransferRecord[];
+  branchNames: Map<string, string>;
+}) {
+  return (
+    <DataTable
+      rows={rows}
+      rowKey={(transfer) => transfer.id}
+      columns={[
+        { header: "Date", cell: (transfer) => day(transfer.entryDate) },
+        {
+          header: "Currency",
+          cell: (transfer) => (
+            <span className="font-medium">
+              {transfer.currency} · {TRANSFER_CURRENCY_LABELS[transfer.currency]}
+            </span>
+          ),
+        },
+        {
+          header: "Amount",
+          align: "right",
+          cell: (transfer) => formatTransferAmount(transfer),
+        },
+        { header: "From", cell: (transfer) => branchNames.get(transfer.fromBranchId) ?? "—" },
+        { header: "To", cell: (transfer) => branchNames.get(transfer.toBranchId) ?? "—" },
+        {
+          header: "Reference / notes",
+          cell: (transfer) => transfer.reference || transfer.notes || "—",
+        },
+      ]}
+    />
+  );
+}
+
+function TradesTable({
+  rows,
+  branchNames,
+  onReceipt,
+}: {
+  rows: FxRecord[];
+  branchNames: Map<string, string>;
+  onReceipt: (trade: FxRecord) => void;
+}) {
   return (
     <DataTable
       rows={rows}
@@ -315,6 +463,18 @@ function TradesTable({ rows }: { rows: FxRecord[] }) {
         {
           header: "Customer / receipt",
           cell: (trade) => trade.customerRef || trade.receiptNo || "—",
+        },
+        {
+          header: "Branch",
+          cell: (trade) => branchNames.get(trade.branchId) ?? "—",
+        },
+        {
+          header: "",
+          cell: (trade) => (
+            <Button variant="ghost" size="sm" onClick={() => onReceipt(trade)}>
+              Receipt
+            </Button>
+          ),
         },
       ]}
     />

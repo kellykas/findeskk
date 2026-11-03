@@ -35,6 +35,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const PERMISSIONS = [
   "dashboard.view",
   "forex.transact",
+  "forex.transfer",
   "forex.rates.manage",
   "momo.transact",
   "cash.manage",
@@ -62,8 +63,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   general_manager: [
     "dashboard.view",
     "forex.transact",
+    "forex.transfer",
     "forex.rates.manage",
-    "momo.transact",
+      "momo.transact",
     "cash.manage",
     "transactions.approve",
     "transactions.reverse",
@@ -76,8 +78,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   branch_manager: [
     "dashboard.view",
     "forex.transact",
+    "forex.transfer",
     "forex.rates.manage",
-    "momo.transact",
+      "momo.transact",
     "cash.manage",
     "transactions.approve",
     "customers.view",
@@ -87,7 +90,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   supervisor: [
     "dashboard.view",
     "forex.transact",
-    "momo.transact",
+    "forex.transfer",
+      "momo.transact",
     "cash.manage",
     "transactions.approve",
     "customers.view",

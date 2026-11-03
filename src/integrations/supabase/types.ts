@@ -417,6 +417,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      incomes: {
+        Row: {
+          amount: number;
+          branch_id: string;
+          category: string;
+          created_at: string;
+          created_by: string | null;
+          description: string;
+          id: string;
+          idempotency_key: string | null;
+          income_date: string;
+          journal_entry_id: string | null;
+          notes: string;
+          received_into: string;
+          reference: string;
+        };
+        Insert: {
+          amount: string | number;
+          branch_id: string;
+          category: string;
+          created_at?: string;
+          created_by?: string | null;
+          description: string;
+          id?: string;
+          idempotency_key?: string | null;
+          income_date?: string;
+          journal_entry_id?: string | null;
+          notes?: string;
+          received_into?: string;
+          reference?: string;
+        };
+        Update: {
+          amount?: string | number;
+          branch_id?: string;
+          category?: string;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string;
+          id?: string;
+          idempotency_key?: string | null;
+          income_date?: string;
+          journal_entry_id?: string | null;
+          notes?: string;
+          received_into?: string;
+          reference?: string;
+        };
+        Relationships: [];
+      };
       fx_rates: {
         Row: {
           buy_rate: number;
@@ -507,6 +555,51 @@ export type Database = {
           type?: string;
           ugx_amount?: string | number;
           customer_ref?: string;
+        };
+        Relationships: [];
+      };
+      currency_transfers: {
+        Row: {
+          id: string;
+          currency: string;
+          amount: number;
+          from_branch_id: string;
+          to_branch_id: string;
+          reference: string;
+          notes: string;
+          entry_date: string;
+          journal_entry_id: string | null;
+          idempotency_key: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          currency: string;
+          amount: string | number;
+          from_branch_id: string;
+          to_branch_id: string;
+          reference?: string;
+          notes?: string;
+          entry_date?: string;
+          journal_entry_id?: string | null;
+          idempotency_key?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          currency?: string;
+          amount?: string | number;
+          from_branch_id?: string;
+          to_branch_id?: string;
+          reference?: string;
+          notes?: string;
+          entry_date?: string;
+          journal_entry_id?: string | null;
+          idempotency_key?: string | null;
+          created_by?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -646,6 +739,20 @@ export type Database = {
         };
         Returns: string;
       };
+      record_income: {
+        Args: {
+          _amount: string | number;
+          _branch_id: string;
+          _category: string;
+          _description: string;
+          _income_date: string;
+          _idempotency_key?: string | null;
+          _notes?: string;
+          _received_into: string;
+          _reference?: string;
+        };
+        Returns: string;
+      };
       record_fx_transaction: {
         Args: {
           _branch_id: string;
@@ -660,6 +767,19 @@ export type Database = {
           _type: string;
           _currency: string;
           _foreign_amount: string | number;
+        };
+        Returns: string;
+      };
+      record_currency_transfer: {
+        Args: {
+          _currency: string;
+          _amount: string | number;
+          _from_branch_id: string;
+          _to_branch_id: string;
+          _reference?: string;
+          _notes?: string;
+          _entry_date?: string;
+          _idempotency_key?: string | null;
         };
         Returns: string;
       };

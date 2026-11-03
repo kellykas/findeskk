@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ExpenseDialog, type ExpenseFormValues } from "@/components/expenses/ExpenseDialog";
+import { IncomeDialog, type IncomeFormValues } from "@/components/expenses/IncomeDialog";
 import {
   AccessDenied,
   DataTable,
@@ -22,9 +23,11 @@ import {
   type ExpenseCategory,
   type ExpenseRecord,
 } from "@/domain/expenses";
+import { INCOME_CATEGORY_LABELS, INCOME_RECEIPT_SOURCE_LABELS, type IncomeRecord } from "@/domain/income";
 import { can } from "@/domain/access";
 import { useSession } from "@/hooks/use-session";
 import { expensesQuery, recordExpense } from "@/services/expenses.service";
+import { incomesQuery, recordIncome } from "@/services/income.service";
 import { branchesQuery } from "@/services/staff.service";
 
 export const Route = createFileRoute("/expenses")({
@@ -48,10 +51,12 @@ function Expenses() {
   const { viewer } = useSession();
   const allowed = Boolean(viewer && can(viewer.roles, "expenses.manage"));
   const expenses = useQuery({ ...expensesQuery, enabled: allowed });
+  const incomes = useQuery({ ...incomesQuery, enabled: allowed });
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
   const queryClient = useQueryClient();
 
   const [recordForm, setRecordForm] = useState(false);
+  const [recordIncomeForm, setRecordIncomeForm] = useState(false);
   const [category, setCategory] = useState<ExpenseCategory | "all">("all");
 
   const save = useMutation({
@@ -62,6 +67,18 @@ function Expenses() {
       void queryClient.invalidateQueries({ queryKey: ["expenses"] });
       void queryClient.invalidateQueries({ queryKey: ["ledger"] });
       setRecordForm(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const saveIncome = useMutation({
+    mutationFn: (values: IncomeFormValues) =>
+      recordIncome({ ...values, idempotencyKey: crypto.randomUUID() }),
+    onSuccess: () => {
+      toast.success("Income recorded and posted to the ledger.");
+      void queryClient.invalidateQueries({ queryKey: ["income"] });
+      void queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      setRecordIncomeForm(false);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -93,29 +110,41 @@ function Expenses() {
       <AppShell>
         <PageHeader
           title="Expenses & Finance"
-          description="Record expenses and read the expense ledger."
+          description="Record expenses and income and read the ledgers."
         />
         <AccessDenied
-          title="Expenses are restricted"
-          description="Expense recording is available to the company owner, super admins, general managers and accountants. Ask a super admin to review your roles."
+          title="Expenses and income are restricted"
+          description="Recording is available to the company owner, super admins, general managers and accountants. Ask a super admin to review your roles."
         />
       </AppShell>
     );
   }
 
+  const incomeRows = incomes.data ?? [];
+
   return (
     <AppShell>
       <PageHeader
         title="Expenses & Finance"
-        description="Every expense posts a balanced journal entry against the chart of accounts."
+        description="Every expense and income posts a balanced journal entry against the chart of accounts."
         actions={
-          <Button
-            size="sm"
-            onClick={() => setRecordForm(true)}
-            disabled={branchOptions.length === 0}
-          >
-            Record expense
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRecordIncomeForm(true)}
+              disabled={branchOptions.length === 0}
+            >
+              Record income
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setRecordForm(true)}
+              disabled={branchOptions.length === 0}
+            >
+              Record expense
+            </Button>
+          </>
         }
       />
 
@@ -216,10 +245,46 @@ function Expenses() {
         </SectionCard>
       </div>
 
+      <div className="mt-6">
+        <SectionCard
+          title="Income register"
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void incomes.refetch()}
+              disabled={incomes.isFetching}
+            >
+              {incomes.isFetching ? "Refreshing…" : "Refresh"}
+            </Button>
+          }
+        >
+          {incomes.isPending && (
+            <p className="px-4 py-6 text-sm text-muted-foreground">Loading income…</p>
+          )}
+          {incomes.isError && (
+            <div className="space-y-2 px-4 py-6 text-sm">
+              <p className="text-destructive">Could not load income: {incomes.error.message}</p>
+              <p className="text-muted-foreground">
+                If this is a new deployment, apply the other income migration in Supabase.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => void incomes.refetch()}>
+                Try again
+              </Button>
+            </div>
+          )}
+          {!incomes.isPending && !incomes.isError && incomeRows.length === 0 && (
+            <p className="px-4 py-6 text-sm text-muted-foreground">
+              No income recorded yet.
+            </p>
+          )}
+          {incomeRows.length > 0 && <IncomeTable rows={incomeRows} branchNames={branchNames} />}
+        </SectionCard>
+      </div>
+
       <PlannedNext
         features={[
           "Expense approvals before posting",
-          "Income and commission analysis",
           "Profit and loss statement",
         ]}
       />
@@ -233,6 +298,13 @@ function Expenses() {
         saving={save.isPending}
         onOpenChange={setRecordForm}
         onSave={(values) => save.mutate(values)}
+      />
+      <IncomeDialog
+        branches={branchOptions}
+        open={recordIncomeForm}
+        saving={saveIncome.isPending}
+        onOpenChange={setRecordIncomeForm}
+        onSave={(values) => saveIncome.mutate(values)}
       />
     </AppShell>
   );
@@ -254,6 +326,30 @@ function ExpenseTable({
         { header: "Category", cell: (row) => EXPENSE_CATEGORY_LABELS[row.category] },
         { header: "Description", cell: (row) => row.description },
         { header: "Paid from", cell: (row) => PAYMENT_SOURCE_LABELS[row.paidFrom] },
+        { header: "Branch", cell: (row) => branchNames.get(row.branchId) ?? "—" },
+        { header: "Reference", cell: (row) => row.reference || "—" },
+        { header: "Amount", align: "right", cell: (row) => formatMoney(row.amount) },
+      ]}
+    />
+  );
+}
+
+function IncomeTable({
+  rows,
+  branchNames,
+}: {
+  rows: IncomeRecord[];
+  branchNames: Map<string, string>;
+}) {
+  return (
+    <DataTable
+      rows={rows}
+      rowKey={(row) => row.id}
+      columns={[
+        { header: "Date", cell: (row) => day(row.incomeDate) },
+        { header: "Category", cell: (row) => INCOME_CATEGORY_LABELS[row.category] },
+        { header: "Description", cell: (row) => row.description },
+        { header: "Received into", cell: (row) => INCOME_RECEIPT_SOURCE_LABELS[row.receivedInto] },
         { header: "Branch", cell: (row) => branchNames.get(row.branchId) ?? "—" },
         { header: "Reference", cell: (row) => row.reference || "—" },
         { header: "Amount", align: "right", cell: (row) => formatMoney(row.amount) },
