@@ -1,6 +1,6 @@
 # FinDesk — Architecture
 
-Forex Bureau and Mobile Money agency management system for a single multi-branch company in Uganda.
+Forex Bureau and Mobile Money agency management system for a single-branch company in Uganda.
 
 ## Stack
 - TanStack Start (React 19, TypeScript, Vite), Tailwind CSS v4, shadcn/ui
@@ -34,7 +34,7 @@ Components only receive typed domain objects. The dashboard now reads ledger bal
 ```text
 /login -> auth.service (Supabase Auth) -> SessionProvider -> viewer (profile + roles + branches)
       -> AppShell (requires session, filters navigation by permission)
-      -> /employees, /branches (staff admins only, enforced by RLS + save_staff_access)
+      -> /employees (staff admins only; enforced by RLS and service-role server functions)
 ```
 
 - The session is resolved in the browser only (`src/hooks/use-session.tsx`); SSR renders a loading
@@ -43,14 +43,17 @@ Components only receive typed domain objects. The dashboard now reads ledger bal
 - The viewer is `profiles` + `user_roles` + `branch_assignments` for the signed-in user. Inactive
   profiles and profiles without roles see an access screen instead of the app.
 - `src/domain/access.ts` maps roles to permissions for navigation and gating. It intentionally
-  mirrors `public.is_staff_admin()`: only `super_admin` and `company_owner` can manage staff and
-  branches.
-- Staff accounts are created in the authentication provider (Supabase dashboard); the trigger
-  `create_staff_profile()` creates the matching profile. Roles and branches are assigned in
-  `/employees` through the atomic `save_staff_access()` function.
+  mirrors `public.is_staff_admin()`: only `super_admin` and `company_owner` can manage staff.
+- Staff accounts are created, edited and deleted in `/employees` through the server functions in
+  `src/functions/staffAccounts.ts`. They authorize the caller with `requireSupabaseAuth`, then use
+  the service-role client, whose key never reaches the browser; the trigger `create_staff_profile()`
+  still creates the matching profile. The server refuses changing your own access, removing the last
+  administrator, and deleting a staff member who already posted ledger entries.
 - The first administrator is appointed with `claim_initial_admin()`, which only succeeds while
   `public.user_roles` is empty. It is one-time by construction; later claims return `false`.
-- Branches are deactivated, never deleted, so historical data and assignments stay intact.
+- The company runs one branch, so there is no branch management screen: new staff are assigned to
+  the single active branch automatically. Branches are deactivated rather than deleted, so
+  historical data and assignments stay intact.
 
 ## Accounting ledger (Phase 3)
 

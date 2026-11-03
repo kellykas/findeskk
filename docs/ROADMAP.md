@@ -19,12 +19,13 @@
   holds the session, `/` and every module page require it, and sign-out ends the session.
 - **Staff profiles** — created by a database trigger for every auth user; email, display name and
   active flag live in `public.profiles`.
-- **Roles and branches** — nine roles, multi-branch assignments, and a single atomic
-  `save_staff_access()` function that only super admins and the company owner may call. Staff cannot
-  change their own access, and direct table writes are revoked.
-- **Management screens** — `/employees` (roles, branches, active status) and `/branches`
-  (create, edit, deactivate). Both are only reachable for staff admins; the interface hides what the
-  database would refuse anyway.
+- **Roles and access** — nine roles, branch assignments, and a single atomic `save_staff_access()`
+  function that only super admins and the company owner may call. Staff cannot change their own
+  access, and direct table writes are revoked.
+- **Management screens** — `/employees` creates a staff sign-in, edits its name, status and roles,
+  resets the password and deletes the account. It is only reachable for staff admins; the interface
+  hides what the server and database would refuse anyway. There is no `/branches` screen: the
+  company runs a single branch, so new staff are assigned to it automatically.
 - **First administrator** — `claim_initial_admin()` grants `super_admin` to the first signed-in user,
   and only while the company has no roles at all. Run it once, immediately after creating your own
   account.
@@ -89,8 +90,9 @@ Until then those screens show a setup message instead of failing silently.
 
 ## Still pending in Phase 2
 
-- Staff account creation/invites and password reset are handled in the Supabase dashboard, not in
-  the app; a self-service invite flow needs a server-side service-role function.
+- **Invitations and self-service password reset** are still pending. An administrator can create an
+  account and set or reset its password in `/employees`, but there is no email invite yet, and those
+  screens need `SUPABASE_SERVICE_ROLE_KEY` in the server environment.
 - Live sign-in and RLS checks need a real staff account and the new migration applied.
 - Approval workflow and audit records for access changes arrive with the audit trail in Phase 3.
 
