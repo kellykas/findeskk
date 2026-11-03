@@ -98,7 +98,7 @@ const TYPE_SET = new Set<string>(ACCOUNT_TYPES);
  * PostgREST returns numeric columns as strings with fixed scale ("500000.00").
  * The base currency may use fewer decimals, so trim rather than reject.
  */
-function toMoney(value: string | number | null): Money {
+export function toMoney(value: string | number | null): Money {
   const text = String(value ?? "0").trim();
   const negative = text.startsWith("-");
   const [whole = "0", fraction = ""] = text.replace(/^[-+]/, "").split(".");
@@ -196,13 +196,89 @@ export function mapJournalEntries(
   });
 }
 
+/** PostgREST reports a missing relation (or stale schema cache) these ways. */
+function isMissingRelation(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    text.includes("schema cache") ||
+    text.includes("could not find the table") ||
+    text.includes("does not exist") ||
+    text.includes("42p01")
+  );
+}
+
+interface AccountRow {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  normal_balance: string;
+  active: boolean;
+}
+
+interface LineRow {
+  account_id: string;
+  side: string;
+  amount: string | number;
+}
+
+/**
+ * Fallback when the account_balances view has not been deployed yet: aggregate
+ * the same numbers from accounts + journal_lines in the client. RLS still
+ * applies to both tables, so branch scoping is unchanged.
+ */
+async function aggregateBalances(): Promise<AccountBalanceRow[]> {
+  const accountsResult = await supabase
+    .from("accounts")
+    .select("id, code, name, type, normal_balance, active")
+    .order("code", { ascending: true });
+  if (accountsResult.error) throw new Error(accountsResult.error.message);
+
+  const linesResult = await supabase.from("journal_lines").select("account_id, side, amount");
+  if (linesResult.error) throw new Error(linesResult.error.message);
+
+  const totals = new Map<string, { debit: bigint; credit: bigint }>();
+  for (const line of (linesResult.data ?? []) as unknown as LineRow[]) {
+    const entry = totals.get(line.account_id) ?? { debit: 0n, credit: 0n };
+    const amount = toMoney(line.amount).minor;
+    if (line.side === "debit") entry.debit += amount;
+    else entry.credit += amount;
+    totals.set(line.account_id, entry);
+  }
+
+  const { decimals } = getCurrency(BASE_CURRENCY);
+  const asNumeric = (minor: bigint) =>
+    decimals === 0 ? minor.toString() : toDecimalString(money(minor, BASE_CURRENCY));
+
+  return ((accountsResult.data ?? []) as unknown as AccountRow[]).map((account) => {
+    const entry = totals.get(account.id) ?? { debit: 0n, credit: 0n };
+    const signed =
+      account.normal_balance === "debit" ? entry.debit - entry.credit : entry.credit - entry.debit;
+    return {
+      account_id: account.id,
+      code: account.code,
+      name: account.name,
+      type: account.type,
+      normal_balance: account.normal_balance,
+      active: account.active,
+      total_debit: asNumeric(entry.debit),
+      total_credit: asNumeric(entry.credit),
+      balance: asNumeric(signed),
+    };
+  });
+}
+
 export async function listAccountBalances(): Promise<LedgerAccountBalance[]> {
   const { data, error } = await supabase
     .from("account_balances")
     .select("*")
     .order("code", { ascending: true });
-  if (error) throw new Error(error.message);
-  return mapAccountBalances((data ?? []) as unknown as AccountBalanceRow[]);
+  if (!error) return mapAccountBalances((data ?? []) as unknown as AccountBalanceRow[]);
+
+  // Older deployments may not have the view (or a stale schema cache). Read the
+  // same figures from the tables the ledger screen can always reach.
+  if (!isMissingRelation(error.message)) throw new Error(error.message);
+  return mapAccountBalances(await aggregateBalances());
 }
 
 export async function listRecentEntries(limit = 20): Promise<JournalEntry[]> {

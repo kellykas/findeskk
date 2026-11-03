@@ -78,6 +78,25 @@ export function SectionCard({
   );
 }
 
+/** Honest list of capabilities a module does not have yet. */
+export function PlannedNext({ features }: { features: string[] }) {
+  if (features.length === 0) return null;
+  return (
+    <div className="mt-6">
+      <SectionCard title="Planned next">
+        <ul className="divide-y text-sm">
+          {features.map((feature) => (
+            <li key={feature} className="flex items-center gap-3 px-4 py-3">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />
+              {feature}
+            </li>
+          ))}
+        </ul>
+      </SectionCard>
+    </div>
+  );
+}
+
 export interface Column<T> {
   header: string;
   cell: (row: T) => ReactNode;

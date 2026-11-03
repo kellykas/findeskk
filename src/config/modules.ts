@@ -62,14 +62,7 @@ export const MODULES: AppModule[] = [
     group: "Operations",
     permission: "forex.transact",
     phase: 4,
-    plannedFeatures: [
-      "Buy and sell foreign currency",
-      "Configurable buying and selling rates with history",
-      "Foreign currency inventory per branch",
-      "Cost basis and forex profit tracking",
-      "Inter-branch currency transfers",
-      "Receipts",
-    ],
+    plannedFeatures: ["Inter-branch currency transfers", "Receipts"],
   },
   {
     path: "/mobile-money",
@@ -79,13 +72,7 @@ export const MODULES: AppModule[] = [
     group: "Operations",
     permission: "momo.transact",
     phase: 5,
-    plannedFeatures: [
-      "MTN and Airtel deposits and withdrawals",
-      "Network reference capture (manually recorded, not network-verified)",
-      "Service charges and commissions",
-      "Float movements per network",
-      "Authorized reversals",
-    ],
+    plannedFeatures: ["Authorized reversals"],
   },
   {
     path: "/cash",
@@ -111,12 +98,7 @@ export const MODULES: AppModule[] = [
     group: "Operations",
     permission: "customers.view",
     phase: 4,
-    plannedFeatures: [
-      "Customer profiles and references",
-      "Identification details where legally required",
-      "Transaction history",
-      "Restricted access to personal data",
-    ],
+    plannedFeatures: ["Transaction history"],
   },
   {
     path: "/employees",
@@ -157,10 +139,9 @@ export const MODULES: AppModule[] = [
     permission: "expenses.manage",
     phase: 8,
     plannedFeatures: [
-      "Expenses with categories and approvals",
-      "Income and commissions",
-      "Financial summaries",
-      "Profit and loss",
+      "Expense approvals before posting",
+      "Income and commission analysis",
+      "Profit and loss statement",
     ],
   },
   {
@@ -182,11 +163,9 @@ export const MODULES: AppModule[] = [
     permission: "reports.view",
     phase: 8,
     plannedFeatures: [
-      "Daily transactions, forex and mobile money reports",
-      "Branch and teller performance",
-      "Cash reconciliation and reversals",
-      "Filters by date, branch, employee, currency and type",
-      "PDF and Excel export",
+      "Branch and teller performance breakdown",
+      "Cash reconciliation report",
+      "PDF export",
     ],
   },
   {
@@ -212,12 +191,7 @@ export const MODULES: AppModule[] = [
     group: "Administration",
     permission: "settings.manage",
     phase: 2,
-    plannedFeatures: [
-      "Company profile and logo",
-      "Configurable currencies",
-      "Role permission matrix",
-      "Receipt formats (58mm, 80mm, A4)",
-    ],
+    plannedFeatures: ["Logo upload", "Configurable currency list"],
   },
 ];
 

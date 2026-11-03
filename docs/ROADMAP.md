@@ -9,7 +9,7 @@
 | 5 | Mobile Money (manual recording) | |
 | 6 | Cash & float management, reconciliation | |
 | 7 | Receipts (58mm / 80mm / A4 / PDF) | |
-| 8 | Reports, expenses, administration | |
+| 8 | Reports, expenses, administration | In progress — settings, expenses and reports shipped; migrations must be applied |
 | 9 | PWA and desktop preparation | |
 | 10 | Testing, security review, deployment | |
 
@@ -53,6 +53,31 @@
   PostgreSQL cluster: balanced/unbalanced posting, idempotent replay, double reversal, role and
   branch scoping, immutability and raw-write balance guards all behave as intended.
 
+## Delivered in Phase 8 (settings, expenses, reports)
+
+- **Company settings** — `/settings` edits the single `company_settings` row (trading name, legal
+  name, address, phone, email, tax number, receipt format, receipt footer, fiscal year start). Any
+  active staff member can read it; only super admins and the company owner can save.
+- **Role permission matrix** — the same page shows every role against every permission, read from
+  `src/domain/roles.ts`. It is a preview of interface visibility; the database remains the authority.
+- **Expenses** — `/expenses` records an expense in one atomic action: `record_expense()` debits the
+  category's expense account and credits cash or bank, then stores the row. Entries are immutable;
+  corrections are reversing entries. The screen totals spend by category, payment source and month.
+- **Reports** — `/reports` derives a period trial balance, income statement and net profit from the
+  posted journal lines in a date range, summarises forex and mobile money activity for the same
+  period, and exports the profit and loss statement as CSV.
+- **Ledger resilience** — the ledger, cash and reporting screens no longer fail when the
+  `account_balances` view is absent; they aggregate the same figures from `accounts` and
+  `journal_lines`, which RLS already scopes by branch.
+- **Still pending** — expense approvals, branch/teller performance reports, cash reconciliation
+  report, PDF export and receipts printing.
+
+### Applying the migrations
+
+`supabase/migrations/20261102190000_settings_and_expenses.sql` must be applied to the Supabase
+project (SQL editor or `supabase db push`) before `/settings` and `/expenses` can read or write.
+Until then those screens show a setup message instead of failing silently.
+
 ## Still pending in Phase 3
 
 - Dashboard now reads ledger balances, recent postings and branch activity; it shows zeros and an
@@ -72,6 +97,5 @@
 ## Still demo / pending after Phase 1
 
 - Dashboard figures: ledger-derived only (`src/services/dashboard.service.ts`); an empty ledger shows zeros and an explicit empty state
-- All operations modules (forex, mobile money, cash, customers, expenses, reports): placeholders
-  listing planned capabilities; no operations possible
-- No ledger, posting functions or audit trail yet
+- Audit trail: `/audit` is still a placeholder listing planned capabilities
+- Remaining planned capabilities are listed inside each module under "Planned next"
