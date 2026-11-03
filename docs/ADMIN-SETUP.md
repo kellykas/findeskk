@@ -73,15 +73,15 @@ Then sign out and back in (or reload) — the sidebar shows every module and the
 Employee account writes run on the server, so the deployment needs its own copies of these. Secrets
 belong in the host's dashboard, never in the repository.
 
-| Variable | Where to find it |
-|---|---|
-| `VITE_SUPABASE_URL` | Supabase → Settings → API → Project URL (`https://<ref>.supabase.co`). Baked into the browser bundle at build time. |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase → Settings → API Keys → **Publishable key** (or the legacy `anon` key). Also baked in at build time. |
-| `SUPABASE_URL` | The same project URL. The **unprefixed** name is what server functions read. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → **API Keys → Secret keys → `service_role`** (`sb_secret_…`), or on older dashboards **Settings → API → Project API keys → `service_role`** (a long `eyJ…` JWT). |
+| Variable                        | Where to find it                                                                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`             | Supabase → Settings → API → Project URL (`https://<ref>.supabase.co`). Baked into the browser bundle at build time.                                                                   |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase → Settings → API Keys → **Publishable key** (or the legacy `anon` key). Also baked in at build time.                                                                         |
+| `SUPABASE_URL`                  | The same project URL. The **unprefixed** name is what server functions read.                                                                                                          |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase → Settings → **API Keys → Secret keys → `service_role`** (`sb_secret_…`), or on older dashboards **Settings → API → Project API keys → `service_role`** (a long `eyJ…` JWT). |
 
 In Vercel: project → **Settings → Environment Variables**, add each key for Production (and Preview if
-used), then **Deployments → Redeploy**. A variable only reaches a *new* deployment, so an existing
+used), then **Deployments → Redeploy**. A variable only reaches a _new_ deployment, so an existing
 build keeps failing until it is rebuilt.
 
 Never give the service-role key a `VITE_` prefix: that would compile it into the browser bundle. It
@@ -91,6 +91,26 @@ exposed, then update the host.
 If a required variable is missing, the Employees screen keeps a message on screen naming the missing
 variable instead of failing silently. `SUPABASE_SERVICE_ROLE_KEY` is what makes **Add employee**
 possible at all.
+
+## Enable reversals (one-time database step)
+
+Reversals are posted by a database function, so the project needs it once. Until this is done,
+pressing **Reverse** on a mobile money transaction reports that reversals need setup. Recording,
+receipts, reports and everything else keep working, so this is safe to do at any time.
+
+1. Open `supabase/migrations/20261104120000_momo_reversals.sql` in the repository (on GitHub: the
+   file → **Copy raw file**).
+2. Supabase dashboard → **SQL Editor** → **New query** → paste → **Run**.
+3. Confirm it exists — this should return one row:
+
+```sql
+select proname from pg_proc where proname = 'reverse_momo_transaction';
+```
+
+4. Reload the app. The **Reverse** button then asks for a reason and posts the cancelling entry.
+
+Only a super admin, company owner or general manager can reverse, and a transaction can be reversed
+once. Nothing is deleted: the original entry stays in the ledger next to its reversal.
 
 ## Why not in the app?
 

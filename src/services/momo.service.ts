@@ -197,7 +197,7 @@ export function momoErrorMessage(message: string): string {
     text.includes("schema cache") ||
     text.includes("does not exist")
   ) {
-    return "Reversals are not enabled on this deployment yet. Apply the mobile money reversal migration in Supabase.";
+    return "Reversals need a one-time database setup before they can be used. Ask your administrator to run the reversal setup file in Supabase — the steps are in docs/ADMIN-SETUP.md.";
   }
   return message;
 }
