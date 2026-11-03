@@ -71,7 +71,7 @@ export const MODULES: AppModule[] = [
     group: "Operations",
     permission: "momo.transact",
     phase: 5,
-    plannedFeatures: ["Authorized reversals"],
+    plannedFeatures: [],
   },
   {
     path: "/cash",

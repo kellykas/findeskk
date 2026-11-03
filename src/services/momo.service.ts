@@ -3,14 +3,24 @@
  *
  * Reads are branch-scoped by RLS. Writes go through
  * record_momo_transaction(), which posts the balanced journal entry in the
- * same transaction; the table itself is read-only to clients. The network
- * reference stored here is entered by staff and is never network-verified.
+ * same transaction; the table itself is read-only to clients. Reversals go
+ * through reverse_momo_transaction(), which posts the cancelling entry and
+ * records who reversed what and why. The network reference stored here is
+ * entered by staff and is never network-verified.
  */
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MOMO_NETWORKS, MOMO_TYPES, type MomoNetwork, type MomoType } from "@/domain/momo";
 import { toDecimalString, type Money } from "@/domain/money";
 import { toMoney } from "./ledger.service";
+
+export interface MomoReversal {
+  id: string;
+  reason: string;
+  journalEntryId: string;
+  reversedBy: string;
+  reversedAt: string;
+}
 
 export interface MomoRecord {
   id: string;
@@ -27,6 +37,8 @@ export interface MomoRecord {
   journalEntryId: string | null;
   createdBy: string | null;
   createdAt: string;
+  /** Null while the transaction stands; set once it has been reversed. */
+  reversal: MomoReversal | null;
 }
 
 export interface MomoRow {
@@ -46,10 +58,19 @@ export interface MomoRow {
   created_at: string;
 }
 
+export interface MomoReversalRow {
+  id: string;
+  momo_id: string;
+  reason: string;
+  journal_entry_id: string;
+  reversed_by: string;
+  created_at: string;
+}
+
 const NETWORK_SET = new Set<string>(MOMO_NETWORKS);
 const TYPE_SET = new Set<string>(MOMO_TYPES);
 
-export function mapMomoRow(row: MomoRow): MomoRecord {
+export function mapMomoRow(row: MomoRow, reversal: MomoReversalRow | null = null): MomoRecord {
   if (!NETWORK_SET.has(row.network))
     throw new Error(`Unknown mobile money network: ${row.network}`);
   if (!TYPE_SET.has(row.type)) throw new Error(`Unknown transaction type: ${row.type}`);
@@ -68,22 +89,42 @@ export function mapMomoRow(row: MomoRow): MomoRecord {
     journalEntryId: row.journal_entry_id,
     createdBy: row.created_by ?? null,
     createdAt: row.created_at,
+    reversal: reversal
+      ? {
+          id: reversal.id,
+          reason: reversal.reason,
+          journalEntryId: reversal.journal_entry_id,
+          reversedBy: reversal.reversed_by,
+          reversedAt: reversal.created_at,
+        }
+      : null,
   };
 }
 
-export function mapMomoRows(rows: MomoRow[]): MomoRecord[] {
-  return rows.map(mapMomoRow);
+export function mapMomoRows(rows: MomoRow[], reversals: MomoReversalRow[] = []): MomoRecord[] {
+  const byMomo = new Map(reversals.map((reversal) => [reversal.momo_id, reversal]));
+  return rows.map((row) => mapMomoRow(row, byMomo.get(row.id) ?? null));
 }
 
 export async function listMomo(limit = 100): Promise<MomoRecord[]> {
-  const { data, error } = await supabase
-    .from("momo_transactions")
-    .select("*")
-    .order("entry_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  if (error) throw new Error(error.message);
-  return mapMomoRows((data ?? []) as unknown as MomoRow[]);
+  const [transactions, reversals] = await Promise.all([
+    supabase
+      .from("momo_transactions")
+      .select("*")
+      .order("entry_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    supabase.from("momo_reversals").select("*"),
+  ]);
+
+  if (transactions.error) throw new Error(transactions.error.message);
+
+  // A deployment without the reversal migration must still be able to read and
+  // record transactions, so a missing table only means "nothing reversed yet";
+  // attempting a reversal then reports that the feature is not enabled.
+  const reversalRows = reversals.error ? [] : ((reversals.data ?? []) as MomoReversalRow[]);
+
+  return mapMomoRows((transactions.data ?? []) as unknown as MomoRow[], reversalRows);
 }
 
 export interface RecordMomoInput {
@@ -118,10 +159,26 @@ export async function recordMomo(input: RecordMomoInput): Promise<string> {
   return data as string;
 }
 
+export async function reverseMomo(input: { momoId: string; reason: string }): Promise<string> {
+  const { data, error } = await supabase.rpc("reverse_momo_transaction", {
+    _momo_id: input.momoId,
+    _reason: input.reason,
+  } as never);
+  if (error) throw new Error(momoErrorMessage(error.message));
+  return data as string;
+}
+
 export function momoErrorMessage(message: string): string {
   const text = message.toLowerCase();
   if (text.includes("cannot record mobile money"))
     return "Your roles cannot record mobile money transactions.";
+  if (text.includes("cannot reverse transactions"))
+    return "Only a super admin, company owner or general manager can reverse a transaction.";
+  if (text.includes("already been reversed")) return "That transaction was already reversed.";
+  if (text.includes("reason of at least")) return "Give a reason of at least 4 characters.";
+  if (text.includes("no journal entry to reverse"))
+    return "This transaction has no ledger entry to reverse.";
+  if (text.includes("reversible")) return "That transaction cannot be reversed.";
   if (text.includes("not assigned to this branch")) return "You are not assigned to that branch.";
   if (text.includes("commission must be less"))
     return "Commission must be less than the withdrawal amount.";
@@ -135,6 +192,13 @@ export function momoErrorMessage(message: string): string {
   if (text.includes("not authenticated")) return "Your session expired. Sign in again.";
   if (text.includes("duplicate key") || text.includes("unique"))
     return "That transaction was already recorded.";
+  if (
+    text.includes("could not find the function") ||
+    text.includes("schema cache") ||
+    text.includes("does not exist")
+  ) {
+    return "Reversals are not enabled on this deployment yet. Apply the mobile money reversal migration in Supabase.";
+  }
   return message;
 }
 

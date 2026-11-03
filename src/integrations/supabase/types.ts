@@ -636,6 +636,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      momo_reversals: {
+        Row: {
+          created_at: string;
+          id: string;
+          journal_entry_id: string;
+          momo_id: string;
+          reason: string;
+          reversed_by: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          journal_entry_id: string;
+          momo_id: string;
+          reason: string;
+          reversed_by?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          journal_entry_id?: string;
+          momo_id?: string;
+          reason?: string;
+          reversed_by?: string;
+        };
+        Relationships: [];
+      };
       momo_transactions: {
         Row: {
           amount: number;
@@ -741,6 +768,10 @@ export type Database = {
           _user_id: string;
         };
         Returns: undefined;
+      };
+      reverse_momo_transaction: {
+        Args: { _momo_id: string; _reason: string };
+        Returns: string;
       };
       record_momo_transaction: {
         Args: {

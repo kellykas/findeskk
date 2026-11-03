@@ -68,6 +68,19 @@ export const momoSchema = z
 export type MomoInput = z.infer<typeof momoSchema>;
 
 /**
+ * A reversal always states why. Four characters is enough to rule out an empty
+ * or accidental confirmation while staying usable for a busy teller.
+ */
+export const momoReversalSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(4, "Give a short reason (at least 4 characters)")
+    .max(300, "Reason can have at most 300 characters"),
+});
+export type MomoReversalInput = z.infer<typeof momoReversalSchema>;
+
+/**
  * Cash moved by the transaction, commission included:
  * deposit → the customer hands over amount + commission;
  * withdrawal → the customer is paid amount − commission.
