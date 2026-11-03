@@ -1,18 +1,20 @@
 name: Deploy to Vercel
 
 # Why this exists: on the Hobby plan Vercel only builds deployments whose commit
-# author is the owner of the Vercel account. Every commit pushed from an agent
-# account is therefore "Blocked", so the production site never changes.
+# author has contributing access to the Vercel project. Commits pushed from an
+# agent account are therefore "Deployment Blocked", and the production site never
+# changes.
 #
-# Two ways out, both independent of who authored the commit:
-#   1. VERCEL_DEPLOY_HOOK_URL - Project -> Settings -> Git -> Deploy Hooks, for
-#      branch main. The hook builds the latest commit on main on your behalf.
-#   2. VERCEL_TOKEN + VERCEL_ORG_ID + VERCEL_PROJECT_ID - uploads the build with
-#      git metadata removed, so there is no commit author for Vercel to reject.
+# A deploy hook does NOT escape this. Verified 2026-11-03: a hook-triggered
+# production build of d18f169 was blocked on the same check. Two things do work:
+#   1. VERCEL_TOKEN + VERCEL_ORG_ID + VERCEL_PROJECT_ID - uploads the build after
+#      removing .git, so there is no commit author for Vercel to compare.
+#   2. A commit authored by the Hobby owner, for example one edit made in the
+#      GitHub web UI. Vercel builds that commit, and its tree already contains
+#      everything on main.
 #
-# Add either set under Settings -> Secrets and variables -> Actions. With
-# neither, this job reports a warning instead of failing.
-
+# Add the secrets under Settings -> Secrets and variables -> Actions. With none
+# configured this job reports a warning instead of failing.
 on:
   push:
     branches: [main]
