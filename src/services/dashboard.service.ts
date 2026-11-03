@@ -7,11 +7,13 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BASE_CURRENCY } from "@/domain/currency";
-import type { AccountType } from "@/domain/ledger";
+import { ACCOUNT_TYPES, type AccountType } from "@/domain/ledger";
 import { money, type Money } from "@/domain/money";
+import { buildMonthlyFlow, type MonthlyFlowPoint } from "@/domain/dashboard";
 import {
   listAccountBalances,
   listRecentEntries,
+  toMoney,
   type JournalEntry,
   type LedgerAccountBalance,
 } from "./ledger.service";
@@ -35,8 +37,13 @@ export interface BranchActivity {
   value: Money;
 }
 
-export interface DashboardSnapshot {
+export interface DashboardSnapshot extends DashboardCore {
   asOf: string;
+  /** Last six months, oldest first. */
+  flow: MonthlyFlowPoint[];
+}
+
+export interface DashboardCore {
   totalPostings: number;
   hasData: boolean;
   totals: DashboardTotal[];
@@ -78,7 +85,7 @@ export interface DashboardInput {
   totalPostings: number;
 }
 
-export function buildDashboardSnapshot(input: DashboardInput): Omit<DashboardSnapshot, "asOf"> {
+export function buildDashboardSnapshot(input: DashboardInput): DashboardCore {
   const typeTotals = new Map<AccountType, Money>();
   for (const type of TYPE_ORDER) typeTotals.set(type, zero());
 
@@ -146,12 +153,91 @@ export function buildDashboardSnapshot(input: DashboardInput): Omit<DashboardSna
   };
 }
 
+/** Oldest first, so the chart runs left to right. */
+function recentMonthKeys(count: number): string[] {
+  const now = new Date();
+  const keys: string[] = [];
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1));
+    keys.push(date.toISOString().slice(0, 7));
+  }
+  return keys;
+}
+
+interface FlowEntryRow {
+  id: string;
+  entry_date: string;
+}
+
+interface FlowAccountRow {
+  id: string;
+  type: string;
+}
+
+interface FlowLineRow {
+  entry_id: string;
+  account_id: string;
+  side: string;
+  amount: string | number;
+}
+
+const ACCOUNT_TYPE_SET = new Set<string>(ACCOUNT_TYPES);
+
+async function loadFlow(months: readonly string[]): Promise<MonthlyFlowPoint[]> {
+  const from = `${months[0]}-01`;
+
+  const [entryResult, accountResult] = await Promise.all([
+    supabase.from("journal_entries").select("id, entry_date").gte("entry_date", from),
+    supabase.from("accounts").select("id, type"),
+  ]);
+  if (entryResult.error) throw new Error(entryResult.error.message);
+  if (accountResult.error) throw new Error(accountResult.error.message);
+
+  const entries = (entryResult.data ?? []) as unknown as FlowEntryRow[];
+  const accounts = ((accountResult.data ?? []) as unknown as FlowAccountRow[]).filter((account) =>
+    ACCOUNT_TYPE_SET.has(account.type),
+  );
+
+  let lines: FlowLineRow[] = [];
+  if (entries.length > 0) {
+    const lineResult = await supabase
+      .from("journal_lines")
+      .select("entry_id, account_id, side, amount")
+      .in(
+        "entry_id",
+        entries.map((entry) => entry.id),
+      );
+    if (lineResult.error) throw new Error(lineResult.error.message);
+    lines = (lineResult.data ?? []) as unknown as FlowLineRow[];
+  }
+
+  return buildMonthlyFlow({
+    months,
+    entries: entries.map((entry) => ({ id: entry.id, entryDate: entry.entry_date })),
+    accounts: accounts.map((account) => ({
+      id: account.id,
+      type: account.type as AccountType,
+    })),
+    lines: lines
+      .filter((line) => line.side === "debit" || line.side === "credit")
+      .map((line) => ({
+        entryId: line.entry_id,
+        accountId: line.account_id,
+        side: line.side as "debit" | "credit",
+        amount: toMoney(line.amount).minor,
+      })),
+  });
+}
+
 export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
-  const [balances, entries, branchResult, countResult] = await Promise.all([
+  const months = recentMonthKeys(6);
+
+  const [balances, entries, branchResult, countResult, flow] = await Promise.all([
     listAccountBalances(),
     listRecentEntries(10),
     supabase.from("branches").select("id, name").order("name"),
     supabase.from("journal_entries").select("id", { count: "exact", head: true }),
+    loadFlow(months),
   ]);
 
   if (branchResult.error) throw new Error(branchResult.error.message);
@@ -159,6 +245,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
 
   return {
     asOf: new Date().toISOString(),
+    flow,
     ...buildDashboardSnapshot({
       balances,
       entries,
