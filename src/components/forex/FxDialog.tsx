@@ -21,8 +21,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/domain/money";
 import {
-  FX_CURRENCIES,
-  FX_CURRENCY_LABELS,
   FX_SETTLEMENTS,
   FX_SETTLEMENT_LABELS,
   FX_TYPES,
@@ -49,8 +47,15 @@ export interface BranchOption {
 /** What the service needs: the form values plus the rate published for the trade. */
 export type FxTradeValues = FxTradeInput & { rate: string; costRate: string };
 
+/** Active currencies, in the order the company set. */
+export interface FxCurrencyOption {
+  code: string;
+  name: string;
+}
+
 export function FxDialog({
   latestRates,
+  currencies,
   branches,
   open,
   saving,
@@ -58,6 +63,7 @@ export function FxDialog({
   onSave,
 }: {
   latestRates: FxRate[];
+  currencies: FxCurrencyOption[];
   branches: BranchOption[];
   open: boolean;
   saving: boolean;
@@ -65,7 +71,12 @@ export function FxDialog({
   onSave: (input: FxTradeValues) => void;
 }) {
   const [type, setType] = useState<FxType>("buy");
-  const [currency, setCurrency] = useState<FxCurrency>("USD");
+  // Only currencies with a published rate can be traded, and the newest rate
+  // wins; a currency added since the rates loaded may not have one yet.
+  const tradeable = currencies.filter((option) =>
+    latestRates.some((rate) => rate.currency === option.code),
+  );
+  const [currency, setCurrency] = useState<FxCurrency>(tradeable[0]?.code ?? "");
   const [foreignAmount, setForeignAmount] = useState("1000");
   const [settlement, setSettlement] = useState<FxSettlement>("cash");
   const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
@@ -80,6 +91,11 @@ export function FxDialog({
     const first = branches[0];
     if (!branchId && first) setBranchId(first.id);
   }, [branches, branchId]);
+
+  useEffect(() => {
+    if (!tradeable.some((option) => option.code === currency))
+      setCurrency(tradeable[0]?.code ?? "");
+  }, [tradeable, currency]);
 
   const chosenRate = latestRates.find((rate) => rate.currency === currency);
   const preview = chosenRate
@@ -152,18 +168,24 @@ export function FxDialog({
             </div>
             <div className="space-y-2">
               <Label>Currency</Label>
-              <Select value={currency} onValueChange={(value) => setCurrency(value as FxCurrency)}>
+              <Select value={currency} onValueChange={(value) => setCurrency(value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Choose a currency" />
                 </SelectTrigger>
                 <SelectContent>
-                  {FX_CURRENCIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c} · {FX_CURRENCY_LABELS[c]}
+                  {tradeable.map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {option.code} · {option.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {tradeable.length === 0 && (
+                <p className="text-xs text-destructive">
+                  No currency has a published rate yet. A manager can add one under Currencies &amp;
+                  rates.
+                </p>
+              )}
             </div>
           </div>
 

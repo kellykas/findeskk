@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatMoney, type Money } from "@/domain/money";
 import {
-  MOMO_NETWORK_LABELS,
+  momoNetworkLabel,
   MOMO_TYPE_LABELS,
   momoCashMovement,
   type MomoNetwork,
@@ -56,12 +56,15 @@ function ReceiptSheet({
   settings,
   branchName,
   servedBy,
+  networkName,
   className,
 }: {
   receipt: MomoReceiptData;
   settings: CompanySettings;
   branchName: string;
   servedBy: string;
+  /** Company-set network name; falls back to the code. */
+  networkName?: string | undefined;
   className?: string;
 }) {
   const cash = momoCashMovement(receipt.type, receipt.amount, receipt.commission);
@@ -98,7 +101,7 @@ function ReceiptSheet({
 
       <Row
         label="Network"
-        value={`${MOMO_NETWORK_LABELS[receipt.network]} · ${MOMO_TYPE_LABELS[receipt.type]}`}
+        value={`${networkName ?? momoNetworkLabel(receipt.network)} · ${MOMO_TYPE_LABELS[receipt.type]}`}
       />
       <Row label="Amount" value={formatMoney(receipt.amount)} />
       <Row label="Commission" value={formatMoney(receipt.commission)} />
@@ -148,6 +151,7 @@ export function MomoReceiptDialog({
   settings,
   branchName,
   servedBy,
+  networkName,
   open,
   onOpenChange,
 }: {
@@ -155,6 +159,7 @@ export function MomoReceiptDialog({
   settings: CompanySettings | null;
   branchName: string;
   servedBy: string;
+  networkName?: string | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -179,6 +184,7 @@ export function MomoReceiptDialog({
                 settings={settings}
                 branchName={branchName}
                 servedBy={servedBy}
+                networkName={networkName}
               />
             </div>
           ) : (
@@ -209,6 +215,7 @@ export function MomoReceiptDialog({
               settings={settings}
               branchName={branchName}
               servedBy={servedBy}
+              networkName={networkName}
               className="mx-auto"
             />
           </div>,

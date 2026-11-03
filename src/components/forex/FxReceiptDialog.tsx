@@ -9,12 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/domain/money";
-import {
-  FX_CURRENCY_LABELS,
-  FX_SETTLEMENT_LABELS,
-  FX_TYPE_LABELS,
-  formatRate,
-} from "@/domain/forex";
+import { fxCurrencyLabel, FX_SETTLEMENT_LABELS, FX_TYPE_LABELS, formatRate } from "@/domain/forex";
 import type { CompanySettings } from "@/domain/settings";
 import type { FxRecord } from "@/services/forex.service";
 
@@ -87,7 +82,7 @@ function ReceiptSheet({
       <div className="my-2 border-t border-dashed" />
 
       <Row label={title} value={`${FX_TYPE_LABELS[trade.type]} ${trade.currency}`} />
-      <Row label="Currency" value={`${trade.currency} · ${FX_CURRENCY_LABELS[trade.currency]}`} />
+      <Row label="Currency" value={`${trade.currency} · ${fxCurrencyLabel(trade.currency)}`} />
       <Row label="Foreign amount" value={formatMoney(trade.foreignAmount)} />
       <Row label="Rate (UGX)" value={formatRate(trade.rate)} />
       <Row label="Settlement" value={FX_SETTLEMENT_LABELS[trade.settlement]} />

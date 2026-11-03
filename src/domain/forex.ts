@@ -10,16 +10,43 @@ import { z } from "zod";
 import { BASECURRENCY } from "./currency";
 import { money, toDecimalString, type Money } from "./money";
 
+/**
+ * Currencies the company trades are managed rows (public.fx_currencies), so a
+ * currency is any three letter code the database accepts. This list is only the
+ * seed set, kept so features that need a starting point still compile.
+ */
 export const FX_CURRENCIES = ["USD", "EUR", "GBP", "KES"] as const;
 
-export type FxCurrency = (typeof FX_CURRENCIES)[number];
+export type FxCurrency = string;
 
-export const FX_CURRENCY_LABELS: Record<FxCurrency, string> = {
+/** Built-in names for the seeded currencies; unlisted codes fall back to the code. */
+export const FX_CURRENCY_LABELS: Record<string, string> = {
   USD: "US Dollar",
   EUR: "Euro",
   GBP: "Pound Sterling",
   KES: "Kenyan Shilling",
 };
+
+/** Display name for a currency, falling back to the code itself. */
+export function fxCurrencyLabel(code: string): string {
+  return FX_CURRENCY_LABELS[code] ?? code;
+}
+
+/** A currency offered in a form: the company-set code and name. */
+export interface FxCurrencyOption {
+  code: string;
+  name: string;
+}
+
+const CURRENCY_CODE = /^[A-Z]{3}$/;
+
+/** A three letter code, in upper case, and never the base currency. */
+const currencyCodeField = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(CURRENCY_CODE, "Choose a valid three letter currency")
+  .refine((code) => code !== "UGX", "UGX is the base currency and is not traded");
 
 export const FX_TYPES = ["buy", "sell"] as const;
 
@@ -131,7 +158,7 @@ export function tradeRateFor(type: FxType, rate: { buyRate: string; sellRate: st
 
 export const fxSchema = z.object({
   type: z.enum(FX_TYPES),
-  currency: z.enum(FX_CURRENCIES),
+  currency: currencyCodeField,
   foreignAmount: z
     .string()
     .trim()
@@ -151,7 +178,7 @@ export type FxTradeInput = z.infer<typeof fxSchema>;
 
 export const fxRateSchema = z
   .object({
-    currency: z.enum(FX_CURRENCIES),
+    currency: currencyCodeField,
     buyRate: z.string().trim().refine(isValidRate, "Enter a buy rate greater than zero"),
     sellRate: z.string().trim().refine(isValidRate, "Enter a sell rate greater than zero"),
     effectiveFrom: z.string().min(10, "Choose an effective date"),

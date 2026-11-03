@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { FxDialog, type FxTradeValues } from "@/components/forex/FxDialog";
 import { FxReceiptDialog } from "@/components/forex/FxReceiptDialog";
+import { FxCurrencyDialog } from "@/components/forex/FxCurrencyDialog";
 import { RateDialog } from "@/components/forex/RateDialog";
 import { TransferDialog, type TransferValues } from "@/components/forex/TransferDialog";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
@@ -13,13 +14,18 @@ import { Button } from "@/components/ui/button";
 import { formatMoney, money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
 import {
-  FX_CURRENCY_LABELS,
   FX_SETTLEMENT_LABELS,
   formatRate,
+  fxCurrencyLabel,
   parseForeignAmount,
   type FxRateInput,
   type FxType,
 } from "@/domain/forex";
+import {
+  activeCurrencies,
+  type FxCurrencyForm,
+  type FxCurrencyRecord,
+} from "@/domain/referenceData";
 import { can } from "@/domain/access";
 import { useSession } from "@/hooks/use-session";
 import {
@@ -30,6 +36,11 @@ import {
   setFxRate,
   type FxRecord,
 } from "@/services/forex.service";
+import {
+  deleteFxCurrency,
+  fxCurrenciesQuery,
+  saveFxCurrency,
+} from "@/services/referenceData.service";
 import { branchesQuery } from "@/services/staff.service";
 import { settingsQuery } from "@/services/settings.service";
 import { recordTransfer, transfersQuery } from "@/services/transfers.service";
@@ -63,13 +74,20 @@ function Forex() {
   const allowed = Boolean(viewer && can(viewer.roles, "forex.transact"));
   const canManageRates = Boolean(viewer && can(viewer.roles, "forex.rates.manage"));
   const canTransfer = Boolean(viewer && can(viewer.roles, "forex.transfer"));
+  const canManageCurrencies = Boolean(viewer && can(viewer.roles, "reference.manage"));
   const [search, setSearch] = useState("");
   const [recordTrade, setRecordTrade] = useState(false);
-  const [publishRate, setPublishRate] = useState(false);
+  // Null when closed; an empty object opens on the first currency, and a code
+  // opens it preselected from that currency's row.
+  const [publishRate, setPublishRate] = useState<{ currency?: string } | null>(null);
+  const [currencyForm, setCurrencyForm] = useState<{ currency: FxCurrencyRecord | null } | null>(
+    null,
+  );
   const [transferOpen, setTransferOpen] = useState(false);
   const [receipt, setReceipt] = useState<FxRecord | null>(null);
 
   const rates = useQuery({ ...fxRatesQuery, enabled: allowed });
+  const currencies = useQuery({ ...fxCurrenciesQuery, enabled: allowed });
   const trades = useQuery({ ...fxQuery(100), enabled: allowed });
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
   const transfers = useQuery({ ...transfersQuery(100), enabled: allowed });
@@ -83,6 +101,15 @@ function Forex() {
   }));
   const branchNames = new Map(branchOptions.map((b) => [b.id, `${b.code} · ${b.name}`]));
   const currentRates = latestRates(rates.data ?? []);
+
+  // Currency names come from the managed table; the built-in labels are only a
+  // fallback for a code whose row is not loaded.
+  const currencyNames = useMemo(
+    () => new Map((currencies.data ?? []).map((currency) => [currency.code, currency.name])),
+    [currencies.data],
+  );
+  const currencyOptions = useMemo(() => activeCurrencies(currencies.data ?? []), [currencies.data]);
+  const latestRateFor = (code: string) => currentRates.find((rate) => rate.currency === code);
 
   const saveTrade = useMutation({
     mutationFn: (values: FxTradeValues) =>
@@ -138,7 +165,26 @@ function Forex() {
     onSuccess: () => {
       toast.success("Rate published.");
       void queryClient.invalidateQueries({ queryKey: ["forex"] });
-      setPublishRate(false);
+      setPublishRate(null);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const saveCurrency = useMutation({
+    mutationFn: (values: FxCurrencyForm) => saveFxCurrency(values),
+    onSuccess: () => {
+      toast.success("Currency saved.");
+      void queryClient.invalidateQueries({ queryKey: ["reference"] });
+      setCurrencyForm(null);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const removeCurrency = useMutation({
+    mutationFn: (code: string) => deleteFxCurrency(code),
+    onSuccess: () => {
+      toast.success("Currency deleted.");
+      void queryClient.invalidateQueries({ queryKey: ["reference"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -163,9 +209,9 @@ function Forex() {
       .map(([currency, minor]) => ({
         currency,
         minor,
-        label: FX_CURRENCY_LABELS[currency as keyof typeof FX_CURRENCY_LABELS],
+        label: currencyNames.get(currency) ?? fxCurrencyLabel(currency),
       }));
-  }, [rows]);
+  }, [rows, currencyNames]);
 
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -173,7 +219,7 @@ function Forex() {
     return rows.filter((trade) =>
       [
         trade.currency,
-        FX_CURRENCY_LABELS[trade.currency],
+        currencyNames.get(trade.currency) ?? fxCurrencyLabel(trade.currency),
         trade.customerRef,
         trade.receiptNo,
         trade.type,
@@ -182,7 +228,7 @@ function Forex() {
         .toLowerCase()
         .includes(needle),
     );
-  }, [rows, search]);
+  }, [rows, search, currencyNames]);
 
   if (!allowed) {
     return (
@@ -207,7 +253,7 @@ function Forex() {
         actions={
           <>
             {canManageRates && (
-              <Button variant="outline" size="sm" onClick={() => setPublishRate(true)}>
+              <Button variant="outline" size="sm" onClick={() => setPublishRate({})}>
                 Publish rate
               </Button>
             )}
@@ -258,45 +304,154 @@ function Forex() {
       )}
 
       <SectionCard
-        title="Published rates"
-        action={<Badge variant="outline">Latest per currency</Badge>}
+        title="Currencies & rates"
+        action={
+          canManageCurrencies ? (
+            <Button variant="outline" size="sm" onClick={() => setCurrencyForm({ currency: null })}>
+              Add currency
+            </Button>
+          ) : (
+            <Badge variant="outline">Latest per currency</Badge>
+          )
+        }
       >
-        {rates.isPending && (
-          <p className="px-4 py-6 text-sm text-muted-foreground">Loading rates…</p>
+        <p className="px-5 pb-3 text-sm text-muted-foreground">
+          Add the currencies you trade and publish their rates. A currency that already has rates or
+          trades can be switched off, but not deleted.
+        </p>
+        {currencies.isPending && (
+          <p className="px-5 py-6 text-sm text-muted-foreground">Loading currencies…</p>
         )}
-        {rates.isError && (
-          <div className="space-y-2 px-4 py-6 text-sm">
-            <p className="text-destructive">Could not load rates: {rates.error.message}</p>
-            <Button variant="outline" size="sm" onClick={() => void rates.refetch()}>
+        {currencies.isError && (
+          <div className="space-y-2 px-5 py-6 text-sm">
+            <p className="text-destructive">
+              Could not load currencies: {currencies.error.message}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void currencies.refetch()}>
               Try again
             </Button>
           </div>
         )}
-        {!rates.isPending && !rates.isError && currentRates.length === 0 && (
-          <p className="px-4 py-6 text-sm text-muted-foreground">
-            No rates published yet. A rate manager must publish a rate before trades can be
-            recorded.
+        {!currencies.isPending && !currencies.isError && (currencies.data ?? []).length === 0 && (
+          <p className="px-5 py-6 text-sm text-muted-foreground">
+            No currencies yet. Add the first one, then publish its rate.
           </p>
         )}
-        {currentRates.length > 0 && (
+        {rates.isError && !currencies.isError && (
+          <p className="px-5 py-3 text-sm text-destructive">
+            Could not load rates: {rates.error.message}
+          </p>
+        )}
+        {(currencies.data ?? []).length > 0 && (
           <DataTable
-            rows={currentRates}
-            rowKey={(rate) => rate.id}
+            rows={currencies.data ?? []}
+            rowKey={(currency) => currency.code}
             columns={[
               {
                 header: "Currency",
-                cell: (rate) => (
+                cell: (currency) => (
                   <span className="font-medium">
-                    {rate.currency} · {FX_CURRENCY_LABELS[rate.currency]}
+                    {currency.code} · {currency.name}
                   </span>
                 ),
               },
-              { header: "Buy (UGX)", align: "right", cell: (rate) => rate.buyRate },
-              { header: "Sell (UGX)", align: "right", cell: (rate) => rate.sellRate },
-              { header: "Effective", cell: (rate) => day(rate.effectiveFrom) },
+              {
+                header: "Buy (UGX)",
+                align: "right",
+                cell: (currency) => latestRateFor(currency.code)?.buyRate ?? "—",
+              },
+              {
+                header: "Sell (UGX)",
+                align: "right",
+                cell: (currency) => latestRateFor(currency.code)?.sellRate ?? "—",
+              },
+              {
+                header: "Effective",
+                cell: (currency) => {
+                  const rate = latestRateFor(currency.code);
+                  return rate ? day(rate.effectiveFrom) : "No rate yet";
+                },
+              },
+              {
+                header: "Status",
+                cell: (currency) =>
+                  currency.active ? (
+                    <Badge variant="outline" className="font-normal">
+                      Trading
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="font-normal">
+                      Switched off
+                    </Badge>
+                  ),
+              },
+              ...(canManageRates
+                ? [
+                    {
+                      header: "",
+                      align: "right" as const,
+                      cell: (currency: FxCurrencyRecord) => (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPublishRate({ currency: currency.code })}
+                        >
+                          Publish rate
+                        </Button>
+                      ),
+                    },
+                  ]
+                : []),
+              ...(canManageCurrencies
+                ? [
+                    {
+                      header: "",
+                      align: "right" as const,
+                      cell: (currency: FxCurrencyRecord) => (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCurrencyForm({ currency })}
+                        >
+                          Edit
+                        </Button>
+                      ),
+                    },
+                    {
+                      header: "",
+                      align: "right" as const,
+                      cell: (currency: FxCurrencyRecord) => (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={removeCurrency.isPending}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Delete ${currency.code}? A currency that already has rates or trades cannot be deleted — switch it off instead.`,
+                              )
+                            ) {
+                              removeCurrency.mutate(currency.code);
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      ),
+                    },
+                  ]
+                : []),
             ]}
           />
         )}
+        {!currencies.isPending &&
+          !currencies.isError &&
+          (currencies.data ?? []).length > 0 &&
+          currentRates.length === 0 && (
+            <p className="px-5 py-3 text-xs text-muted-foreground">
+              No rate is published yet. Trades cannot be recorded until a manager publishes one.
+            </p>
+          )}
       </SectionCard>
 
       <div className="mt-6">
@@ -391,6 +546,7 @@ function Forex() {
       {recordTrade && (
         <FxDialog
           latestRates={currentRates}
+          currencies={currencyOptions}
           branches={branchOptions}
           open
           saving={saveTrade.isPending}
@@ -400,10 +556,25 @@ function Forex() {
       )}
       {publishRate && (
         <RateDialog
+          currencies={currencyOptions}
+          {...(publishRate.currency ? { initialCurrency: publishRate.currency } : {})}
           open
           saving={saveRate.isPending}
-          onOpenChange={setPublishRate}
+          onOpenChange={(next) => {
+            if (!next) setPublishRate(null);
+          }}
           onSave={(values) => saveRate.mutate(values)}
+        />
+      )}
+      {currencyForm && (
+        <FxCurrencyDialog
+          currency={currencyForm.currency}
+          open
+          saving={saveCurrency.isPending}
+          onOpenChange={(next) => {
+            if (!next) setCurrencyForm(null);
+          }}
+          onSave={(values) => saveCurrency.mutate(values)}
         />
       )}
       {transferOpen && (

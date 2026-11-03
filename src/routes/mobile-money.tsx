@@ -8,13 +8,19 @@ import {
   MomoReceiptDialog,
   type MomoReceiptData,
 } from "@/components/mobile-money/MomoReceiptDialog";
+import { MomoNetworkDialog } from "@/components/mobile-money/MomoNetworkDialog";
 import { ReverseMomoDialog } from "@/components/mobile-money/ReverseMomoDialog";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney, money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
-import { MOMO_NETWORK_LABELS, MOMO_TYPE_LABELS, momoCashMovement } from "@/domain/momo";
+import { MOMO_TYPE_LABELS, momoCashMovement, momoNetworkLabel } from "@/domain/momo";
+import {
+  activeNetworks,
+  type MomoNetworkForm,
+  type MomoNetworkRecord,
+} from "@/domain/referenceData";
 import { can } from "@/domain/access";
 import { useSession } from "@/hooks/use-session";
 import {
@@ -24,6 +30,12 @@ import {
   reverseMomo,
   type MomoRecord,
 } from "@/services/momo.service";
+import {
+  deleteMomoNetwork,
+  floatAccountsQuery,
+  momoNetworksQuery,
+  saveMomoNetwork,
+} from "@/services/referenceData.service";
 import { branchesQuery } from "@/services/staff.service";
 import { customersQuery } from "@/services/customers.service";
 import { settingsQuery } from "@/services/settings.service";
@@ -32,9 +44,12 @@ export const Route = createFileRoute("/mobile-money")({
   head: () => ({
     meta: [
       { title: "Mobile Money — FinDesk" },
-      { name: "description", content: "Record MTN and Airtel agency transactions." },
+      { name: "description", content: "Record mobile money agency deposits and withdrawals." },
       { property: "og:title", title: "Mobile Money — FinDesk" },
-      { property: "og:description", content: "Record MTN and Airtel agency transactions." },
+      {
+        property: "og:description",
+        content: "Record mobile money agency deposits and withdrawals.",
+      },
     ],
   }),
   component: MobileMoney,
@@ -47,13 +62,19 @@ function MobileMoney() {
   const { viewer } = useSession();
   const allowed = Boolean(viewer && can(viewer.roles, "momo.transact"));
   const canReverse = Boolean(viewer && can(viewer.roles, "transactions.reverse"));
+  const canManageNetworks = Boolean(viewer && can(viewer.roles, "reference.manage"));
   const transactions = useQuery({ ...momoQuery(100), enabled: allowed });
+  const networks = useQuery({ ...momoNetworksQuery, enabled: allowed });
+  const floatAccounts = useQuery({ ...floatAccountsQuery, enabled: canManageNetworks });
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
   const customers = useQuery({ ...customersQuery, enabled: allowed });
   const settings = useQuery({ ...settingsQuery, enabled: allowed });
   const queryClient = useQueryClient();
   const [recordForm, setRecordForm] = useState(false);
   const [reversing, setReversing] = useState<MomoRecord | null>(null);
+  const [networkForm, setNetworkForm] = useState<{ network: MomoNetworkRecord | null } | null>(
+    null,
+  );
   const [receipt, setReceipt] = useState<MomoReceiptData | null>(null);
   const [search, setSearch] = useState("");
 
@@ -78,6 +99,31 @@ function MobileMoney() {
   const customerNames = useMemo(
     () => new Map(customerOptions.map((c) => [c.id, c.name])),
     [customerOptions],
+  );
+
+  // Networks are company-managed rows, so names come from the table; the built-in
+  // MTN/Airtel labels are only a fallback for a row that is not loaded.
+  const networkNames = useMemo(
+    () => new Map((networks.data ?? []).map((network) => [network.code, network.name])),
+    [networks.data],
+  );
+  const networkOptions = useMemo(
+    () =>
+      activeNetworks(networks.data ?? []).map((network) => ({
+        code: network.code,
+        name: network.name,
+      })),
+    [networks.data],
+  );
+  const accountNames = useMemo(
+    () =>
+      new Map(
+        (floatAccounts.data ?? []).map((account) => [
+          account.code,
+          `${account.code} · ${account.name}`,
+        ]),
+      ),
+    [floatAccounts.data],
   );
 
   const saveMomo = useMutation({
@@ -107,6 +153,25 @@ function MobileMoney() {
     onError: (error: Error) => toast.error(momoErrorMessage(error.message)),
   });
 
+  const saveNetwork = useMutation({
+    mutationFn: (values: MomoNetworkForm) => saveMomoNetwork(values),
+    onSuccess: () => {
+      toast.success("Network saved.");
+      void queryClient.invalidateQueries({ queryKey: ["reference"] });
+      setNetworkForm(null);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const removeNetwork = useMutation({
+    mutationFn: (code: string) => deleteMomoNetwork(code),
+    onSuccess: () => {
+      toast.success("Network deleted.");
+      void queryClient.invalidateQueries({ queryKey: ["reference"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const reverse = useMutation({
     mutationFn: (input: { momoId: string; reason: string }) => reverseMomo(input),
     onSuccess: () => {
@@ -126,7 +191,7 @@ function MobileMoney() {
       const customer = row.customerId ? (customerNames.get(row.customerId) ?? "") : row.customerRef;
       return [
         MOMO_TYPE_LABELS[row.type],
-        MOMO_NETWORK_LABELS[row.network],
+        networkNames.get(row.network) ?? momoNetworkLabel(row.network),
         row.networkRef,
         customer,
         row.reversal ? "reversed" : "posted",
@@ -135,7 +200,7 @@ function MobileMoney() {
         .toLowerCase()
         .includes(needle);
     });
-  }, [rows, search, customerNames]);
+  }, [rows, search, customerNames, networkNames]);
 
   function receiptFor(row: MomoRecord): MomoReceiptData {
     return {
@@ -155,7 +220,10 @@ function MobileMoney() {
   if (!allowed) {
     return (
       <AppShell>
-        <PageHeader title="Mobile Money" description="Record MTN and Airtel agency transactions." />
+        <PageHeader
+          title="Mobile Money"
+          description="Record mobile money agency deposits and withdrawals."
+        />
         <AccessDenied
           title="This module is restricted"
           description="Mobile money recording is available to staff with mobile money permissions. Ask a super admin or the company owner to review your roles."
@@ -184,7 +252,7 @@ function MobileMoney() {
     <AppShell>
       <PageHeader
         title="Mobile Money"
-        description="Record MTN and Airtel agency transactions. Network references are entered by staff, never verified with the network."
+        description="Record agency deposits and withdrawals. Network references are entered by staff, never verified with the network."
         actions={
           <Button size="sm" onClick={() => setRecordForm(true)}>
             Record transaction
@@ -264,7 +332,8 @@ function MobileMoney() {
                 header: "Transaction",
                 cell: (row) => (
                   <span className="font-medium">
-                    {MOMO_TYPE_LABELS[row.type]} · {MOMO_NETWORK_LABELS[row.network]}
+                    {MOMO_TYPE_LABELS[row.type]} ·{" "}
+                    {networkNames.get(row.network) ?? momoNetworkLabel(row.network)}
                   </span>
                 ),
               },
@@ -346,6 +415,109 @@ function MobileMoney() {
         )}
       </SectionCard>
 
+      {canManageNetworks && (
+        <div className="mt-6">
+          <SectionCard
+            title="Mobile money networks"
+            action={
+              <Button variant="outline" size="sm" onClick={() => setNetworkForm({ network: null })}>
+                Add network
+              </Button>
+            }
+          >
+            <p className="px-5 pb-3 text-sm text-muted-foreground">
+              Add the wallets you work with and pick the float account each one uses. A network that
+              already has transactions can be switched off, but not deleted.
+            </p>
+            {networks.isPending && (
+              <p className="px-5 py-6 text-sm text-muted-foreground">Loading networks…</p>
+            )}
+            {networks.isError && (
+              <div className="space-y-2 px-5 py-6 text-sm">
+                <p className="text-destructive">
+                  Could not load networks: {networks.error.message}
+                </p>
+                <Button variant="outline" size="sm" onClick={() => void networks.refetch()}>
+                  Try again
+                </Button>
+              </div>
+            )}
+            {!networks.isPending && !networks.isError && (networks.data ?? []).length === 0 && (
+              <p className="px-5 py-6 text-sm text-muted-foreground">
+                No networks yet. Add the first one to start recording.
+              </p>
+            )}
+            {(networks.data ?? []).length > 0 && (
+              <DataTable
+                rows={networks.data ?? []}
+                rowKey={(network) => network.code}
+                columns={[
+                  {
+                    header: "Network",
+                    cell: (network) => <span className="font-medium">{network.name}</span>,
+                  },
+                  {
+                    header: "Code",
+                    cell: (network) => (
+                      <span className="text-xs text-muted-foreground">{network.code}</span>
+                    ),
+                  },
+                  {
+                    header: "Float account",
+                    cell: (network) =>
+                      accountNames.get(network.floatAccountCode) ?? network.floatAccountCode,
+                  },
+                  {
+                    header: "Status",
+                    cell: (network) =>
+                      network.active ? (
+                        <Badge variant="outline" className="font-normal">
+                          In use
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="font-normal">
+                          Switched off
+                        </Badge>
+                      ),
+                  },
+                  {
+                    header: "",
+                    align: "right",
+                    cell: (network) => (
+                      <Button variant="ghost" size="sm" onClick={() => setNetworkForm({ network })}>
+                        Edit
+                      </Button>
+                    ),
+                  },
+                  {
+                    header: "",
+                    align: "right",
+                    cell: (network) => (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={removeNetwork.isPending}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Delete ${network.name}? A network that already has transactions cannot be deleted — switch it off instead.`,
+                            )
+                          ) {
+                            removeNetwork.mutate(network.code);
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    ),
+                  },
+                ]}
+              />
+            )}
+          </SectionCard>
+        </div>
+      )}
+
       <p className="mt-4 text-xs text-muted-foreground">
         Every recording posts a balanced journal entry, so these figures always agree with the
         ledger. A reversal never deletes anything: it posts the mirror image of the original entry
@@ -357,6 +529,7 @@ function MobileMoney() {
         <MomoDialog
           branches={branchOptions}
           customers={customerOptions}
+          networks={networkOptions}
           open
           saving={saveMomo.isPending}
           onOpenChange={setRecordForm}
@@ -376,12 +549,26 @@ function MobileMoney() {
         />
       )}
 
+      {networkForm && (
+        <MomoNetworkDialog
+          network={networkForm.network}
+          floatAccounts={floatAccounts.data ?? []}
+          open
+          saving={saveNetwork.isPending}
+          onOpenChange={(next) => {
+            if (!next) setNetworkForm(null);
+          }}
+          onSave={(values) => saveNetwork.mutate(values)}
+        />
+      )}
+
       {receipt && (
         <MomoReceiptDialog
           receipt={receipt}
           settings={settings.data ?? null}
           branchName={branchNames.get(receipt.branchId) ?? "—"}
           servedBy={viewer?.displayName ?? "—"}
+          networkName={networkNames.get(receipt.network)}
           open
           onOpenChange={(next) => {
             if (!next) setReceipt(null);

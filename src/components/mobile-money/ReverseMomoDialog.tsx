@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/domain/money";
 import {
-  MOMO_NETWORK_LABELS,
+  momoNetworkLabel,
   MOMO_TYPE_LABELS,
   momoCashMovement,
   momoReversalSchema,
@@ -61,7 +61,7 @@ export function ReverseMomoDialog({
           <DialogHeader>
             <DialogTitle>Reverse this transaction?</DialogTitle>
             <DialogDescription>
-              {MOMO_TYPE_LABELS[transaction.type]} · {MOMO_NETWORK_LABELS[transaction.network]} ·{" "}
+              {MOMO_TYPE_LABELS[transaction.type]} · {momoNetworkLabel(transaction.network)} ·{" "}
               {formatMoney(transaction.amount)}
               {transaction.commission.minor > 0n
                 ? ` · commission ${formatMoney(transaction.commission)}`

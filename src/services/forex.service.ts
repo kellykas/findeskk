@@ -9,7 +9,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  FX_CURRENCIES,
   FX_SETTLEMENTS,
   FX_TYPES,
   type FxCurrency,
@@ -78,13 +77,17 @@ export interface FxRow {
   created_at: string;
 }
 
-const CURRENCY_SET = new Set<string>(FX_CURRENCIES);
 const TYPE_SET = new Set<string>(FX_TYPES);
 const SETTLEMENT_SET = new Set<string>(FX_SETTLEMENTS);
 
+/**
+ * Currencies are managed rows, so any three letter code is valid here; only a
+ * malformed value is an error.
+ */
 function assertCurrency(value: string): FxCurrency {
-  if (!CURRENCY_SET.has(value)) throw new Error(`Unknown currency: ${value}`);
-  return value as FxCurrency;
+  const code = value.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) throw new Error(`Unknown currency: ${value}`);
+  return code;
 }
 
 export function mapFxRate(row: FxRateRow): FxRate {

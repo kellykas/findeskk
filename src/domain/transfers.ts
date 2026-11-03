@@ -17,7 +17,9 @@ export const TRANSFER_CURRENCIES = ["UGX", ...FX_CURRENCIES] as const;
 
 export type TransferCurrency = (typeof TRANSFER_CURRENCIES)[number];
 
-export const TRANSFER_CURRENCY_LABELS: Record<TransferCurrency, string> = {
+// Currencies are company-managed, so the label map cannot be exhaustive; the
+// built-in forex labels still cover the seeded ones.
+export const TRANSFER_CURRENCY_LABELS: Record<string, string> = {
   UGX: "Uganda Shilling",
   ...FX_CURRENCY_LABELS,
 };

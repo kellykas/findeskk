@@ -20,14 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/domain/money";
-import {
-  MOMO_NETWORKS,
-  MOMO_NETWORK_LABELS,
-  MOMO_TYPES,
-  MOMO_TYPE_LABELS,
-  momoCashMovement,
-  momoSchema,
-} from "@/domain/momo";
+import { MOMO_TYPES, MOMO_TYPE_LABELS, momoCashMovement, momoSchema } from "@/domain/momo";
 import { parseLedgerAmount } from "@/domain/ledger";
 import { todayUtcDate } from "@/domain/date";
 import type { Money } from "@/domain/money";
@@ -35,7 +28,7 @@ import type { Money } from "@/domain/money";
 const NONE = "__none";
 
 export interface MomoFormValues {
-  network: "mtn" | "airtel";
+  network: string;
   type: "deposit" | "withdrawal";
   amount: Money;
   commission: Money;
@@ -59,18 +52,33 @@ interface CustomerOption {
   name: string;
 }
 
+interface NetworkOption {
+  code: string;
+  name: string;
+}
+
 interface Props {
   branches: BranchOption[];
   customers: CustomerOption[];
+  /** Active networks, in the order the company set. */
+  networks: NetworkOption[];
   open: boolean;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (values: MomoFormValues) => void;
 }
 
-/** Records one manual MTN/Airtel agency transaction, with a live preview. */
-export function MomoDialog({ branches, customers, open, saving, onOpenChange, onSave }: Props) {
-  const [network, setNetwork] = useState<(typeof MOMO_NETWORKS)[number]>("mtn");
+/** Records one manual agency transaction, with a live preview. */
+export function MomoDialog({
+  branches,
+  customers,
+  networks,
+  open,
+  saving,
+  onOpenChange,
+  onSave,
+}: Props) {
+  const [network, setNetwork] = useState(networks[0]?.code ?? "");
   const [type, setType] = useState<(typeof MOMO_TYPES)[number]>("deposit");
   const [amount, setAmount] = useState("");
   const [commission, setCommission] = useState("0");
@@ -87,6 +95,12 @@ export function MomoDialog({ branches, customers, open, saving, onOpenChange, on
     const first = branches[0];
     if (!branchId && first) setBranchId(first.id);
   }, [branches, branchId]);
+
+  // Networks load asynchronously too, and an inactive one may have been removed
+  // from the list since this form opened.
+  useEffect(() => {
+    if (!networks.some((option) => option.code === network)) setNetwork(networks[0]?.code ?? "");
+  }, [networks, network]);
 
   const parsedAmount = parseLedgerAmount(amount);
   const parsedCommission = parseLedgerAmount(commission);
@@ -173,21 +187,23 @@ export function MomoDialog({ branches, customers, open, saving, onOpenChange, on
             </div>
             <div className="space-y-2">
               <Label>Network</Label>
-              <Select
-                value={network}
-                onValueChange={(value) => setNetwork(value as "mtn" | "airtel")}
-              >
+              <Select value={network} onValueChange={setNetwork}>
                 <SelectTrigger aria-label="Network">
-                  <SelectValue />
+                  <SelectValue placeholder="Choose a network" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MOMO_NETWORKS.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {MOMO_NETWORK_LABELS[value]}
+                  {networks.map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {option.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {networks.length === 0 && (
+                <p className="text-xs text-destructive">
+                  No network is switched on. A manager can add one under Mobile money networks.
+                </p>
+              )}
             </div>
           </div>
 
@@ -327,7 +343,7 @@ export function MomoDialog({ branches, customers, open, saving, onOpenChange, on
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !network}>
               {saving ? "Recording…" : "Record transaction"}
             </Button>
           </DialogFooter>

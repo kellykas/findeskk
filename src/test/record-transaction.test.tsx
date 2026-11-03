@@ -118,6 +118,7 @@ describe("recording a forex trade", () => {
     render(
       <FxDialog
         latestRates={rates}
+        currencies={[{ code: "USD", name: "US Dollar" }]}
         branches={branches}
         open
         saving={false}
@@ -142,6 +143,7 @@ describe("recording a forex trade", () => {
     render(
       <FxDialog
         latestRates={rates}
+        currencies={[{ code: "USD", name: "US Dollar" }]}
         branches={branches}
         open
         saving={false}

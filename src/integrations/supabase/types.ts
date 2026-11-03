@@ -663,6 +663,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      momo_networks: {
+        Row: {
+          active: boolean;
+          code: string;
+          created_at: string;
+          float_account_code: string;
+          name: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          code: string;
+          created_at?: string;
+          float_account_code: string;
+          name: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          created_at?: string;
+          float_account_code?: string;
+          name?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      fx_currencies: {
+        Row: {
+          active: boolean;
+          code: string;
+          created_at: string;
+          name: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          code: string;
+          created_at?: string;
+          name: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          created_at?: string;
+          name?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       momo_transactions: {
         Row: {
           amount: number;
@@ -767,6 +824,33 @@ export type Database = {
           _roles: Database["public"]["Enums"]["app_role"][];
           _user_id: string;
         };
+        Returns: undefined;
+      };
+      save_momo_network: {
+        Args: {
+          _active?: boolean;
+          _code: string;
+          _float_account_code: string;
+          _name: string;
+          _sort_order?: number;
+        };
+        Returns: undefined;
+      };
+      delete_momo_network: {
+        Args: { _code: string };
+        Returns: undefined;
+      };
+      save_fx_currency: {
+        Args: {
+          _active?: boolean;
+          _code: string;
+          _name: string;
+          _sort_order?: number;
+        };
+        Returns: undefined;
+      };
+      delete_fx_currency: {
+        Args: { _code: string };
         Returns: undefined;
       };
       reverse_momo_transaction: {

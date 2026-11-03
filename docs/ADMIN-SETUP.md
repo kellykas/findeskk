@@ -112,6 +112,42 @@ select proname from pg_proc where proname = 'reverse_momo_transaction';
 Only a super admin, company owner or general manager can reverse, and a transaction can be reversed
 once. Nothing is deleted: the original entry stays in the ledger next to its reversal.
 
+## Manage networks and currencies (one-time database step)
+
+Mobile money networks and traded currencies are now rows the company manages from the app, so the
+database needs that structure once. Until this is done, the **Mobile money networks** and
+**Currencies & rates** panels report that a one-time setup is needed; recording, receipts and
+reports keep working throughout, so this is safe to do at any time.
+
+1. Open `supabase/migrations/20261104150000_reference_data.sql` in the repository (on GitHub: the
+   file → **Copy raw file**).
+2. Supabase dashboard → **SQL Editor** → **New query** → paste → **Run**.
+3. Confirm both tables and the four write functions exist — this should return four rows:
+
+```sql
+select proname from pg_proc
+where proname in ('save_momo_network','delete_momo_network','save_fx_currency','delete_fx_currency');
+```
+
+4. Reload the app. **Mobile Money → Mobile money networks** can then add a network (choose the float
+   account it uses), and **Forex Bureau → Currencies & rates** can add a currency and publish its
+   rate.
+
+What the rules are, so nobody is surprised:
+
+- Only a super admin, company owner or general manager can add or change these, in the app and in the
+  database. Everyone else can read them.
+- MTN and Airtel, and USD, EUR, GBP and KES, are created by the migration, so nothing existing is lost.
+- A network or currency that already has transactions (or published rates) cannot be deleted — switch
+  it off instead. Recorded history must keep resolving.
+- A network's code never changes after it is created, because every recorded transaction stores it.
+  The float account can change: earlier entries stay on the account they posted to.
+- Exchange rates stay append-only. "Changing" a rate means publishing a new one from today; the old
+  rate stays in history, which is what an auditor expects.
+
+If a migration is skipped, the app keeps working with MTN, Airtel and the four original currencies,
+so order of deployment does not matter.
+
 ## Why not in the app?
 
 Creating auth accounts requires the Supabase **service role** key, which must never reach the

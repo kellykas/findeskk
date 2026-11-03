@@ -3,9 +3,11 @@
  * transactions.
  *
  * The network reference is typed in by staff — it is never network-verified
- * and must never be shown as if the network confirmed it. Authoritative money
- * math happens in PostgreSQL inside record_momo_transaction(); the helpers here
- * only preview the same result for the form.
+ * and must never be shown as if the network confirmed it. The networks on offer
+ * are rows the company manages; the database rejects one that is switched off.
+ * Authoritative money math happens in PostgreSQL inside
+ * record_momo_transaction(); the helpers here only preview the same result for
+ * the form.
  */
 import { z } from "zod";
 import { BASE_CURRENCY } from "./currency";
@@ -13,12 +15,21 @@ import { todayUtcDate } from "./date";
 import { parseLedgerAmount } from "./ledger";
 import { add, subtract, type Money } from "./money";
 
-export const MOMO_NETWORKS = ["mtn", "airtel"] as const;
-export type MomoNetwork = (typeof MOMO_NETWORKS)[number];
-export const MOMO_NETWORK_LABELS: Record<MomoNetwork, string> = {
+/**
+ * Networks are company-managed reference data (public.momo_networks), so a
+ * network is an opaque code rather than a fixed list. The two seeded networks
+ * keep a friendly fallback label for records shown without joining the table.
+ */
+export const MOMO_NETWORK_LABELS: Record<string, string> = {
   mtn: "MTN",
   airtel: "Airtel",
 };
+export type MomoNetwork = string;
+
+/** Display label for a network code, falling back to the code itself. */
+export function momoNetworkLabel(code: string): string {
+  return MOMO_NETWORK_LABELS[code] ?? code.toUpperCase();
+}
 
 export const MOMO_TYPES = ["deposit", "withdrawal"] as const;
 export type MomoType = (typeof MOMO_TYPES)[number];
@@ -42,7 +53,11 @@ function amountField(message: string, allowZero: boolean) {
 
 export const momoSchema = z
   .object({
-    network: z.enum(MOMO_NETWORKS),
+    network: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9_]{2,20}$/, "Choose a mobile money network"),
     type: z.enum(MOMO_TYPES),
     amount: amountField("Enter an amount greater than zero", false),
     commission: amountField("Enter a valid commission (0 or more)", true),

@@ -18,27 +18,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  FX_CURRENCIES,
-  FX_CURRENCY_LABELS,
-  fxRateSchema,
-  type FxCurrency,
-  type FxRateInput,
-} from "@/domain/forex";
+import { fxRateSchema, type FxCurrencyOption } from "@/domain/forex";
+import type { FxRateInput } from "@/domain/forex";
 import { todayUtcDate } from "@/domain/date";
 
 export function RateDialog({
+  currencies,
+  initialCurrency,
   open,
   saving,
   onOpenChange,
   onSave,
 }: {
+  /** Active currencies, in the order the company set. */
+  currencies: FxCurrencyOption[];
+  /** Preselected currency when opened from a currency's row. */
+  initialCurrency?: string;
   open: boolean;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (input: FxRateInput) => void;
 }) {
-  const [currency, setCurrency] = useState<FxCurrency>("USD");
+  const [currency, setCurrency] = useState(initialCurrency ?? currencies[0]?.code ?? "");
   const [buyRate, setBuyRate] = useState("");
   const [sellRate, setSellRate] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState(todayUtcDate());
@@ -71,18 +72,23 @@ export function RateDialog({
 
           <div className="space-y-2">
             <Label>Currency</Label>
-            <Select value={currency} onValueChange={(value) => setCurrency(value as FxCurrency)}>
-              <SelectTrigger>
-                <SelectValue />
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger aria-label="Currency">
+                <SelectValue placeholder="Choose a currency" />
               </SelectTrigger>
               <SelectContent>
-                {FX_CURRENCIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c} · {FX_CURRENCY_LABELS[c]}
+                {currencies.map((option) => (
+                  <SelectItem key={option.code} value={option.code}>
+                    {option.code} · {option.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {currencies.length === 0 && (
+              <p className="text-xs text-destructive">
+                Add a currency first, then publish its rate.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -104,7 +110,7 @@ export function RateDialog({
                 value={sellRate}
                 onChange={(event) => setSellRate(event.target.value.replace(/,/g, ""))}
                 inputMode="decimal"
-                placeholder="3760"
+                placeholder="3800"
                 required
               />
             </div>
@@ -125,7 +131,7 @@ export function RateDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !currency}>
               {saving ? "Publishing…" : "Publish rate"}
             </Button>
           </DialogFooter>

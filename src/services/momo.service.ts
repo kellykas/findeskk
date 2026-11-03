@@ -10,7 +10,7 @@
  */
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { MOMO_NETWORKS, MOMO_TYPES, type MomoNetwork, type MomoType } from "@/domain/momo";
+import { MOMO_TYPES, type MomoNetwork, type MomoType } from "@/domain/momo";
 import { toDecimalString, type Money } from "@/domain/money";
 import { toMoney } from "./ledger.service";
 
@@ -67,16 +67,16 @@ export interface MomoReversalRow {
   created_at: string;
 }
 
-const NETWORK_SET = new Set<string>(MOMO_NETWORKS);
 const TYPE_SET = new Set<string>(MOMO_TYPES);
 
 export function mapMomoRow(row: MomoRow, reversal: MomoReversalRow | null = null): MomoRecord {
-  if (!NETWORK_SET.has(row.network))
-    throw new Error(`Unknown mobile money network: ${row.network}`);
+  // Networks are managed rows, so any stored code is valid; the label is
+  // resolved by the page from momo_networks.
+  if (!row.network) throw new Error("A mobile money transaction has no network");
   if (!TYPE_SET.has(row.type)) throw new Error(`Unknown transaction type: ${row.type}`);
   return {
     id: row.id,
-    network: row.network as MomoNetwork,
+    network: row.network,
     type: row.type as MomoType,
     amount: toMoney(row.amount),
     commission: toMoney(row.commission),
@@ -184,7 +184,9 @@ export function momoErrorMessage(message: string): string {
     return "Commission must be less than the withdrawal amount.";
   if (text.includes("entry date cannot be in the future"))
     return "Entry date cannot be in the future.";
-  if (text.includes("unknown mobile money network")) return "Choose MTN or Airtel.";
+  if (text.includes("unknown or inactive mobile money network"))
+    return "That network is switched off. Ask a manager to enable it, or choose another.";
+  if (text.includes("unknown mobile money network")) return "Choose a mobile money network.";
   if (text.includes("unknown transaction type")) return "Choose a deposit or withdrawal.";
   if (text.includes("invalid or inactive branch")) return "Select an active branch.";
   if (text.includes("unknown customer")) return "That customer no longer exists.";
