@@ -133,14 +133,12 @@ function Expenses() {
               variant="outline"
               size="sm"
               onClick={() => setRecordIncomeForm(true)}
-              disabled={branchOptions.length === 0}
             >
               Record income
             </Button>
             <Button
               size="sm"
               onClick={() => setRecordForm(true)}
-              disabled={branchOptions.length === 0}
             >
               Record expense
             </Button>

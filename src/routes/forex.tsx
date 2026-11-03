@@ -182,6 +182,26 @@ function Forex() {
   const turnover = rows.reduce((total, trade) => total + trade.ugxAmount.minor, 0n);
   const margin = rows.reduce((total, trade) => total + trade.margin.minor, 0n);
 
+  const positions = useMemo(() => {
+    const map = new Map<string, bigint>();
+    for (const trade of rows) {
+      const key = trade.currency;
+      const current = map.get(key) ?? 0n;
+      if (trade.type === "buy") {
+        map.set(key, current + trade.foreignAmount.minor);
+      } else {
+        map.set(key, current - trade.foreignAmount.minor);
+      }
+    }
+    return [...map.entries()]
+      .filter(([, amt]) => amt !== 0n)
+      .map(([currency, minor]) => ({
+        currency,
+        minor,
+        label: FX_CURRENCY_LABELS[currency as keyof typeof FX_CURRENCY_LABELS],
+      }));
+  }, [rows]);
+
   return (
     <AppShell>
       <PageHeader
@@ -213,12 +233,27 @@ function Forex() {
           value={formatMoney(money(turnover, BASE_CURRENCY))}
           hint="UGX value traded"
         />
-        <StatCard label="Margin" value={formatMoney(money(margin, BASE_CURRENCY))} hint="UGX" />
+        <StatCard label="Margin (profit)" value={formatMoney(money(margin, BASE_CURRENCY))} hint="UGX" />
         <StatCard
           label="Currencies traded"
           value={String(new Set(rows.map((trade) => trade.currency)).size)}
         />
       </div>
+
+      {positions.length > 0 && (
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {positions.map((pos) => (
+            <StatCard
+              key={pos.currency}
+              label={`${pos.currency} position`}
+              value={`${pos.minor >= 0n ? "+" : ""}${(pos.minor / 100n).toString()}.${String(
+                Math.abs(Number(pos.minor % 100n)),
+              ).padStart(2, "0")} ${pos.currency}`}
+              hint={pos.label}
+            />
+          ))}
+        </div>
+      )}
 
       <SectionCard
         title="Published rates"

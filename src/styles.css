@@ -156,3 +156,26 @@
     margin: 8mm;
   }
 }
+
+@media print {
+  header,
+  nav,
+  aside,
+  [data-sidebar],
+  [role="navigation"],
+  button:not(.print-allow),
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  section,
+  .card {
+    break-inside: avoid;
+  }
+}

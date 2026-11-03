@@ -24,6 +24,10 @@ import { reportQuery } from "@/services/reports.service";
 import { fxQuery } from "@/services/forex.service";
 import { momoQuery } from "@/services/momo.service";
 import { momoCashMovement } from "@/domain/momo";
+import { expensesQuery } from "@/services/expenses.service";
+import { incomesQuery } from "@/services/income.service";
+import { branchesQuery, staffQuery } from "@/services/staff.service";
+import { Download } from "lucide-react";
 
 export const Route = createFileRoute("/reports")({
   head: () => ({
@@ -53,6 +57,10 @@ function Reports() {
   const ledger = useQuery({ ...reportQuery({ from, to }), enabled: allowed && !invalidRange });
   const forex = useQuery({ ...fxQuery(200), enabled: allowed });
   const momo = useQuery({ ...momoQuery(200), enabled: allowed });
+  const expenses = useQuery({ ...expensesQuery, enabled: allowed });
+  const incomes = useQuery({ ...incomesQuery, enabled: allowed });
+  const branches = useQuery({ ...branchesQuery, enabled: allowed });
+  const staff = useQuery({ ...staffQuery, enabled: allowed });
 
   const report = useMemo(
     () => (ledger.data ? buildPeriodReport(ledger.data.accounts, ledger.data.lines) : null),
@@ -97,15 +105,25 @@ function Reports() {
     URL.revokeObjectURL(url);
   }
 
+  const exportPdf = () => {
+    window.print();
+  };
+
   return (
     <AppShell>
       <PageHeader
         title="Reports"
         description="Derived from posted journal lines, so every figure agrees with the ledger."
         actions={
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!report}>
-            Export P&L (CSV)
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={!report}>
+              Export P&L (CSV)
+            </Button>
+            <Button variant="default" size="sm" onClick={exportPdf}>
+              <Download className="mr-2 h-4 w-4" />
+              Export PDF
+            </Button>
+          </>
         }
       />
 
@@ -307,13 +325,161 @@ function Reports() {
             </SectionCard>
           </div>
 
-          <PlannedNext
-            features={[
-              "Branch and teller performance breakdown",
-              "Cash reconciliation report",
-              "PDF export",
-            ]}
-          />
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <SectionCard title="Branch performance breakdown">
+              {(() => {
+                const branchMap = new Map<string, { name: string; forex: bigint; forexCount: number; momo: bigint; momoCount: number; expenses: bigint; expenseCount: number; income: bigint; incomeCount: number }>();
+                for (const b of branches.data ?? []) {
+                  branchMap.set(b.id, { name: `${b.code} · ${b.name}`, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 });
+                }
+                for (const t of trades) {
+                  const key = t.branchId;
+                  const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
+                  entry.forex += t.ugxAmount.minor;
+                  entry.forexCount += 1;
+                  branchMap.set(key, entry);
+                }
+                for (const m of momoRows) {
+                  const key = m.branchId;
+                  const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
+                  entry.momo += momoCashMovement(m.type, m.amount, m.commission).minor;
+                  entry.momoCount += 1;
+                  branchMap.set(key, entry);
+                }
+                const expRows = (expenses.data ?? []).filter((e: any) => {
+                  const d = e.expenseDate;
+                  return d >= from && d <= to;
+                });
+                for (const e of expRows) {
+                  const key = e.branchId;
+                  const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
+                  entry.expenses += e.amount.minor;
+                  entry.expenseCount += 1;
+                  branchMap.set(key, entry);
+                }
+                const incRows = (incomes.data ?? []).filter((i: any) => {
+                  const d = i.incomeDate;
+                  return d >= from && d <= to;
+                });
+                for (const i of incRows) {
+                  const key = i.branchId;
+                  const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
+                  entry.income += i.amount.minor;
+                  entry.incomeCount += 1;
+                  branchMap.set(key, entry);
+                }
+                const items = [...branchMap.values()].filter((v) => v.forexCount + v.momoCount + v.expenseCount + v.incomeCount > 0);
+                if (items.length === 0) return <p className="px-4 py-6 text-sm text-muted-foreground">No activity in period</p>;
+                return (
+                  <div className="divide-y text-sm">
+                    {items.map((item) => (
+                      <div key={item.name} className="px-4 py-3 space-y-1">
+                        <div className="font-medium">{item.name}</div>
+                        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                          <span>Forex: {item.forexCount} ({formatMoney(money(item.forex, BASE_CURRENCY))})</span>
+                          <span>MoMo: {item.momoCount} ({formatMoney(money(item.momo, BASE_CURRENCY))})</span>
+                          <span>Income: {item.incomeCount} ({formatMoney(money(item.income, BASE_CURRENCY))})</span>
+                          <span>Expenses: {item.expenseCount} ({formatMoney(money(item.expenses, BASE_CURRENCY))})</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </SectionCard>
+            <SectionCard title="Teller performance breakdown">
+              {(() => {
+                const tellerMap = new Map<string, { name: string; count: number; value: bigint }>();
+                const nameFor = (id: string | null | undefined) => {
+                  if (!id) return "System";
+                  const s = (staff.data ?? []).find((x) => x.id === id);
+                  return s?.displayName || id.slice(0, 8);
+                };
+                for (const t of trades) {
+                  if (!t.createdBy) continue;
+                  const key = t.createdBy;
+                  const e = tellerMap.get(key) ?? { name: nameFor(key), count: 0, value: 0n };
+                  e.count += 1;
+                  e.value += t.ugxAmount.minor;
+                  tellerMap.set(key, e);
+                }
+                const expRows = (expenses.data ?? []).filter((e: any) => {
+                  const d = e.expenseDate;
+                  return d >= from && d <= to;
+                });
+                for (const ex of expRows) {
+                  if (!ex.createdBy) continue;
+                  const key = ex.createdBy;
+                  const e = tellerMap.get(key) ?? { name: nameFor(key), count: 0, value: 0n };
+                  e.count += 1;
+                  e.value += ex.amount.minor;
+                  tellerMap.set(key, e);
+                }
+                const incRows = (incomes.data ?? []).filter((i: any) => {
+                  const d = i.incomeDate;
+                  return d >= from && d <= to;
+                });
+                for (const inc of incRows) {
+                  if (!inc.createdBy) continue;
+                  const key = inc.createdBy;
+                  const e = tellerMap.get(key) ?? { name: nameFor(key), count: 0, value: 0n };
+                  e.count += 1;
+                  e.value += inc.amount.minor;
+                  tellerMap.set(key, e);
+                }
+                for (const m of momoRows) {
+                  if (!m.createdBy) continue;
+                  const key = m.createdBy;
+                  const e = tellerMap.get(key) ?? { name: nameFor(key), count: 0, value: 0n };
+                  e.count += 1;
+                  e.value += momoCashMovement(m.type, m.amount, m.commission).minor;
+                  tellerMap.set(key, e);
+                }
+                const items = [...tellerMap.values()].sort((a, b) => (b.value > a.value ? 1 : -1));
+                if (items.length === 0) return <p className="px-4 py-6 text-sm text-muted-foreground">No activity in period</p>;
+                return (
+                  <div className="divide-y text-sm">
+                    {items.map((item) => (
+                      <div key={item.name} className="flex items-center justify-between px-4 py-2.5">
+                        <div>
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-muted-foreground">{item.count} transactions</div>
+                        </div>
+                        <div className="tabular font-medium">{formatMoney(money(item.value, BASE_CURRENCY))}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </SectionCard>
+          </div>
+
+          <div className="mt-6">
+            <SectionCard title="Cash reconciliation report">
+              {(() => {
+                const cashAccounts = (report?.accounts ?? []).filter((a) => a.code === "1000");
+                if (cashAccounts.length === 0) {
+                  return <p className="px-4 py-6 text-sm text-muted-foreground">No cash account (1000) found in this period.</p>;
+                }
+                return (
+                  <div className="divide-y text-sm">
+                    {cashAccounts.map((acc) => (
+                      <div key={acc.code} className="flex items-center justify-between px-4 py-3">
+                        <div>
+                          <div className="font-medium">{acc.code} · {acc.name}</div>
+                          <div className="text-xs text-muted-foreground">{ACCOUNT_TYPE_LABELS[acc.type]}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="tabular font-medium">Balance: {formatMoney(acc.balance)}</div>
+                          <div className="text-xs text-muted-foreground">Debits {formatMoney(acc.debitTotal)} · Credits {formatMoney(acc.creditTotal)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </SectionCard>
+          </div>
         </>
       )}
     </AppShell>
