@@ -82,7 +82,7 @@ export async function recordExpense(input: RecordExpenseInput): Promise<string> 
     _reference: input.reference,
     _notes: input.notes,
     _idempotency_key: input.idempotencyKey,
-  });
+  } as never);
   if (error) throw new Error(expenseErrorMessage(error.message));
   return data as string;
 }

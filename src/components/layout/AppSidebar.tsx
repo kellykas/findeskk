@@ -17,6 +17,7 @@ import {
   FileBarChart,
   ShieldCheck,
   Settings,
+  LogOut,
 } from "lucide-react";
 
 interface NavItem {
@@ -175,7 +176,7 @@ export function AppSidebar() {
               className="flex w-full cursor-pointer items-center justify-between rounded-md text-muted-foreground hover:bg-muted/80 px-2 py-1.5 transition-colors"
             >
               <span className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4" />
+                <LogOut className="h-4 w-4" />
                 <span className="text-xs">Sign out</span>
               </span>
             </button>
@@ -197,12 +198,14 @@ function SidebarLink({ item }: { item: NavItem }) {
   return (
     <Link
       to={item.path}
+      activeOptions={{ exact: item.path === "/" }}
+      activeProps={{ className: "bg-primary/10 font-medium text-primary hover:bg-primary/10" }}
+      inactiveProps={{ className: "text-muted-foreground hover:bg-muted/80" }}
       className={cn(
         "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-        "text-muted-foreground hover:bg-muted/80",
       )}
     >
-      <item.icon className="h-4 w-4" />
+      <item.icon className="h-4 w-4 shrink-0" />
       {item.title}
     </Link>
   );

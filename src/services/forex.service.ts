@@ -187,7 +187,7 @@ export async function recordFxTransaction(input: RecordFxInput): Promise<string>
     _notes: input.notes,
     _entry_date: input.entryDate,
     _idempotency_key: input.idempotencyKey,
-  });
+  } as never);
   if (error) throw new Error(fxErrorMessage(error.message));
   return data as string;
 }
@@ -206,7 +206,7 @@ export async function setFxRate(input: SetFxRateInput): Promise<void> {
     buy_rate: input.buyRate,
     sell_rate: input.sellRate,
     effective_from: input.effectiveFrom,
-  });
+  } as never);
   if (error) throw new Error(fxErrorMessage(error.message));
 }
 

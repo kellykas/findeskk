@@ -110,7 +110,7 @@ export async function recordMomo(input: RecordMomoInput): Promise<string> {
     _notes: input.notes,
     _entry_date: input.entryDate,
     _idempotency_key: input.idempotencyKey,
-  });
+  } as never);
   if (error) throw new Error(momoErrorMessage(error.message));
   return data as string;
 }
