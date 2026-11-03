@@ -54,21 +54,20 @@ function ReceiptSheet({
   servedBy: string;
   className?: string;
 }) {
-  const title =
-    trade.type === "buy" ? "Foreign currency purchase" : "Foreign currency sale";
+  const title = trade.type === "buy" ? "Foreign currency purchase" : "Foreign currency sale";
   const documentNo = trade.receiptNo || trade.id.slice(0, 8).toUpperCase();
 
   return (
     <div className={`${RECEIPT_WIDTH[settings.receiptFormat]} ${className ?? ""}`}>
       <div className="text-center">
-        <div className="text-sm font-semibold uppercase tracking-wide">
-          {settings.companyName}
-        </div>
+        <div className="text-sm font-semibold uppercase tracking-wide">{settings.companyName}</div>
         {settings.address && <div className="text-muted-foreground">{settings.address}</div>}
         <div className="text-muted-foreground">
           {[settings.phone, settings.email].filter(Boolean).join(" · ")}
         </div>
-        {settings.taxNumber && <div className="text-muted-foreground">TIN: {settings.taxNumber}</div>}
+        {settings.taxNumber && (
+          <div className="text-muted-foreground">TIN: {settings.taxNumber}</div>
+        )}
       </div>
 
       <div className="my-2 border-t border-dashed" />

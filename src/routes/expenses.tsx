@@ -23,10 +23,15 @@ import {
   type ExpenseCategory,
   type ExpenseRecord,
 } from "@/domain/expenses";
-import { INCOME_CATEGORY_LABELS, INCOME_RECEIPT_SOURCE_LABELS, type IncomeRecord } from "@/domain/income";
+import {
+  INCOME_CATEGORY_LABELS,
+  INCOME_RECEIPT_SOURCE_LABELS,
+  type IncomeRecord,
+} from "@/domain/income";
 import { can } from "@/domain/access";
 import { useSession } from "@/hooks/use-session";
 import { expensesQuery, recordExpense } from "@/services/expenses.service";
+import { suggestExpenseCategory } from "@/services/ai.service";
 import { incomesQuery, recordIncome } from "@/services/income.service";
 import { branchesQuery } from "@/services/staff.service";
 
@@ -90,7 +95,7 @@ function Expenses() {
   }));
   const branchNames = new Map(branchOptions.map((b) => [b.id, `${b.code} · ${b.name}`]));
 
-  const rows = expenses.data ?? [];
+  const rows = useMemo(() => expenses.data ?? [], [expenses.data]);
   const visibleRows = useMemo(
     () => (category === "all" ? rows : rows.filter((row) => row.category === category)),
     [rows, category],
@@ -129,17 +134,10 @@ function Expenses() {
         description="Every expense and income posts a balanced journal entry against the chart of accounts."
         actions={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRecordIncomeForm(true)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setRecordIncomeForm(true)}>
               Record income
             </Button>
-            <Button
-              size="sm"
-              onClick={() => setRecordForm(true)}
-            >
+            <Button size="sm" onClick={() => setRecordForm(true)}>
               Record expense
             </Button>
           </>
@@ -272,20 +270,13 @@ function Expenses() {
             </div>
           )}
           {!incomes.isPending && !incomes.isError && incomeRows.length === 0 && (
-            <p className="px-4 py-6 text-sm text-muted-foreground">
-              No income recorded yet.
-            </p>
+            <p className="px-4 py-6 text-sm text-muted-foreground">No income recorded yet.</p>
           )}
           {incomeRows.length > 0 && <IncomeTable rows={incomeRows} branchNames={branchNames} />}
         </SectionCard>
       </div>
 
-      <PlannedNext
-        features={[
-          "Expense approvals before posting",
-          "Profit and loss statement",
-        ]}
-      />
+      <PlannedNext features={["Expense approvals before posting", "Profit and loss statement"]} />
       <p className="mt-4 text-xs text-muted-foreground">
         Company-wide profit and loss lives in Reports, computed from the same ledger postings.
       </p>
@@ -294,6 +285,7 @@ function Expenses() {
         branches={branchOptions}
         open={recordForm}
         saving={save.isPending}
+        suggestCategory={suggestExpenseCategory}
         onOpenChange={setRecordForm}
         onSave={(values) => save.mutate(values)}
       />

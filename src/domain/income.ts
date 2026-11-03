@@ -98,7 +98,8 @@ export function incomeErrorMessage(message: string): string {
   if (text.includes("cannot record income")) return "Your roles cannot record income.";
   if (text.includes("not assigned to this branch")) return "You are not assigned to that branch.";
   if (text.includes("unknown income category")) return "Choose an income category.";
-  if (text.includes("received into cash or bank")) return "Choose cash or bank as the deposit source.";
+  if (text.includes("received into cash or bank"))
+    return "Choose cash or bank as the deposit source.";
   if (text.includes("income date cannot be in the future"))
     return "Income date cannot be in the future.";
   if (text.includes("invalid or inactive branch")) return "Select an active branch.";

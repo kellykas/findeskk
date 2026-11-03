@@ -65,10 +65,13 @@ export function transferSchema(currency: TransferCurrency) {
       amount: z
         .string()
         .trim()
-        .refine((value) => {
-          const parsed = parseTransferAmount(value, currency);
-          return parsed !== null && parsed.minor > 0n;
-        }, `Enter an amount greater than zero${getCurrency(currency).decimals === 0 ? " (whole shillings)" : ""}`),
+        .refine(
+          (value) => {
+            const parsed = parseTransferAmount(value, currency);
+            return parsed !== null && parsed.minor > 0n;
+          },
+          `Enter an amount greater than zero${getCurrency(currency).decimals === 0 ? " (whole shillings)" : ""}`,
+        ),
       fromBranchId: z.string().min(1, "Choose the branch sending the currency"),
       toBranchId: z.string().min(1, "Choose the branch receiving the currency"),
       reference: z.string().max(40, "Reference can have at most 40 characters"),

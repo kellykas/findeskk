@@ -2,13 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
-import {
-  AccessDenied,
-  DataTable,
-  PageHeader,
-  SectionCard,
-  StatCard,
-} from "@/components/shared";
+import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -327,20 +321,63 @@ function Reports() {
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <SectionCard title="Branch performance breakdown">
               {(() => {
-                const branchMap = new Map<string, { name: string; forex: bigint; forexCount: number; momo: bigint; momoCount: number; expenses: bigint; expenseCount: number; income: bigint; incomeCount: number }>();
+                const branchMap = new Map<
+                  string,
+                  {
+                    name: string;
+                    forex: bigint;
+                    forexCount: number;
+                    momo: bigint;
+                    momoCount: number;
+                    expenses: bigint;
+                    expenseCount: number;
+                    income: bigint;
+                    incomeCount: number;
+                  }
+                >();
                 for (const b of branches.data ?? []) {
-                  branchMap.set(b.id, { name: `${b.code} · ${b.name}`, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 });
+                  branchMap.set(b.id, {
+                    name: `${b.code} · ${b.name}`,
+                    forex: 0n,
+                    forexCount: 0,
+                    momo: 0n,
+                    momoCount: 0,
+                    expenses: 0n,
+                    expenseCount: 0,
+                    income: 0n,
+                    incomeCount: 0,
+                  });
                 }
                 for (const t of trades) {
                   const key = t.branchId;
-                  const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
+                  const entry = branchMap.get(key) ?? {
+                    name: key,
+                    forex: 0n,
+                    forexCount: 0,
+                    momo: 0n,
+                    momoCount: 0,
+                    expenses: 0n,
+                    expenseCount: 0,
+                    income: 0n,
+                    incomeCount: 0,
+                  };
                   entry.forex += t.ugxAmount.minor;
                   entry.forexCount += 1;
                   branchMap.set(key, entry);
                 }
                 for (const m of momoRows) {
                   const key = m.branchId;
-                  const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
+                  const entry = branchMap.get(key) ?? {
+                    name: key,
+                    forex: 0n,
+                    forexCount: 0,
+                    momo: 0n,
+                    momoCount: 0,
+                    expenses: 0n,
+                    expenseCount: 0,
+                    income: 0n,
+                    incomeCount: 0,
+                  };
                   entry.momo += momoCashMovement(m.type, m.amount, m.commission).minor;
                   entry.momoCount += 1;
                   branchMap.set(key, entry);
@@ -350,7 +387,17 @@ function Reports() {
                 );
                 for (const e of expRows) {
                   const key = e.branchId;
-                  const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
+                  const entry = branchMap.get(key) ?? {
+                    name: key,
+                    forex: 0n,
+                    forexCount: 0,
+                    momo: 0n,
+                    momoCount: 0,
+                    expenses: 0n,
+                    expenseCount: 0,
+                    income: 0n,
+                    incomeCount: 0,
+                  };
                   entry.expenses += e.amount.minor;
                   entry.expenseCount += 1;
                   branchMap.set(key, entry);
@@ -360,23 +407,49 @@ function Reports() {
                 );
                 for (const i of incRows) {
                   const key = i.branchId;
-                  const entry = branchMap.get(key) ?? { name: key, forex: 0n, forexCount: 0, momo: 0n, momoCount: 0, expenses: 0n, expenseCount: 0, income: 0n, incomeCount: 0 };
+                  const entry = branchMap.get(key) ?? {
+                    name: key,
+                    forex: 0n,
+                    forexCount: 0,
+                    momo: 0n,
+                    momoCount: 0,
+                    expenses: 0n,
+                    expenseCount: 0,
+                    income: 0n,
+                    incomeCount: 0,
+                  };
                   entry.income += i.amount.minor;
                   entry.incomeCount += 1;
                   branchMap.set(key, entry);
                 }
-                const items = [...branchMap.values()].filter((v) => v.forexCount + v.momoCount + v.expenseCount + v.incomeCount > 0);
-                if (items.length === 0) return <p className="px-4 py-6 text-sm text-muted-foreground">No activity in period</p>;
+                const items = [...branchMap.values()].filter(
+                  (v) => v.forexCount + v.momoCount + v.expenseCount + v.incomeCount > 0,
+                );
+                if (items.length === 0)
+                  return (
+                    <p className="px-4 py-6 text-sm text-muted-foreground">No activity in period</p>
+                  );
                 return (
                   <div className="divide-y text-sm">
                     {items.map((item) => (
                       <div key={item.name} className="px-4 py-3 space-y-1">
                         <div className="font-medium">{item.name}</div>
                         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                          <span>Forex: {item.forexCount} ({formatMoney(money(item.forex, BASE_CURRENCY))})</span>
-                          <span>MoMo: {item.momoCount} ({formatMoney(money(item.momo, BASE_CURRENCY))})</span>
-                          <span>Income: {item.incomeCount} ({formatMoney(money(item.income, BASE_CURRENCY))})</span>
-                          <span>Expenses: {item.expenseCount} ({formatMoney(money(item.expenses, BASE_CURRENCY))})</span>
+                          <span>
+                            Forex: {item.forexCount} (
+                            {formatMoney(money(item.forex, BASE_CURRENCY))})
+                          </span>
+                          <span>
+                            MoMo: {item.momoCount} ({formatMoney(money(item.momo, BASE_CURRENCY))})
+                          </span>
+                          <span>
+                            Income: {item.incomeCount} (
+                            {formatMoney(money(item.income, BASE_CURRENCY))})
+                          </span>
+                          <span>
+                            Expenses: {item.expenseCount} (
+                            {formatMoney(money(item.expenses, BASE_CURRENCY))})
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -431,16 +504,26 @@ function Reports() {
                   tellerMap.set(key, e);
                 }
                 const items = [...tellerMap.values()].sort((a, b) => (b.value > a.value ? 1 : -1));
-                if (items.length === 0) return <p className="px-4 py-6 text-sm text-muted-foreground">No activity in period</p>;
+                if (items.length === 0)
+                  return (
+                    <p className="px-4 py-6 text-sm text-muted-foreground">No activity in period</p>
+                  );
                 return (
                   <div className="divide-y text-sm">
                     {items.map((item) => (
-                      <div key={item.name} className="flex items-center justify-between px-4 py-2.5">
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between px-4 py-2.5"
+                      >
                         <div>
                           <div className="font-medium">{item.name}</div>
-                          <div className="text-xs text-muted-foreground">{item.count} transactions</div>
+                          <div className="text-xs text-muted-foreground">
+                            {item.count} transactions
+                          </div>
                         </div>
-                        <div className="tabular font-medium">{formatMoney(money(item.value, BASE_CURRENCY))}</div>
+                        <div className="tabular font-medium">
+                          {formatMoney(money(item.value, BASE_CURRENCY))}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -469,10 +552,7 @@ function Reports() {
                         credit: row.credit,
                       });
                       return (
-                        <div
-                          key={row.code}
-                          className="flex items-center justify-between px-4 py-3"
-                        >
+                        <div key={row.code} className="flex items-center justify-between px-4 py-3">
                           <div>
                             <div className="font-medium">
                               {row.code} · {row.name}

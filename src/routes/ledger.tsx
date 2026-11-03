@@ -1,15 +1,20 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { can } from "@/domain/access";
 import { ACCOUNT_TYPE_LABELS } from "@/domain/ledger";
+import { buildAccountHistory } from "@/domain/accountHistory";
 import { formatMoney, type Money } from "@/domain/money";
 import { useSession } from "@/hooks/use-session";
 import {
   accountBalancesQuery,
+  accountHistoryQuery,
   recentEntriesQuery,
   toTrialBalance,
 } from "@/services/ledger.service";
@@ -34,6 +39,9 @@ export const Route = createFileRoute("/ledger")({
 
 const fmt = (amount: Money) => formatMoney(amount);
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const monthStartIso = () => `${new Date().toISOString().slice(0, 7)}-01`;
+
 interface JournalRow {
   key: string;
   date: string;
@@ -49,6 +57,14 @@ function Ledger() {
   const allowed = Boolean(viewer && can(viewer.roles, "reports.view"));
   const balances = useQuery({ ...accountBalancesQuery, enabled: allowed });
   const entries = useQuery({ ...recentEntriesQuery(25), enabled: allowed });
+
+  const [accountId, setAccountId] = useState("");
+  const [historyFrom, setHistoryFrom] = useState(monthStartIso);
+  const [historyTo, setHistoryTo] = useState(todayIso);
+  const historyQuery = useQuery({
+    ...accountHistoryQuery({ accountId, from: historyFrom, to: historyTo }),
+    enabled: allowed && Boolean(accountId) && historyFrom <= historyTo,
+  });
 
   if (!allowed) {
     return (
@@ -84,6 +100,17 @@ function Ledger() {
       credit: line.side === "credit" ? line.amount : null,
     })),
   );
+
+  const selectedAccount = accounts.find((account) => account.accountId === accountId) ?? null;
+  const accountHistory =
+    selectedAccount && historyQuery.data
+      ? buildAccountHistory({
+          normalBalance: selectedAccount.normalBalance,
+          from: historyFrom,
+          to: historyTo,
+          lines: historyQuery.data,
+        })
+      : null;
 
   return (
     <AppShell>
@@ -219,6 +246,140 @@ function Ledger() {
               </span>
             </div>
           </SectionCard>
+
+          <div className="mt-6">
+            <SectionCard title="Account history">
+              <div className="flex flex-wrap items-end gap-3 px-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="history-account">Account</Label>
+                  <select
+                    id="history-account"
+                    className="h-9 w-[260px] rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    value={accountId}
+                    onChange={(event) => setAccountId(event.target.value)}
+                  >
+                    <option value="">Choose an account</option>
+                    {accounts.map((account) => (
+                      <option key={account.accountId} value={account.accountId}>
+                        {account.code} · {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="history-from">From</Label>
+                  <Input
+                    id="history-from"
+                    type="date"
+                    value={historyFrom}
+                    max={historyTo}
+                    onChange={(event) => setHistoryFrom(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="history-to">To</Label>
+                  <Input
+                    id="history-to"
+                    type="date"
+                    value={historyTo}
+                    min={historyFrom}
+                    onChange={(event) => setHistoryTo(event.target.value)}
+                  />
+                </div>
+              </div>
+
+              {!accountId && (
+                <p className="px-4 pb-6 text-sm text-muted-foreground">
+                  Choose an account to see every posted line and the running balance for the period.
+                </p>
+              )}
+
+              {accountId && historyFrom > historyTo && (
+                <p className="px-4 pb-6 text-sm text-destructive">
+                  The start date is after the end date.
+                </p>
+              )}
+
+              {accountId && historyFrom <= historyTo && historyQuery.isPending && (
+                <p className="px-4 pb-6 text-sm text-muted-foreground">Loading account history…</p>
+              )}
+
+              {accountId && historyFrom <= historyTo && historyQuery.isError && (
+                <p className="px-4 pb-6 text-sm text-destructive">
+                  Could not load this account: {historyQuery.error.message}
+                </p>
+              )}
+
+              {accountHistory && (
+                <>
+                  {accountHistory.rows.length === 0 ? (
+                    <p className="px-4 pb-6 text-sm text-muted-foreground">
+                      No movement on this account in the selected period.
+                    </p>
+                  ) : (
+                    <DataTable
+                      rows={accountHistory.rows}
+                      rowKey={(row) => row.key}
+                      columns={[
+                        {
+                          header: "Date",
+                          cell: (row) => (
+                            <span className="tabular text-xs">
+                              {new Date(row.entryDate).toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </span>
+                          ),
+                        },
+                        {
+                          header: "Reference",
+                          cell: (row) => <span className="tabular text-xs">{row.reference}</span>,
+                        },
+                        { header: "Description", cell: (row) => row.description },
+                        {
+                          header: "Debit",
+                          align: "right",
+                          cell: (row) => (
+                            <span className="tabular">
+                              {row.debit.minor === 0n ? "—" : fmt(row.debit)}
+                            </span>
+                          ),
+                        },
+                        {
+                          header: "Credit",
+                          align: "right",
+                          cell: (row) => (
+                            <span className="tabular">
+                              {row.credit.minor === 0n ? "—" : fmt(row.credit)}
+                            </span>
+                          ),
+                        },
+                        {
+                          header: "Balance",
+                          align: "right",
+                          cell: (row) => (
+                            <span className="tabular font-medium">{fmt(row.runningBalance)}</span>
+                          ),
+                        },
+                      ]}
+                    />
+                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-xs text-muted-foreground">
+                    <span>
+                      Opening {fmt(accountHistory.openingBalance)} · Closing{" "}
+                      {fmt(accountHistory.closingBalance)}
+                    </span>
+                    <span>
+                      Debits {fmt(accountHistory.debitTotal)} · Credits{" "}
+                      {fmt(accountHistory.creditTotal)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </SectionCard>
+          </div>
 
           <div className="mt-6">
             <SectionCard title="Recent journal lines">

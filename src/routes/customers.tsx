@@ -64,7 +64,7 @@ function Customers() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const rows = customers.data ?? [];
+  const rows = useMemo(() => customers.data ?? [], [customers.data]);
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return rows;

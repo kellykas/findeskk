@@ -115,8 +115,9 @@ export function IncomeDialog({
           <DialogHeader>
             <DialogTitle>Record income</DialogTitle>
             <DialogDescription>
-              The income is posted immediately: {INCOME_RECEIPT_SOURCE_LABELS[receivedInto].toLowerCase()} is debited and
-              the income account is credited.
+              The income is posted immediately:{" "}
+              {INCOME_RECEIPT_SOURCE_LABELS[receivedInto].toLowerCase()} is debited and the income
+              account is credited.
             </DialogDescription>
           </DialogHeader>
 

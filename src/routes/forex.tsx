@@ -7,13 +7,7 @@ import { FxDialog, type FxTradeValues } from "@/components/forex/FxDialog";
 import { FxReceiptDialog } from "@/components/forex/FxReceiptDialog";
 import { RateDialog } from "@/components/forex/RateDialog";
 import { TransferDialog, type TransferValues } from "@/components/forex/TransferDialog";
-import {
-  AccessDenied,
-  DataTable,
-  PageHeader,
-  SectionCard,
-  StatCard,
-} from "@/components/shared";
+import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney, money } from "@/domain/money";
@@ -149,7 +143,30 @@ function Forex() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const rows = trades.data ?? [];
+  const rows = useMemo(() => trades.data ?? [], [trades.data]);
+
+  // Net holding per currency from the trades on screen: buys add to inventory,
+  // sells take from it.
+  const positions = useMemo(() => {
+    const map = new Map<string, bigint>();
+    for (const trade of rows) {
+      const key = trade.currency;
+      const current = map.get(key) ?? 0n;
+      if (trade.type === "buy") {
+        map.set(key, current + trade.foreignAmount.minor);
+      } else {
+        map.set(key, current - trade.foreignAmount.minor);
+      }
+    }
+    return [...map.entries()]
+      .filter(([, amt]) => amt !== 0n)
+      .map(([currency, minor]) => ({
+        currency,
+        minor,
+        label: FX_CURRENCY_LABELS[currency as keyof typeof FX_CURRENCY_LABELS],
+      }));
+  }, [rows]);
+
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return rows;
@@ -182,26 +199,6 @@ function Forex() {
   const turnover = rows.reduce((total, trade) => total + trade.ugxAmount.minor, 0n);
   const margin = rows.reduce((total, trade) => total + trade.margin.minor, 0n);
 
-  const positions = useMemo(() => {
-    const map = new Map<string, bigint>();
-    for (const trade of rows) {
-      const key = trade.currency;
-      const current = map.get(key) ?? 0n;
-      if (trade.type === "buy") {
-        map.set(key, current + trade.foreignAmount.minor);
-      } else {
-        map.set(key, current - trade.foreignAmount.minor);
-      }
-    }
-    return [...map.entries()]
-      .filter(([, amt]) => amt !== 0n)
-      .map(([currency, minor]) => ({
-        currency,
-        minor,
-        label: FX_CURRENCY_LABELS[currency as keyof typeof FX_CURRENCY_LABELS],
-      }));
-  }, [rows]);
-
   return (
     <AppShell>
       <PageHeader
@@ -233,7 +230,11 @@ function Forex() {
           value={formatMoney(money(turnover, BASE_CURRENCY))}
           hint="UGX value traded"
         />
-        <StatCard label="Margin (profit)" value={formatMoney(money(margin, BASE_CURRENCY))} hint="UGX" />
+        <StatCard
+          label="Margin (profit)"
+          value={formatMoney(money(margin, BASE_CURRENCY))}
+          hint="UGX"
+        />
         <StatCard
           label="Currencies traded"
           value={String(new Set(rows.map((trade) => trade.currency)).size)}

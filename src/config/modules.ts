@@ -62,7 +62,7 @@ export const MODULES: AppModule[] = [
     group: "Operations",
     permission: "forex.transact",
     phase: 4,
-    plannedFeatures: ["Inter-branch currency transfers", "Receipts"],
+    plannedFeatures: [],
   },
   {
     path: "/mobile-money",
@@ -162,11 +162,7 @@ export const MODULES: AppModule[] = [
     group: "Oversight",
     permission: "reports.view",
     phase: 8,
-    plannedFeatures: [
-      "Branch and teller performance breakdown",
-      "Cash reconciliation report",
-      "PDF export",
-    ],
+    plannedFeatures: [],
   },
   {
     path: "/audit",

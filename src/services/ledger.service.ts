@@ -18,6 +18,7 @@ import {
 } from "@/domain/ledger";
 import { getCurrency } from "@/domain/currency";
 import { money, toDecimalString, type Money } from "@/domain/money";
+import type { AccountHistoryLine } from "@/domain/accountHistory";
 
 interface NumericRow {
   total_debit: string | number | null;
@@ -360,5 +361,81 @@ export function recentEntriesQuery(limit = 20) {
   return queryOptions({
     queryKey: ["ledger", "entries", limit],
     queryFn: () => listRecentEntries(limit),
+  });
+}
+
+interface HistoryEntryRow {
+  id: string;
+  reference: string;
+  entry_date: string;
+  description: string;
+  entry_type: string;
+  created_at: string;
+}
+
+interface HistoryLineRow {
+  entry_id: string;
+  side: string;
+  amount: string | number;
+  memo: string;
+}
+
+/**
+ * Every posted line for one account up to `to` (inclusive). Lines dated before
+ * the requested range are returned as well, because they open the running
+ * balance; the range filter itself lives in the pure domain helper.
+ */
+export async function loadAccountHistory(
+  accountId: string,
+  to: string,
+): Promise<AccountHistoryLine[]> {
+  const { data: entries, error: entryError } = await supabase
+    .from("journal_entries")
+    .select("id, reference, entry_date, description, entry_type, created_at")
+    .lte("entry_date", to)
+    .order("entry_date", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (entryError) throw new Error(entryError.message);
+
+  const rows = (entries ?? []) as unknown as HistoryEntryRow[];
+  if (rows.length === 0) return [];
+
+  const { data: lines, error: lineError } = await supabase
+    .from("journal_lines")
+    .select("entry_id, side, amount, memo")
+    .eq("account_id", accountId)
+    .in(
+      "entry_id",
+      rows.map((entry) => entry.id),
+    );
+  if (lineError) throw new Error(lineError.message);
+
+  const byId = new Map(rows.map((entry) => [entry.id, entry]));
+
+  return ((lines ?? []) as unknown as HistoryLineRow[]).flatMap((line) => {
+    if (line.side !== "debit" && line.side !== "credit") return [];
+    const entry = byId.get(line.entry_id);
+    if (!entry) return [];
+    return [
+      {
+        entryId: entry.id,
+        reference: entry.reference,
+        entryDate: entry.entry_date,
+        description: entry.description,
+        entryType: entry.entry_type,
+        createdAt: entry.created_at,
+        side: line.side,
+        amount: toMoney(line.amount),
+        memo: line.memo,
+      },
+    ];
+  });
+}
+
+export function accountHistoryQuery(input: { accountId: string; from: string; to: string }) {
+  return queryOptions({
+    queryKey: ["ledger", "history", input.accountId, input.from, input.to],
+    queryFn: () => loadAccountHistory(input.accountId, input.to),
+    enabled: Boolean(input.accountId),
   });
 }

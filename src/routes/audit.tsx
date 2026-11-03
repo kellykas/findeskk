@@ -64,7 +64,12 @@ function Audit() {
         title="Audit Trail"
         description="Every change is recorded automatically and cannot be edited."
         actions={
-          <Button variant="outline" size="sm" onClick={() => void events.refetch()} disabled={events.isFetching}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void events.refetch()}
+            disabled={events.isFetching}
+          >
             Refresh
           </Button>
         }
@@ -74,7 +79,12 @@ function Audit() {
           All
         </Button>
         {Object.entries(AREAS).map(([key, label]) => (
-          <Button key={key} size="sm" variant={area === key ? "default" : "outline"} onClick={() => setArea(key)}>
+          <Button
+            key={key}
+            size="sm"
+            variant={area === key ? "default" : "outline"}
+            onClick={() => setArea(key)}
+          >
             {label}
           </Button>
         ))}
@@ -83,7 +93,9 @@ function Audit() {
         {events.isPending ? (
           <p className="px-4 py-6 text-sm text-muted-foreground">Loading audit trail…</p>
         ) : events.isError ? (
-          <p className="px-4 py-6 text-sm text-destructive">Could not load the audit trail: {events.error.message}</p>
+          <p className="px-4 py-6 text-sm text-destructive">
+            Could not load the audit trail: {events.error.message}
+          </p>
         ) : events.data.length === 0 ? (
           <p className="px-4 py-6 text-sm text-muted-foreground">No recorded changes yet.</p>
         ) : (
@@ -93,9 +105,24 @@ function Audit() {
             columns={[
               { header: "When", cell: (r) => new Date(r.occurredAt).toLocaleString() },
               { header: "Area", cell: (r) => AREAS[r.table] ?? r.table },
-              { header: "Action", cell: (r) => <Badge variant="outline">{ACTIONS[r.action] ?? r.action}</Badge> },
-              { header: "Record", cell: (r) => <span className="font-mono text-xs">{r.recordId?.slice(0, 8) ?? "—"}</span> },
-              { header: "By", cell: (r) => <span className="font-mono text-xs">{r.actorId ? r.actorId.slice(0, 8) : "System"}</span> },
+              {
+                header: "Action",
+                cell: (r) => <Badge variant="outline">{ACTIONS[r.action] ?? r.action}</Badge>,
+              },
+              {
+                header: "Record",
+                cell: (r) => (
+                  <span className="font-mono text-xs">{r.recordId?.slice(0, 8) ?? "—"}</span>
+                ),
+              },
+              {
+                header: "By",
+                cell: (r) => (
+                  <span className="font-mono text-xs">
+                    {r.actorId ? r.actorId.slice(0, 8) : "System"}
+                  </span>
+                ),
+              },
             ]}
           />
         )}

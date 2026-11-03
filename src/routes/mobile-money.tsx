@@ -64,14 +64,21 @@ function MobileMoney() {
     code: b.code,
     name: b.name,
   }));
-  const customerOptions = (customers.data ?? []).map((c) => ({
-    id: c.id,
-    code: c.code,
-    name: c.name,
-  }));
-  const customerNames = new Map(customerOptions.map((c) => [c.id, c.name]));
+  const customerOptions = useMemo(
+    () =>
+      (customers.data ?? []).map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name,
+      })),
+    [customers.data],
+  );
+  const customerNames = useMemo(
+    () => new Map(customerOptions.map((c) => [c.id, c.name])),
+    [customerOptions],
+  );
 
-  const rows = transactions.data ?? [];
+  const rows = useMemo(() => transactions.data ?? [], [transactions.data]);
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return rows;

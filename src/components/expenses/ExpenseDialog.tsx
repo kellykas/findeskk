@@ -31,6 +31,7 @@ import {
   type PaymentSource,
 } from "@/domain/expenses";
 import { todayUtcDate } from "@/domain/date";
+import type { CategorySuggestion } from "@/domain/expenseCategory";
 
 export interface ExpenseFormValues {
   expenseDate: string;
@@ -53,12 +54,15 @@ export function ExpenseDialog({
   branches,
   open,
   saving,
+  suggestCategory,
   onOpenChange,
   onSave,
 }: {
   branches: BranchOption[];
   open: boolean;
   saving: boolean;
+  /** Optional: asks a model (with a rules fallback) which category fits. */
+  suggestCategory?: (input: { description: string; amount: string }) => Promise<CategorySuggestion>;
   onOpenChange: (open: boolean) => void;
   onSave: (values: ExpenseFormValues) => void;
 }) {
@@ -71,6 +75,31 @@ export function ExpenseDialog({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+
+  async function handleSuggest() {
+    if (!suggestCategory) return;
+    if (description.trim().length < 4) {
+      setError("Describe the expense first, then ask for a category.");
+      return;
+    }
+    setSuggesting(true);
+    setError(null);
+    try {
+      const next = await suggestCategory({ description: description.trim(), amount });
+      setSuggestion(next);
+      setCategory(next.category);
+    } catch (suggestError) {
+      setError(
+        suggestError instanceof Error
+          ? suggestError.message
+          : "Could not suggest a category. Pick one manually.",
+      );
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   const preview = parseExpenseAmount(amount);
 
@@ -175,6 +204,34 @@ export function ExpenseDialog({
               required
             />
           </div>
+
+          {suggestCategory && (
+            <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Not sure which account this belongs in?
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleSuggest()}
+                  disabled={suggesting}
+                >
+                  {suggesting ? "Thinking…" : "Suggest category"}
+                </Button>
+              </div>
+              {suggestion && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {suggestion.source === "ai" ? "AI suggestion" : "Rules suggestion"}:{" "}
+                    {EXPENSE_CATEGORY_LABELS[suggestion.category]}
+                  </span>{" "}
+                  — {suggestion.rationale} Applied as a starting point; change it if it is wrong.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
