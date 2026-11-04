@@ -1604,9 +1604,11 @@ CREATE POLICY branding_admin_delete ON storage.objects FOR DELETE TO authenticat
 --     triggers inside its own transaction and restores them before it returns.
 --   * The whole wipe is one transaction: a failure leaves the books untouched,
 --     never half-erased.
---   * Configuration survives: company profile and branding, branches, staff and
---     their roles, the chart of accounts, mobile money networks, currencies and
---     rates. Only activity — and the customers it was recorded for — is removed.
+--   * Employees survive, with the setup the app needs to keep working: staff
+--     profiles, their roles and branch assignments, branches, the company profile
+--     and branding, the chart of accounts, mobile money networks and currencies.
+--     Everything staff recorded — activity, customers and the rate history — is
+--     removed, so the bureau re-enters the day's rates on a clean book.
 
 CREATE OR REPLACE FUNCTION private.can_reset_company_data()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -1691,6 +1693,11 @@ BEGIN
   DELETE FROM public.customers;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('customers', v_n);
+
+  -- Rates are entered by staff each day, so they are history, not setup.
+  DELETE FROM public.fx_rates;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  v_counts := v_counts || jsonb_build_object('fx_rates', v_n);
 
   FOR r IN
     SELECT * FROM unnest(

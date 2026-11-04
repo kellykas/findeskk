@@ -587,7 +587,7 @@ function Settings() {
                 <div className="space-y-4 px-4 py-4">
                   <p className="text-sm text-muted-foreground">
                     {t(
-                      "Wipes every transaction, ledger entry, customer and audit record so the company starts again with a clean book. Branches, staff, currencies, networks and your branding stay.",
+                      "Wipes every transaction, ledger entry, customer, FX rate and audit record so the company starts again with a clean book. Employees, branches, currencies, networks and your branding stay.",
                     )}
                   </p>
                   <div className="space-y-2">
@@ -624,7 +624,7 @@ function Settings() {
                 <AlertDialogTitle>{t("Delete all company data?")}</AlertDialogTitle>
                 <AlertDialogDescription>
                   {t(
-                    "This cannot be undone. Every transaction, ledger entry, customer and audit record is deleted permanently. Staff, branches, currencies and branding are kept.",
+                    "This cannot be undone. Every transaction, ledger entry, customer, FX rate and audit record is deleted permanently. Employees, branches, currencies and branding are kept.",
                   )}
                 </AlertDialogDescription>
               </AlertDialogHeader>

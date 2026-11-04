@@ -24,6 +24,7 @@ export interface ResetSummary {
   incomes: number;
   currencyTransfers: number;
   customers: number;
+  fxRates: number;
 }
 
 const EMPTY: ResetSummary = {
@@ -36,6 +37,7 @@ const EMPTY: ResetSummary = {
   incomes: 0,
   currencyTransfers: 0,
   customers: 0,
+  fxRates: 0,
 };
 
 function count(source: Record<string, unknown>, key: string): number {
@@ -61,6 +63,7 @@ export function mapResetSummary(raw: unknown): ResetSummary {
     incomes: count(source, "incomes"),
     currencyTransfers: count(source, "currency_transfers"),
     customers: count(source, "customers"),
+    fxRates: count(source, "fx_rates"),
   };
 }
 

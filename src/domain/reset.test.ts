@@ -25,13 +25,14 @@ describe("resetConfirmationMatches", () => {
 describe("mapResetSummary", () => {
   it("reads the counts the database returns", () => {
     const summary = mapResetSummary({
-      deleted: { journal_entries: 12, journal_lines: 26, customers: 3 },
+      deleted: { journal_entries: 12, journal_lines: 26, customers: 3, fx_rates: 5 },
     });
     expect(summary.journalEntries).toBe(12);
     expect(summary.journalLines).toBe(26);
     expect(summary.customers).toBe(3);
+    expect(summary.fxRates).toBe(5);
     expect(summary.expenses).toBe(0);
-    expect(resetSummaryTotal(summary)).toBe(41);
+    expect(resetSummaryTotal(summary)).toBe(46);
   });
 
   it("survives a missing or malformed payload", () => {

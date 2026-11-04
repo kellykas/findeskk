@@ -261,12 +261,12 @@ export const FRENCH: Record<string, string> = {
   // Deleting company data -----------------------------------------------------
   "Delete all data": "Supprimer toutes les données",
   "Super admin only": "Super administrateur uniquement",
-  "Wipes every transaction, ledger entry, customer and audit record so the company starts again with a clean book. Branches, staff, currencies, networks and your branding stay.":
-    "Supprime toutes les transactions, écritures comptables, clients et enregistrements d'audit afin que l'entreprise reparte avec des comptes vierges. Les agences, le personnel, les devises, les réseaux et votre image de marque sont conservés.",
+  "Wipes every transaction, ledger entry, customer, FX rate and audit record so the company starts again with a clean book. Employees, branches, currencies, networks and your branding stay.":
+    "Supprime toutes les transactions, écritures comptables, clients, taux de change et enregistrements d'audit afin que l'entreprise reparte avec des comptes vierges. Les employés, les agences, les devises, les réseaux et votre image de marque sont conservés.",
   "Type RESET to confirm": "Saisissez RESET pour confirmer",
   "Delete all company data?": "Supprimer toutes les données de l'entreprise ?",
-  "This cannot be undone. Every transaction, ledger entry, customer and audit record is deleted permanently. Staff, branches, currencies and branding are kept.":
-    "Cette action est irréversible. Toutes les transactions, écritures comptables, clients et enregistrements d'audit sont définitivement supprimés. Le personnel, les agences, les devises et l'image de marque sont conservés.",
+  "This cannot be undone. Every transaction, ledger entry, customer, FX rate and audit record is deleted permanently. Employees, branches, currencies and branding are kept.":
+    "Cette action est irréversible. Toutes les transactions, écritures comptables, clients, taux de change et enregistrements d'audit sont définitivement supprimés. Les employés, les agences, les devises et l'image de marque sont conservés.",
   "Keep the data": "Conserver les données",
   "Yes, delete everything": "Oui, tout supprimer",
   "All company data deleted. The book is clean.":
