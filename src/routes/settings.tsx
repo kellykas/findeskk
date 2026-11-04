@@ -6,6 +6,16 @@ import { AppShell } from "@/components/layout/AppShell";
 import { t } from "@/domain/i18n";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +28,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CURRENCY_REGISTRY, BASE_CURRENCY, getCurrency } from "@/domain/currency";
-import { PERMISSIONS, ROLE_PERMISSIONS, isStaffAdmin } from "@/domain/access";
+import { PERMISSIONS, ROLE_PERMISSIONS, isStaffAdmin, isSuperAdmin } from "@/domain/access";
 import { BRAND_COLORS, brandInitials, readableInk } from "@/domain/branding";
+import { RESET_PHRASE, resetConfirmationMatches } from "@/domain/reset";
 import { ROLES, ROLE_LABELS, type Role } from "@/domain/roles";
 import {
   MONTH_LABELS,
@@ -31,6 +42,7 @@ import {
   type ReceiptFormat,
 } from "@/domain/settings";
 import { useSession } from "@/hooks/use-session";
+import { resetCompanyData } from "@/services/admin.service";
 import { uploadLogo } from "@/services/branding.service";
 import { settingsQuery, updateSettings } from "@/services/settings.service";
 import { cn } from "@/lib/utils";
@@ -57,12 +69,15 @@ function Settings() {
   const { viewer } = useSession();
   const canRead = Boolean(viewer);
   const editable = Boolean(viewer && isStaffAdmin(viewer.roles));
+  const superAdmin = Boolean(viewer && isSuperAdmin(viewer.roles));
   const settings = useQuery({ ...settingsQuery, enabled: canRead });
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState<CompanySettingsForm | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [resetText, setResetText] = useState("");
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const loaded = settings.data;
   useEffect(() => {
@@ -77,6 +92,21 @@ function Settings() {
       // The shell, the sign-in screen and the tab title read branding separately.
       void queryClient.invalidateQueries({ queryKey: ["branding"] });
       setError(null);
+    },
+    onError: (mutationError: Error) => toast.error(mutationError.message),
+  });
+
+  // Irreversible, so the database re-checks the role and the typed phrase rather
+  // than trusting this screen.
+  const wipe = useMutation({
+    mutationFn: () => resetCompanyData(resetText),
+    onSuccess: () => {
+      toast.success(t("All company data deleted. The book is clean."));
+      setResetText("");
+      setConfirmReset(false);
+      // Every balance, list and receipt on every page is now out of date.
+      setForm(null);
+      void queryClient.invalidateQueries();
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
@@ -547,6 +577,72 @@ function Settings() {
               </p>
             </SectionCard>
           </div>
+
+          {superAdmin && (
+            <div className="mt-6">
+              <SectionCard
+                title={t("Delete all data")}
+                action={<Badge variant="outline">{t("Super admin only")}</Badge>}
+              >
+                <div className="space-y-4 px-4 py-4">
+                  <p className="text-sm text-muted-foreground">
+                    {t(
+                      "Wipes every transaction, ledger entry, customer and audit record so the company starts again with a clean book. Branches, staff, currencies, networks and your branding stay.",
+                    )}
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-reset-confirm">{t("Type RESET to confirm")}</Label>
+                    <Input
+                      id="settings-reset-confirm"
+                      value={resetText}
+                      onChange={(event) => setResetText(event.target.value)}
+                      placeholder={RESET_PHRASE}
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="max-w-xs"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end border-t px-4 py-3">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={!resetConfirmationMatches(resetText) || wipe.isPending}
+                    onClick={() => setConfirmReset(true)}
+                  >
+                    {wipe.isPending ? t("Deleting…") : t("Delete all data")}
+                  </Button>
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
+          <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("Delete all company data?")}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t(
+                    "This cannot be undone. Every transaction, ledger entry, customer and audit record is deleted permanently. Staff, branches, currencies and branding are kept.",
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("Keep the data")}</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={(event) => {
+                    // Stay open while the database works; onSuccess closes it.
+                    event.preventDefault();
+                    wipe.mutate();
+                  }}
+                >
+                  {t("Yes, delete everything")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </AppShell>

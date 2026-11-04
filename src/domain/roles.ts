@@ -133,3 +133,8 @@ export function can(roles: readonly Role[], permission: Permission): boolean {
 export function isStaffAdmin(roles: readonly Role[]): boolean {
   return roles.includes("super_admin") || roles.includes("company_owner");
 }
+
+/** Destroying company history is narrower than managing settings. */
+export function isSuperAdmin(roles: readonly Role[]): boolean {
+  return roles.includes("super_admin");
+}

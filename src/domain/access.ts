@@ -9,6 +9,7 @@ export {
   ROLE_PERMISSIONS,
   can,
   isStaffAdmin,
+  isSuperAdmin,
   type Permission,
   type Role,
 } from "./roles";
