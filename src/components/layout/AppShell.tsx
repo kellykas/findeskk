@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import { Navigate, Outlet, useLocation } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -19,22 +19,17 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = useLocation({ select: (l) => l.pathname });
   useEffect(() => setOpen(false), [pathname]);
 
-  let body: ReactNode = children ?? <Outlet />;
-  if (status === "loading" || status === "loading_viewer") {
-    body = <p className="p-6 text-sm text-muted-foreground">{t("Loading your workspace…")}</p>;
-  } else if (status === "signed_out") {
-    body = (
-      <div className="mx-auto mt-12 max-w-sm rounded-2xl border border-border bg-card p-6 text-center">
-        <h2 className="text-lg font-semibold">{t("Sign in to FinDesk")}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {t("Staff access only. Sign in with the account your administrator created.")}
-        </p>
-        <Button asChild className="mt-4 w-full rounded-full">
-          <Link to="/login">{t("Sign in")}</Link>
-        </Button>
-      </div>
+  // Without a session there is nothing to show, so go to the sign-in page. This
+  // covers signing out as well as opening a protected page while signed out, and
+  // it replaces the history entry so Back does not return to a signed-out shell.
+  if (status === "signed_out") return <Navigate to="/login" replace />;
+
+  const body: ReactNode =
+    status === "loading" || status === "loading_viewer" ? (
+      <p className="p-6 text-sm text-muted-foreground">{t("Loading your workspace…")}</p>
+    ) : (
+      (children ?? <Outlet />)
     );
-  }
 
   return (
     <div className="app-canvas min-h-dvh p-2 sm:p-4 lg:p-6">
