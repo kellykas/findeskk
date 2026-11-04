@@ -27,13 +27,12 @@ interface BrandingRow {
 }
 
 /**
- * The generated Database types predate this migration, so the RPC is called
+ * The generated Database types predate this migration, so the RPC is reached
  * through one narrow signature instead of editing generated code by hand.
  */
-type UntypedRpc = (
-  fn: string,
-  args?: Record<string, unknown>,
-) => Promise<{ data: unknown; error: { message: string } | null }>;
+interface UntypedRpcClient {
+  rpc: (fn: string) => Promise<{ data: unknown; error: { message: string } | null }>;
+}
 
 export function mapBranding(row: BrandingRow | null | undefined): Branding {
   return {
@@ -55,8 +54,11 @@ export function brandingErrorMessage(message: string): string {
 }
 
 export async function getBranding(): Promise<Branding> {
-  const rpc = supabase.rpc as unknown as UntypedRpc;
-  const { data, error } = await rpc("public_branding");
+  // Keep this a member call. supabase-js reads `this.rest` inside rpc(), so
+  // hoisting it (`const rpc = supabase.rpc`) throws at call time and the app
+  // silently falls back to the default branding.
+  const client = supabase as unknown as UntypedRpcClient;
+  const { data, error } = await client.rpc("public_branding");
   if (error) throw new Error(brandingErrorMessage(error.message));
   const rows = (data ?? []) as BrandingRow[];
   return mapBranding(rows[0]);
