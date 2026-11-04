@@ -62,10 +62,13 @@ function Login() {
     }
   }
 
+  // m-auto rather than items-center: when the card is taller than a short
+  // landscape screen it stays top-aligned and scrollable instead of being
+  // clipped above the viewport.
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
-      <div className="grid w-full max-w-[1180px] overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-[0_40px_90px_-60px_oklch(0.42_0.14_300/0.7)] lg:grid-cols-2">
-        <div className="flex min-h-[560px] flex-col p-6 sm:p-10">
+    <div className="flex min-h-dvh justify-center bg-background p-4 sm:p-6 lg:p-8">
+      <div className="m-auto grid w-full max-w-[1180px] overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-[0_40px_90px_-60px_oklch(0.42_0.14_300/0.7)] lg:grid-cols-2">
+        <div className="flex flex-col p-6 sm:p-10 lg:min-h-[560px]">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <BrandMark />

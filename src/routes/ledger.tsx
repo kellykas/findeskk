@@ -257,7 +257,7 @@ function Ledger() {
                   <Label htmlFor="history-account">Account</Label>
                   <select
                     id="history-account"
-                    className="h-9 w-[260px] rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="h-9 w-full rounded-md border bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:w-[260px]"
                     value={accountId}
                     onChange={(event) => setAccountId(event.target.value)}
                   >
