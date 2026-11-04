@@ -36,7 +36,28 @@ export function authErrorMessage(message: string): string {
     return "Too many attempts. Wait a moment and try again.";
   if (text.includes("failed to fetch") || text.includes("network"))
     return "Cannot reach the authentication service. Check your connection and try again.";
+  // Reset-link and password-policy replies. Without these the user sees raw
+  // Supabase wording such as "Auth session missing!", which explains nothing.
+  if (
+    text.includes("expired") ||
+    text.includes("session missing") ||
+    text.includes("token has expired")
+  )
+    return "That reset link has expired. Request a new one.";
+  if (text.includes("should be different") || text.includes("same password"))
+    return "Choose a password you have not used here before.";
+  if (text.includes("password should be") || text.includes("password is too short"))
+    return "Use a password with at least 8 characters.";
   return message;
+}
+
+/**
+ * Where the emailed reset link returns to. Supabase ignores a `redirectTo` it
+ * has not been told about, so this exact URL must be listed under
+ * Authentication → URL Configuration → Redirect URLs in the Supabase dashboard.
+ */
+export function resetPasswordRedirectUrl(origin: string): string {
+  return `${origin.replace(/\/+$/, "")}/reset-password`;
 }
 
 export async function getSession(): Promise<Session | null> {
@@ -53,6 +74,25 @@ export function onAuthStateChange(listener: (session: Session | null) => void): 
 
 export async function signIn(email: string, password: string): Promise<void> {
   const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw new Error(authErrorMessage(error.message));
+}
+
+/**
+ * Send a reset link. Supabase answers the same way whether or not the address
+ * has an account, so the screen never reveals which staff emails exist.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    email.trim(),
+    origin ? { redirectTo: resetPasswordRedirectUrl(origin) } : undefined,
+  );
+  if (error) throw new Error(authErrorMessage(error.message));
+}
+
+/** Finish a reset: the recovery link has already signed the user in. */
+export async function setNewPassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
   if (error) throw new Error(authErrorMessage(error.message));
 }
 

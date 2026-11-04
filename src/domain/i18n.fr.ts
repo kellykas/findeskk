@@ -49,6 +49,35 @@ export const FRENCH: Record<string, string> = {
     "Les comptes du personnel sont créés par l'administrateur de votre entreprise. Les rôles et l'accès aux agences sont attribués après votre première connexion.",
   "Check your details and try again.": "Vérifiez vos informations et réessayez.",
   "Sign-in failed. Try again.": "Échec de la connexion. Réessayez.",
+  "Forgot your password?": "Mot de passe oublié ?",
+  "Reset your password": "Réinitialiser votre mot de passe",
+  "We will email you a link to set a new one.":
+    "Nous vous enverrons un lien pour en définir un nouveau.",
+  "Send reset link": "Envoyer le lien",
+  "Sending…": "Envoi…",
+  "If an account exists for that email, a reset link is on its way.":
+    "Si un compte existe pour cette adresse, un lien de réinitialisation est en route.",
+  "Back to sign in": "Retour à la connexion",
+  "Set a new password": "Définir un nouveau mot de passe",
+  "New password": "Nouveau mot de passe",
+  "Confirm new password": "Confirmer le nouveau mot de passe",
+  "Passwords do not match.": "Les mots de passe ne correspondent pas.",
+  "Use at least 8 characters.": "Utilisez au moins 8 caractères.",
+  "Save password": "Enregistrer le mot de passe",
+  "Saving…": "Enregistrement…",
+  "Checking your link…": "Vérification de votre lien…",
+  "That reset link has expired.": "Ce lien de réinitialisation a expiré.",
+  "That reset link has expired. Request a new one.":
+    "Ce lien de réinitialisation a expiré. Demandez-en un nouveau.",
+  "Request a new one from the sign-in screen.":
+    "Demandez-en un nouveau depuis l'écran de connexion.",
+  "Request a new link": "Demander un nouveau lien",
+  "Your password has been changed.": "Votre mot de passe a été modifié.",
+  "Go to the dashboard": "Aller au tableau de bord",
+  "Could not save the new password.": "Impossible d'enregistrer le nouveau mot de passe.",
+  "Choose a password you have not used here before.":
+    "Choisissez un mot de passe que vous n'avez jamais utilisé ici.",
+  "Use a password with at least 8 characters.": "Utilisez un mot de passe d'au moins 8 caractères.",
 
   // Shared components --------------------------------------------------------
   "Planned next": "Prochaines étapes",

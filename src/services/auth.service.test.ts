@@ -17,6 +17,18 @@ describe("authErrorMessage", () => {
     expect(authErrorMessage("Failed to fetch")).toContain("Check your connection");
   });
 
+  it("explains a dead reset link instead of surfacing the raw session error", () => {
+    expect(authErrorMessage("Auth session missing!")).toContain("expired");
+    expect(authErrorMessage("Email link is invalid or has expired")).toContain("expired");
+  });
+
+  it("explains password policy refusals", () => {
+    expect(authErrorMessage("Password should be at least 6 characters")).toContain("at least 8");
+    expect(authErrorMessage("New password should be different from the old password")).toContain(
+      "not used here before",
+    );
+  });
+
   it("passes unknown messages through", () => {
     expect(authErrorMessage("Something else")).toBe("Something else");
   });
