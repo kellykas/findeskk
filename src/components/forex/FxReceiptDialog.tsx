@@ -7,17 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ReceiptPaperPicker } from "@/components/receipts/ReceiptPaperPicker";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/domain/money";
+import { receiptPageStyle, receiptSheetStyle, type ReceiptPaper } from "@/domain/receiptPaper";
+import { useReceiptPaper } from "@/hooks/use-receipt-paper";
 import { fxCurrencyLabel, FX_SETTLEMENT_LABELS, FX_TYPE_LABELS, formatRate } from "@/domain/forex";
 import type { CompanySettings } from "@/domain/settings";
 import type { FxRecord } from "@/services/forex.service";
-
-const RECEIPT_WIDTH: Record<CompanySettings["receiptFormat"], string> = {
-  "58mm": "w-[58mm] text-[10px]",
-  "80mm": "w-[80mm] text-[11px]",
-  a4: "w-[120mm] text-xs",
-};
 
 const day = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -41,19 +38,21 @@ function ReceiptSheet({
   settings,
   branchName,
   servedBy,
+  paper,
   className,
 }: {
   trade: FxRecord;
   settings: CompanySettings;
   branchName: string;
   servedBy: string;
+  paper: ReceiptPaper;
   className?: string;
 }) {
   const title = trade.type === "buy" ? "Foreign currency purchase" : "Foreign currency sale";
   const documentNo = trade.receiptNo || trade.id.slice(0, 8).toUpperCase();
 
   return (
-    <div className={`${RECEIPT_WIDTH[settings.receiptFormat]} ${className ?? ""}`}>
+    <div className={`text-black ${className ?? ""}`} style={receiptSheetStyle(paper)}>
       <div className="text-center">
         <div className="text-sm font-semibold uppercase tracking-wide">{settings.companyName}</div>
         {settings.address && <div className="text-muted-foreground">{settings.address}</div>}
@@ -136,7 +135,20 @@ export function FxReceiptDialog({
   servedBy: string;
   onOpenChange: (open: boolean) => void;
 }) {
+  // Hook before the early return so the order stays stable across renders.
+  const { paper, choose } = useReceiptPaper(settings?.receiptFormat ?? "80mm");
   if (!trade) return null;
+
+  async function printReceipt() {
+    // The signature uses a locally installed script face; waiting avoids
+    // printing a fallback when the first paint is still settling.
+    try {
+      await document.fonts?.ready;
+    } catch {
+      // Font loading is best-effort; printing must not be blocked by it.
+    }
+    window.print();
+  }
 
   return (
     <>
@@ -145,10 +157,14 @@ export function FxReceiptDialog({
           <DialogHeader>
             <DialogTitle>Receipt</DialogTitle>
             <DialogDescription>
-              Prints at {settings?.receiptFormat ?? "80mm"} using the receipt format and footer from
-              Settings.
+              Choose the paper loaded in the printer. Company name and footer come from Settings.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Paper</span>
+            <ReceiptPaperPicker value={paper} onChange={choose} />
+          </div>
 
           {settings ? (
             <div className="flex justify-center rounded-md border bg-white p-4 text-foreground">
@@ -157,6 +173,7 @@ export function FxReceiptDialog({
                 settings={settings}
                 branchName={branchName}
                 servedBy={servedBy}
+                paper={paper}
               />
             </div>
           ) : (
@@ -170,7 +187,7 @@ export function FxReceiptDialog({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
-            <Button onClick={() => window.print()} disabled={!settings}>
+            <Button onClick={() => void printReceipt()} disabled={!settings}>
               Print receipt
             </Button>
           </DialogFooter>
@@ -181,12 +198,16 @@ export function FxReceiptDialog({
       {settings &&
         open &&
         createPortal(
-          <div className="receipt-print-root bg-white text-black">
+          <div className="receipt-print-root bg-white text-black" data-paper={paper}>
+            {/* @page cannot read a class or a variable, so the paper is written
+                out literally for the duration of this dialog. */}
+            <style>{receiptPageStyle(paper)}</style>
             <ReceiptSheet
               trade={trade}
               settings={settings}
               branchName={branchName}
               servedBy={servedBy}
+              paper={paper}
               className="mx-auto"
             />
           </div>,

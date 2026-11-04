@@ -211,12 +211,35 @@
   .receipt-print-root {
     display: block !important;
     color: #000;
+    background: #fff;
+    break-inside: avoid;
   }
 
+  /*
+   * Thermal heads only do black or nothing. Anything lighter than near-black
+   * either vanishes or prints grey and smeared, so secondary text is darkened
+   * rather than left muted.
+   */
   .receipt-print-root .text-muted-foreground {
-    color: #444 !important;
+    color: #222 !important;
   }
 
+  .receipt-print-root .border-dashed,
+  .receipt-print-root [class*="border-t"],
+  .receipt-print-root [class*="border-b"] {
+    border-color: #000 !important;
+  }
+
+  /* Shadows and rounded corners are screen decoration; they cost ink and
+     sometimes print as a smudge on a thermal roll. */
+  .receipt-print-root * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Fallback page margin. An open receipt injects its own @page rule with the
+     chosen paper size, which is later in the document and therefore wins. */
   @page {
     margin: 8mm;
   }

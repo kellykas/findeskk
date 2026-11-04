@@ -263,7 +263,8 @@ function Settings() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Receipt printing is delivered with the receipts module; this sets the default.
+                    The default paper size. Each till can switch paper on the receipt itself,
+                    because the printer in front of the teller is the one that matters.
                   </p>
                 </div>
                 <div className="space-y-2">
