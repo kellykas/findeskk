@@ -12,6 +12,7 @@ import {
   DEFAULT_LANGUAGE,
   localeFor,
   readStoredLanguage,
+  setActiveLanguage,
   storeLanguage,
   translate,
   type Language,
@@ -55,6 +56,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(next);
     storeLanguage(next, window.localStorage);
   }, []);
+
+  // Kept in step during render so plain t() calls in page files read the same
+  // language as the components that use the hook.
+  setActiveLanguage(language);
 
   const value = useMemo<LanguageContextValue>(
     () => ({

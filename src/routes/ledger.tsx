@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,8 +71,8 @@ function Ledger() {
     return (
       <AppShell>
         <PageHeader
-          title="Ledger"
-          description="Chart of accounts, trial balance and posted journal entries."
+          title={t("Ledger")}
+          description={t("Chart of accounts, trial balance and posted journal entries.")}
         />
         <AccessDenied
           title="The ledger is restricted"
@@ -115,8 +116,10 @@ function Ledger() {
   return (
     <AppShell>
       <PageHeader
-        title="Ledger"
-        description="Read-only view of the chart of accounts, trial balance and posted entries."
+        title={t("Ledger")}
+        description={t(
+          "Read-only view of the chart of accounts, trial balance and posted entries.",
+        )}
         actions={
           <Button
             variant="outline"
@@ -135,7 +138,7 @@ function Ledger() {
       {loading && <p className="text-sm text-muted-foreground">Loading the ledger…</p>}
 
       {!loading && failure && (
-        <SectionCard title="Ledger unavailable">
+        <SectionCard title={t("Ledger unavailable")}>
           <div className="space-y-3 px-4 py-6 text-sm">
             <p className="text-destructive">
               Could not read the ledger:{" "}
@@ -248,7 +251,7 @@ function Ledger() {
           </SectionCard>
 
           <div className="mt-6">
-            <SectionCard title="Account history">
+            <SectionCard title={t("Account history")}>
               <div className="flex flex-wrap items-end gap-3 px-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="history-account">Account</Label>
@@ -382,7 +385,7 @@ function Ledger() {
           </div>
 
           <div className="mt-6">
-            <SectionCard title="Recent journal lines">
+            <SectionCard title={t("Recent journal lines")}>
               {journalRows.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground">
                   No journal entries have been posted yet. Lines appear here as soon as an opening

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { AccessDenied, DataTable, PageHeader, SectionCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,10 +50,12 @@ function Audit() {
   if (!allowed) {
     return (
       <AppShell>
-        <PageHeader title="Audit Trail" description="Who changed what, and when." />
+        <PageHeader title={t("Audit Trail")} description={t("Who changed what, and when.")} />
         <AccessDenied
-          title="The audit trail is restricted"
-          description="Oversight roles can read the audit trail. Ask a super admin or the company owner for access."
+          title={t("The audit trail is restricted")}
+          description={t(
+            "Oversight roles can read the audit trail. Ask a super admin or the company owner for access.",
+          )}
         />
       </AppShell>
     );
@@ -61,8 +64,8 @@ function Audit() {
   return (
     <AppShell>
       <PageHeader
-        title="Audit Trail"
-        description="Every change is recorded automatically and cannot be edited."
+        title={t("Audit Trail")}
+        description={t("Every change is recorded automatically and cannot be edited.")}
         actions={
           <Button
             variant="outline"
@@ -89,7 +92,7 @@ function Audit() {
           </Button>
         ))}
       </div>
-      <SectionCard title="Recent activity">
+      <SectionCard title={t("Recent activity")}>
         {events.isPending ? (
           <p className="px-4 py-6 text-sm text-muted-foreground">Loading audit trail…</p>
         ) : events.isError ? (

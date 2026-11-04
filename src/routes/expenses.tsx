@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { ExpenseDialog, type ExpenseFormValues } from "@/components/expenses/ExpenseDialog";
 import { IncomeDialog, type IncomeFormValues } from "@/components/expenses/IncomeDialog";
 import {
@@ -114,8 +115,8 @@ function Expenses() {
     return (
       <AppShell>
         <PageHeader
-          title="Expenses & Finance"
-          description="Record expenses and income and read the ledgers."
+          title={t("Expenses & Finance")}
+          description={t("Record expenses and income and read the ledgers.")}
         />
         <AccessDenied
           title="Expenses and income are restricted"
@@ -130,8 +131,10 @@ function Expenses() {
   return (
     <AppShell>
       <PageHeader
-        title="Expenses & Finance"
-        description="Every expense and income posts a balanced journal entry against the chart of accounts."
+        title={t("Expenses & Finance")}
+        description={t(
+          "Every expense and income posts a balanced journal entry against the chart of accounts.",
+        )}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => setRecordIncomeForm(true)}>
@@ -155,7 +158,7 @@ function Expenses() {
         <StatCard label="Categories used" value={String(categoriesPresent.length)} />
       </div>
 
-      <SectionCard title="Spend by category">
+      <SectionCard title={t("Spend by category")}>
         {summary.byCategory.length === 0 ? (
           <p className="px-4 py-6 text-sm text-muted-foreground">
             No expenses recorded yet. Recorded expenses appear here and in the ledger immediately.

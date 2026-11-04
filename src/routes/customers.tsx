@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { CustomerDialog } from "@/components/customers/CustomerDialog";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
@@ -79,10 +80,15 @@ function Customers() {
   if (!allowed) {
     return (
       <AppShell>
-        <PageHeader title="Customers" description="Customer records, identification and history." />
+        <PageHeader
+          title={t("Customers")}
+          description={t("Customer records, identification and history.")}
+        />
         <AccessDenied
-          title="Customers are restricted"
-          description="Customer records are available to customer-facing roles. Ask a super admin or the company owner to review your roles."
+          title={t("Customers are restricted")}
+          description={t(
+            "Customer records are available to customer-facing roles. Ask a super admin or the company owner to review your roles.",
+          )}
         />
       </AppShell>
     );
@@ -91,8 +97,10 @@ function Customers() {
   return (
     <AppShell>
       <PageHeader
-        title="Customers"
-        description="Customer records, identification and home branch. Records are deactivated, never deleted."
+        title={t("Customers")}
+        description={t(
+          "Customer records, identification and home branch. Records are deactivated, never deleted.",
+        )}
         actions={
           canManage ? (
             <Button size="sm" onClick={() => setCreating(true)}>

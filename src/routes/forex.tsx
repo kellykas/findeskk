@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { FxDialog, type FxTradeValues } from "@/components/forex/FxDialog";
 import { FxReceiptDialog } from "@/components/forex/FxReceiptDialog";
 import { FxCurrencyDialog } from "@/components/forex/FxCurrencyDialog";
@@ -251,10 +252,12 @@ function Forex() {
   if (!allowed) {
     return (
       <AppShell>
-        <PageHeader title="Forex Bureau" description="Buy and sell foreign currency." />
+        <PageHeader title={t("Forex Bureau")} description={t("Buy and sell foreign currency.")} />
         <AccessDenied
-          title="Forex trading is restricted"
-          description="Forex trading is available to staff with forex permissions. Ask a super admin or the company owner to review your roles."
+          title={t("Forex trading is restricted")}
+          description={t(
+            "Forex trading is available to staff with forex permissions. Ask a super admin or the company owner to review your roles.",
+          )}
         />
       </AppShell>
     );
@@ -266,8 +269,8 @@ function Forex() {
   return (
     <AppShell>
       <PageHeader
-        title="Forex Bureau"
-        description="Buy and sell foreign currency and manage exchange rates."
+        title={t("Forex Bureau")}
+        description={t("Buy and sell foreign currency and manage exchange rates.")}
         actions={
           <>
             {canManageCurrencies && (

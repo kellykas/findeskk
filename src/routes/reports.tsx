@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,8 +77,8 @@ function Reports() {
     return (
       <AppShell>
         <PageHeader
-          title="Reports"
-          description="Ledger-reconciled operational and financial reports."
+          title={t("Reports")}
+          description={t("Ledger-reconciled operational and financial reports.")}
         />
         <AccessDenied
           title="Reports are restricted"
@@ -106,8 +107,10 @@ function Reports() {
   return (
     <AppShell>
       <PageHeader
-        title="Reports"
-        description="Financial figures come from posted journal lines. Forex and mobile money totals cover the latest 200 records in the period."
+        title={t("Reports")}
+        description={t(
+          "Financial figures come from posted journal lines. Forex and mobile money totals cover the latest 200 records in the period.",
+        )}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={exportCsv} disabled={!report}>
@@ -126,7 +129,7 @@ function Reports() {
         }
       />
 
-      <SectionCard title="Reporting period">
+      <SectionCard title={t("Reporting period")}>
         <div className="flex flex-wrap items-end gap-3 px-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="report-from">From</Label>
@@ -217,7 +220,7 @@ function Reports() {
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <SectionCard title="Income statement">
+            <SectionCard title={t("Income statement")}>
               <StatementTable
                 rows={report.income}
                 emptyLabel="No income has been posted in this period."
@@ -225,7 +228,7 @@ function Reports() {
                 total={report.incomeTotal}
               />
             </SectionCard>
-            <SectionCard title="Expenses">
+            <SectionCard title={t("Expenses")}>
               <StatementTable
                 rows={report.expenses}
                 emptyLabel="No expenses have been posted in this period."
@@ -296,7 +299,7 @@ function Reports() {
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <SectionCard title="Forex operations">
+            <SectionCard title={t("Forex operations")}>
               <div className="divide-y text-sm">
                 <SummaryLine label="Trades" value={String(trades.length)} />
                 <SummaryLine
@@ -309,7 +312,7 @@ function Reports() {
                 />
               </div>
             </SectionCard>
-            <SectionCard title="Mobile money operations">
+            <SectionCard title={t("Mobile money operations")}>
               <div className="divide-y text-sm">
                 <SummaryLine label="Transactions" value={String(momoRows.length)} />
                 <SummaryLine
@@ -325,7 +328,7 @@ function Reports() {
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <SectionCard title="Branch performance breakdown">
+            <SectionCard title={t("Branch performance breakdown")}>
               {(() => {
                 const branchMap = new Map<
                   string,
@@ -463,7 +466,7 @@ function Reports() {
                 );
               })()}
             </SectionCard>
-            <SectionCard title="Teller performance breakdown">
+            <SectionCard title={t("Teller performance breakdown")}>
               {(() => {
                 const tellerMap = new Map<string, { name: string; count: number; value: bigint }>();
                 const nameFor = (id: string | null | undefined) => {
@@ -539,7 +542,7 @@ function Reports() {
           </div>
 
           <div className="mt-6">
-            <SectionCard title="Cash reconciliation report">
+            <SectionCard title={t("Cash reconciliation report")}>
               {(() => {
                 const cashRows = (report?.trial.rows ?? []).filter((row) => row.code === "1000");
                 if (cashRows.length === 0) {

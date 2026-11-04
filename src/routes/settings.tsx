@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,10 +78,15 @@ function Settings() {
   if (!canRead) {
     return (
       <AppShell>
-        <PageHeader title="Settings" description="Company profile, currencies and permissions." />
+        <PageHeader
+          title={t("Settings")}
+          description={t("Company profile, currencies and permissions.")}
+        />
         <AccessDenied
-          title="Settings are restricted"
-          description="Sign in to read company settings. Only super admins and the company owner can change them."
+          title={t("Settings are restricted")}
+          description={t(
+            "Sign in to read company settings. Only super admins and the company owner can change them.",
+          )}
         />
       </AppShell>
     );
@@ -104,8 +110,10 @@ function Settings() {
   return (
     <AppShell>
       <PageHeader
-        title="Settings"
-        description="Company profile, currencies, receipt format and the role permission matrix."
+        title={t("Settings")}
+        description={t(
+          "Company profile, currencies, receipt format and the role permission matrix.",
+        )}
         actions={
           <Badge variant={editable ? "secondary" : "outline"}>
             {editable ? "Editable by you" : "Read only"}
@@ -118,7 +126,7 @@ function Settings() {
       )}
 
       {settings.isError && (
-        <SectionCard title="Settings unavailable">
+        <SectionCard title={t("Settings unavailable")}>
           <div className="space-y-3 px-4 py-6 text-sm">
             <p className="text-destructive">{settings.error.message}</p>
             <Button variant="outline" size="sm" onClick={() => void settings.refetch()}>
@@ -234,7 +242,7 @@ function Settings() {
               </div>
             </SectionCard>
 
-            <SectionCard title="Receipts and reporting">
+            <SectionCard title={t("Receipts and reporting")}>
               <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Receipt format</Label>

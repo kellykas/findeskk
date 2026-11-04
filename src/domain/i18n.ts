@@ -64,3 +64,23 @@ export function translate(language: Language, key: string, vars?: TranslationVar
 export function localeFor(language: Language): string {
   return language === "fr" ? "fr-FR" : "en-GB";
 }
+
+/**
+ * The language the interface is currently rendering in. `LanguageProvider`
+ * keeps this in step with its state so page files can call {@link t} directly
+ * instead of threading a hook through every component.
+ */
+let activeLanguage: Language = DEFAULT_LANGUAGE;
+
+export function setActiveLanguage(language: Language): void {
+  activeLanguage = language;
+}
+
+export function getActiveLanguage(): Language {
+  return activeLanguage;
+}
+
+/** Shorthand for `translate(getActiveLanguage(), …)`. */
+export function t(key: string, vars?: TranslationVars): string {
+  return translate(activeLanguage, key, vars);
+}

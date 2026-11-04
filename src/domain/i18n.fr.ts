@@ -117,4 +117,80 @@ export const FRENCH: Record<string, string> = {
   Balance: "Solde",
   "Balances are derived from immutable journal entries; nothing is edited in place. Postings recorded manually are never shown as network-verified.":
     "Les soldes proviennent d'écritures comptables immuables ; rien n'est modifié sur place. Les écritures saisies manuellement ne sont jamais présentées comme vérifiées par le réseau.",
+
+  // Page headers ------------------------------------------------------------
+  "Buy and sell foreign currency.": "Achetez et vendez des devises.",
+  "Buy and sell foreign currency and manage exchange rates.":
+    "Achetez et vendez des devises et gérez les taux de change.",
+  "Record mobile money agency deposits and withdrawals.":
+    "Enregistrez les dépôts et retraits de l'agence mobile money.",
+  "Record agency deposits and withdrawals. Network references are entered by staff, never verified with the network.":
+    "Enregistrez les dépôts et retraits de l'agence. Les références réseau sont saisies par le personnel, jamais vérifiées auprès du réseau.",
+  "Tills, safes, mobile money float and reconciliation.":
+    "Caisses, coffres, float mobile money et rapprochement.",
+  "Chart of accounts, trial balance and posted journal entries.":
+    "Plan comptable, balance générale et écritures comptabilisées.",
+  "Read-only view of the chart of accounts, trial balance and posted entries.":
+    "Vue en lecture seule du plan comptable, de la balance générale et des écritures comptabilisées.",
+  "Ledger-reconciled operational and financial reports.":
+    "Rapports opérationnels et financiers rapprochés avec le grand livre.",
+  "Financial figures come from posted journal lines. Forex and mobile money totals cover the latest 200 records in the period.":
+    "Les chiffres financiers proviennent des lignes comptabilisées. Les totaux de change et de mobile money portent sur les 200 derniers enregistrements de la période.",
+  "Record expenses and income and read the ledgers.":
+    "Enregistrez les dépenses et les produits et consultez les grands livres.",
+  "Every expense and income posts a balanced journal entry against the chart of accounts.":
+    "Chaque dépense et chaque produit génère une écriture équilibrée dans le plan comptable.",
+  "Customer records, identification and history.": "Fiches clients, identification et historique.",
+  "Customer records, identification and home branch. Records are deactivated, never deleted.":
+    "Fiches clients, identification et agence de rattachement. Les fiches sont désactivées, jamais supprimées.",
+  "Staff accounts, roles and access.": "Comptes du personnel, rôles et accès.",
+  "Accounts, roles and access. Everyone works in {branch}.":
+    "Comptes, rôles et accès. Tout le monde travaille à {branch}.",
+  "Who changed what, and when.": "Qui a changé quoi, et quand.",
+  "Every change is recorded automatically and cannot be edited.":
+    "Chaque modification est enregistrée automatiquement et ne peut pas être modifiée.",
+  "Company profile, currencies and permissions.": "Profil de l'entreprise, devises et permissions.",
+  "Company profile, currencies, receipt format and the role permission matrix.":
+    "Profil de l'entreprise, devises, format du reçu et matrice des permissions.",
+
+  // Restricted-access panels ------------------------------------------------
+  "Forex trading is restricted": "Le change est restreint",
+  "Forex trading is available to staff with forex permissions. Ask a super admin or the company owner to review your roles.":
+    "Le change est ouvert au personnel disposant des permissions de change. Demandez à un super administrateur ou au propriétaire de l'entreprise de revoir vos rôles.",
+  "Customers are restricted": "Les clients sont restreints",
+  "Customer records are available to customer-facing roles. Ask a super admin or the company owner to review your roles.":
+    "Les fiches clients sont accessibles aux rôles en contact avec la clientèle. Demandez à un super administrateur ou au propriétaire de l'entreprise de revoir vos rôles.",
+  "Employee management is restricted": "La gestion des employés est restreinte",
+  "Only a super admin or the company owner can manage employee accounts.":
+    "Seul un super administrateur ou le propriétaire de l'entreprise peut gérer les comptes du personnel.",
+  "The audit trail is restricted": "La piste d'audit est restreinte",
+  "Oversight roles can read the audit trail. Ask a super admin or the company owner for access.":
+    "Les rôles de supervision peuvent consulter la piste d'audit. Demandez l'accès à un super administrateur ou au propriétaire de l'entreprise.",
+  "Settings are restricted": "Les paramètres sont restreints",
+  "Sign in to read company settings. Only super admins and the company owner can change them.":
+    "Connectez-vous pour consulter les paramètres de l'entreprise. Seuls les super administrateurs et le propriétaire de l'entreprise peuvent les modifier.",
+
+  // Section titles -----------------------------------------------------------
+  "Recent activity": "Activité récente",
+  "Cash positions": "Positions de caisse",
+  "Branch net movement": "Mouvement net par agence",
+  "Recent cash postings": "Écritures de caisse récentes",
+  "Staff directory": "Annuaire du personnel",
+  "Spend by category": "Dépenses par catégorie",
+  "Ledger unavailable": "Grand livre indisponible",
+  "Account history": "Historique du compte",
+  "Recent journal lines": "Lignes comptables récentes",
+  "Reporting period": "Période de reporting",
+  "Income statement": "Compte de résultat",
+  Expenses: "Charges",
+  "Forex operations": "Opérations de change",
+  "Mobile money operations": "Opérations mobile money",
+  "Branch performance breakdown": "Détail des performances par agence",
+  "Teller performance breakdown": "Détail des performances par caissier",
+  "Cash reconciliation report": "Rapport de rapprochement de caisse",
+  "Settings unavailable": "Paramètres indisponibles",
+  "Receipts and reporting": "Reçus et rapports",
+  "Currencies & rates": "Devises et taux",
+  Trades: "Opérations",
+  "Mobile money networks": "Réseaux mobile money",
 };

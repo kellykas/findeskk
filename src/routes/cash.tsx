@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,8 +42,8 @@ function Cash() {
     return (
       <AppShell>
         <PageHeader
-          title="Cash & Float"
-          description="Tills, safes, mobile money float and reconciliation."
+          title={t("Cash & Float")}
+          description={t("Tills, safes, mobile money float and reconciliation.")}
         />
         <AccessDenied
           title="This module is restricted"
@@ -59,8 +60,8 @@ function Cash() {
   return (
     <AppShell>
       <PageHeader
-        title="Cash & Float"
-        description="Tills, safes, mobile money float and reconciliation."
+        title={t("Cash & Float")}
+        description={t("Tills, safes, mobile money float and reconciliation.")}
         actions={
           <Button
             variant="outline"
@@ -109,7 +110,7 @@ function Cash() {
             />
           </div>
 
-          <SectionCard title="Cash positions">
+          <SectionCard title={t("Cash positions")}>
             <p className="text-xs text-muted-foreground mb-2">
               Full ledger balance per cash and float account, with the change from the latest
               postings.
@@ -122,7 +123,7 @@ function Cash() {
           </SectionCard>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <SectionCard title="Branch net movement">
+            <SectionCard title={t("Branch net movement")}>
               <p className="text-xs text-muted-foreground mb-2">
                 Net change on cash and float accounts per branch, from recent postings.
               </p>
@@ -132,7 +133,7 @@ function Cash() {
                 ))}
               </div>
             </SectionCard>
-            <SectionCard title="Recent cash postings">
+            <SectionCard title={t("Recent cash postings")}>
               <p className="text-xs text-muted-foreground mb-2">
                 Latest individual postings that touched cash or float accounts.
               </p>

@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { MomoDialog, type MomoFormValues } from "@/components/mobile-money/MomoDialog";
 import {
   MomoReceiptDialog,
@@ -238,8 +239,8 @@ function MobileMoney() {
     return (
       <AppShell>
         <PageHeader
-          title="Mobile Money"
-          description="Record mobile money agency deposits and withdrawals."
+          title={t("Mobile Money")}
+          description={t("Record mobile money agency deposits and withdrawals.")}
         />
         <AccessDenied
           title="This module is restricted"
@@ -268,8 +269,10 @@ function MobileMoney() {
   return (
     <AppShell>
       <PageHeader
-        title="Mobile Money"
-        description="Record agency deposits and withdrawals. Network references are entered by staff, never verified with the network."
+        title={t("Mobile Money")}
+        description={t(
+          "Record agency deposits and withdrawals. Network references are entered by staff, never verified with the network.",
+        )}
         actions={
           <Button size="sm" onClick={() => setRecordForm(true)}>
             Record transaction

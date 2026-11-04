@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { UserPlus } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { t } from "@/domain/i18n";
 import { StaffAccountDialog } from "@/components/employees/StaffAccountDialog";
 import { StaffAccessDialog } from "@/components/employees/StaffAccessDialog";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
@@ -97,10 +98,10 @@ function Employees() {
   if (!allowed) {
     return (
       <AppShell>
-        <PageHeader title="Employees" description="Staff accounts, roles and access." />
+        <PageHeader title={t("Employees")} description={t("Staff accounts, roles and access.")} />
         <AccessDenied
-          title="Employee management is restricted"
-          description="Only a super admin or the company owner can manage employee accounts."
+          title={t("Employee management is restricted")}
+          description={t("Only a super admin or the company owner can manage employee accounts.")}
         />
       </AppShell>
     );
@@ -116,8 +117,10 @@ function Employees() {
   return (
     <AppShell>
       <PageHeader
-        title="Employees"
-        description={`Accounts, roles and access. Everyone works in ${branchName}.`}
+        title={t("Employees")}
+        description={t("Accounts, roles and access. Everyone works in {branch}.", {
+          branch: branchName,
+        })}
         actions={
           <>
             <Button
@@ -160,7 +163,7 @@ function Employees() {
         <StatCard label="Inactive" value={String(inactiveCount)} hint="Sign-in blocked" />
       </div>
 
-      <SectionCard title="Staff directory">
+      <SectionCard title={t("Staff directory")}>
         {staff.isPending && (
           <p className="px-5 pb-6 text-sm text-muted-foreground">Loading staff…</p>
         )}
