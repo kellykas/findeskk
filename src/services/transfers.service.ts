@@ -72,7 +72,8 @@ export interface RecordTransferInput {
 export async function recordTransfer(input: RecordTransferInput): Promise<string> {
   const { data, error } = await supabase.rpc("record_currency_transfer", {
     _currency: input.currency,
-    _amount: toDecimalString(input.amount),
+    // Exact decimal string; PostgreSQL NUMERIC parses it without float rounding.
+    _amount: toDecimalString(input.amount) as unknown as number,
     _from_branch_id: input.fromBranchId,
     _to_branch_id: input.toBranchId,
     _reference: input.reference,

@@ -79,7 +79,8 @@ export async function recordIncome(input: RecordIncomeInput): Promise<string> {
     _income_date: input.incomeDate,
     _category: input.category,
     _description: input.description,
-    _amount: toDecimalString(input.amount),
+    // Exact decimal string; PostgreSQL NUMERIC parses it without float rounding.
+    _amount: toDecimalString(input.amount) as unknown as number,
     _received_into: input.receivedInto,
     _branch_id: input.branchId,
     _reference: input.reference,
