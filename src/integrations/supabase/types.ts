@@ -152,6 +152,7 @@ export type Database = {
       company_settings: {
         Row: {
           address: string;
+          app_name: string;
           base_currency: string;
           company_name: string;
           currency_codes: string[];
@@ -159,15 +160,18 @@ export type Database = {
           fiscal_year_start_month: number;
           id: boolean;
           legal_name: string;
+          logo_url: string;
           phone: string;
           receipt_footer: string;
           receipt_format: string;
           tax_number: string;
+          theme_primary: string;
           updated_at: string;
           updated_by: string | null;
         };
         Insert: {
           address?: string;
+          app_name?: string;
           base_currency?: string;
           company_name?: string;
           currency_codes?: string[];
@@ -175,15 +179,18 @@ export type Database = {
           fiscal_year_start_month?: number;
           id?: boolean;
           legal_name?: string;
+          logo_url?: string;
           phone?: string;
           receipt_footer?: string;
           receipt_format?: string;
           tax_number?: string;
+          theme_primary?: string;
           updated_at?: string;
           updated_by?: string | null;
         };
         Update: {
           address?: string;
+          app_name?: string;
           base_currency?: string;
           company_name?: string;
           currency_codes?: string[];
@@ -191,10 +198,12 @@ export type Database = {
           fiscal_year_start_month?: number;
           id?: boolean;
           legal_name?: string;
+          logo_url?: string;
           phone?: string;
           receipt_footer?: string;
           receipt_format?: string;
           tax_number?: string;
+          theme_primary?: string;
           updated_at?: string;
           updated_by?: string | null;
         };

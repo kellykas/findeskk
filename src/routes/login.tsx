@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { resetEmailSchema, signInSchema } from "@/domain/auth";
+import { useBranding } from "@/hooks/use-branding";
 import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { requestPasswordReset } from "@/services/auth.service";
@@ -36,6 +37,7 @@ type Mode = "signin" | "reset";
 function Login() {
   const { status, signIn } = useSession();
   const { t } = useLanguage();
+  const { appName } = useBranding();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -109,7 +111,7 @@ function Login() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <BrandMark />
-              <span className="text-lg font-semibold tracking-tight">FinDesk</span>
+              <span className="text-lg font-semibold tracking-tight">{appName}</span>
             </div>
             <LanguageToggle />
           </div>
@@ -117,7 +119,7 @@ function Login() {
           <div className="flex flex-1 flex-col justify-center py-10">
             <div className="mx-auto w-full max-w-[360px]">
               <h1 className="text-center text-2xl font-semibold tracking-tight sm:text-[26px]">
-                {t(resetting ? "Reset your password" : "Sign in to FinDesk")}
+                {resetting ? t("Reset your password") : t("Sign in to {app}", { app: appName })}
               </h1>
               <p className="mt-2 text-center text-sm text-muted-foreground">
                 {t(
@@ -238,7 +240,7 @@ function Login() {
           </div>
 
           <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-            <span>© FinDesk</span>
+            <span>© {appName}</span>
             <span>{t("Kampala · Uganda")}</span>
           </div>
         </div>

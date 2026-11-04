@@ -2,10 +2,12 @@
  * Company settings vocabulary.
  *
  * Settings are stored in one row of public.company_settings. The database
- * re-checks the same length and vocabulary rules through a CHECK constraint and
+ * re-checks the same length and vocabulary rules through CHECK constraints and
  * only lets super admins and the company owner update the row.
  */
 import { z } from "zod";
+
+import { isHexColor, isLogoUrl } from "@/domain/branding";
 
 export const RECEIPT_FORMATS = ["58mm", "80mm", "a4"] as const;
 
@@ -39,6 +41,11 @@ export interface CompanySettings {
   phone: string;
   email: string;
   taxNumber: string;
+  /** Product name on the sidebar, the sign-in screen and the browser tab. */
+  appName: string;
+  logoUrl: string;
+  /** One hex colour; the rest of the palette is derived from it. */
+  themePrimary: string;
   baseCurrency: string;
   currencyCodes: string[];
   receiptFormat: ReceiptFormat;
@@ -69,6 +76,17 @@ export const companySettingsSchema = z.object({
       "Enter a valid email or leave it empty",
     ),
   taxNumber: z.string().trim().max(40, "Tax number can have at most 40 characters"),
+  appName: z
+    .string()
+    .trim()
+    .min(1, "Website name is required")
+    .max(40, "Website name can have at most 40 characters"),
+  logoUrl: z
+    .string()
+    .trim()
+    .max(500, "Logo link is too long")
+    .refine(isLogoUrl, "Logo must be an https:// image link"),
+  themePrimary: z.string().trim().refine(isHexColor, "Choose a colour like #7c3aed"),
   receiptFormat: z.enum(RECEIPT_FORMATS),
   receiptFooter: z.string().trim().max(200, "Receipt footer can have at most 200 characters"),
   fiscalYearStartMonth: z.coerce.number().int().min(1).max(12),
@@ -84,6 +102,9 @@ export function toSettingsForm(settings: CompanySettings): CompanySettingsForm {
     phone: settings.phone,
     email: settings.email,
     taxNumber: settings.taxNumber,
+    appName: settings.appName,
+    logoUrl: settings.logoUrl,
+    themePrimary: settings.themePrimary,
     receiptFormat: settings.receiptFormat,
     receiptFooter: settings.receiptFooter,
     fiscalYearStartMonth: settings.fiscalYearStartMonth,
@@ -94,6 +115,10 @@ export function settingsErrorMessage(message: string): string {
   const text = message.toLowerCase();
   if (text.includes("schema cache") || text.includes("could not find the table"))
     return "The company settings table is missing. Apply the Phase 8 migration in Supabase.";
+  if (text.includes("column") && text.includes("does not exist"))
+    return "Branding is not set up yet. Apply the branding migration in Supabase.";
+  if (text.includes("company_settings_branding_valid") || text.includes("app_name"))
+    return "The website name, logo link or brand colour is not valid.";
   if (text.includes("row-level security") || text.includes("permission denied"))
     return "Only a super admin or the company owner can change company settings.";
   if (text.includes("company_settings_text_lengths"))

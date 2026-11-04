@@ -78,6 +78,30 @@ export const FRENCH: Record<string, string> = {
   "Choose a password you have not used here before.":
     "Choisissez un mot de passe que vous n'avez jamais utilisé ici.",
   "Use a password with at least 8 characters.": "Utilisez un mot de passe d'au moins 8 caractères.",
+  "Sign in to {app}": "Connectez-vous à {app}",
+
+  // Branding ----------------------------------------------------------------
+  Branding: "Image de marque",
+  "Name, logo and theme colour": "Nom, logo et couleur du thème",
+  "Website name": "Nom du site",
+  "Shown in the sidebar, the sign-in screen and the browser tab.":
+    "Affiché dans la barre latérale, l'écran de connexion et l'onglet du navigateur.",
+  Logo: "Logo",
+  "Upload logo": "Téléverser un logo",
+  "Uploading…": "Téléversement…",
+  "Remove logo": "Retirer le logo",
+  "PNG, JPEG or WebP, up to 2 MB. A square image looks best.":
+    "PNG, JPEG ou WebP, jusqu'à 2 Mo. Une image carrée rend mieux.",
+  "Brand colour": "Couleur de la marque",
+  Custom: "Personnalisée",
+  "Custom brand colour": "Couleur de marque personnalisée",
+  Sample: "Aperçu",
+  "Save branding": "Enregistrer l'image de marque",
+  "Logo uploaded. Save branding to publish it.":
+    "Logo téléversé. Enregistrez l'image de marque pour le publier.",
+  "Could not upload the logo.": "Impossible de téléverser le logo.",
+  "Buttons, links, the active menu item and charts follow this colour. Text contrast is chosen automatically.":
+    "Les boutons, les liens, l'élément de menu actif et les graphiques suivent cette couleur. Le contraste du texte est choisi automatiquement.",
 
   // Shared components --------------------------------------------------------
   "Planned next": "Prochaines étapes",

@@ -2,10 +2,11 @@
  * Company settings data access.
  *
  * One row, read by any active staff member and written only by super admins and
- * the company owner (enforced by the UPDATE policy and the column grant).
+ * the company owner (enforced by the UPDATE policy and the column grants).
  */
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { DEFAULT_APP_NAME, DEFAULT_BRAND_COLOR, normalizeHex } from "@/domain/branding";
 import {
   RECEIPT_FORMATS,
   settingsErrorMessage,
@@ -21,6 +22,9 @@ export interface CompanySettingsRow {
   phone: string;
   email: string;
   tax_number: string;
+  app_name: string;
+  logo_url: string;
+  theme_primary: string;
   base_currency: string;
   currency_codes: string[];
   receipt_format: string;
@@ -39,6 +43,9 @@ export function mapSettings(row: CompanySettingsRow): CompanySettings {
     phone: row.phone,
     email: row.email,
     taxNumber: row.tax_number,
+    appName: row.app_name?.trim() || DEFAULT_APP_NAME,
+    logoUrl: row.logo_url ?? "",
+    themePrimary: normalizeHex(row.theme_primary ?? "") ?? DEFAULT_BRAND_COLOR,
     baseCurrency: row.base_currency,
     currencyCodes: row.currency_codes ?? [],
     receiptFormat: (FORMAT_SET.has(row.receipt_format)
@@ -71,6 +78,9 @@ export async function updateSettings(input: CompanySettingsForm): Promise<void> 
       phone: input.phone,
       email: input.email,
       tax_number: input.taxNumber,
+      app_name: input.appName,
+      logo_url: input.logoUrl,
+      theme_primary: input.themePrimary,
       receipt_format: input.receiptFormat,
       receipt_footer: input.receiptFooter,
       fiscal_year_start_month: input.fiscalYearStartMonth,

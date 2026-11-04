@@ -4,6 +4,7 @@ import { Moon, Sun } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { can, type Permission } from "@/domain/roles";
+import { useBranding } from "@/hooks/use-branding";
 import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { BrandMark } from "@/components/auth/BrandMark";
@@ -118,6 +119,7 @@ const THEME_KEY = "findesk-theme";
 export function AppSidebar() {
   const { viewer, signOut } = useSession();
   const { t } = useLanguage();
+  const { appName } = useBranding();
 
   const visibleModules = NAV_ITEMS.filter((item) =>
     viewer ? can(viewer.roles, item.permission) : false,
@@ -129,7 +131,7 @@ export function AppSidebar() {
       <div className="flex items-center gap-3 px-5 pb-4 pt-5">
         <BrandMark />
         <div className="leading-tight">
-          <h2 className="text-base font-semibold tracking-tight">FinDesk</h2>
+          <h2 className="truncate text-base font-semibold tracking-tight">{appName}</h2>
           <p className="text-[11px] text-muted-foreground">{t("Forex & Mobile Money")}</p>
         </div>
       </div>

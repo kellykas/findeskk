@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { resetPasswordSchema } from "@/domain/auth";
+import { useBranding } from "@/hooks/use-branding";
 import { useLanguage } from "@/hooks/use-language";
 import { getSession, setNewPassword } from "@/services/auth.service";
 
@@ -33,6 +34,7 @@ type Stage = "checking" | "ready" | "expired" | "done";
 
 function ResetPassword() {
   const { t } = useLanguage();
+  const { appName } = useBranding();
   const [stage, setStage] = useState<Stage>("checking");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -84,7 +86,7 @@ function ResetPassword() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <BrandMark />
-            <span className="text-lg font-semibold tracking-tight">FinDesk</span>
+            <span className="text-lg font-semibold tracking-tight">{appName}</span>
           </div>
           <LanguageToggle />
         </div>

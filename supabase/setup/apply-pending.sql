@@ -1538,4 +1538,58 @@ DROP TRIGGER IF EXISTS expenses_immutable ON public.expenses;
 CREATE TRIGGER expenses_immutable BEFORE UPDATE OR DELETE ON public.expenses
   FOR EACH ROW EXECUTE FUNCTION private.block_ledger_changes();
 
+-- ===== 20261104160000_branding.sql =====
+-- Website name, logo and theme colour. Editable by super admins and the company
+-- owner only; readable before sign-in through public_branding().
+
+ALTER TABLE public.company_settings
+  ADD COLUMN IF NOT EXISTS app_name text NOT NULL DEFAULT 'FinDesk',
+  ADD COLUMN IF NOT EXISTS logo_url text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS theme_primary text NOT NULL DEFAULT '#7c3aed';
+
+ALTER TABLE public.company_settings
+  DROP CONSTRAINT IF EXISTS company_settings_branding_valid;
+
+ALTER TABLE public.company_settings
+  ADD CONSTRAINT company_settings_branding_valid CHECK (
+    length(app_name) BETWEEN 1 AND 40
+    AND length(logo_url) <= 500
+    AND (logo_url = '' OR logo_url ~* '^https://')
+    AND theme_primary ~ '^#[0-9a-fA-F]{6}$'
+  );
+
+GRANT UPDATE (app_name, logo_url, theme_primary) ON public.company_settings TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.public_branding()
+RETURNS TABLE (app_name text, logo_url text, theme_primary text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT s.app_name, s.logo_url, s.theme_primary
+  FROM public.company_settings s
+  WHERE s.id = true
+$$;
+
+REVOKE ALL ON FUNCTION public.public_branding() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_branding() TO anon, authenticated;
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('branding', 'branding', true, 2097152, ARRAY['image/png', 'image/jpeg', 'image/webp'])
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS branding_public_read ON storage.objects;
+CREATE POLICY branding_public_read ON storage.objects FOR SELECT TO anon, authenticated
+  USING (bucket_id = 'branding');
+
+DROP POLICY IF EXISTS branding_admin_insert ON storage.objects;
+CREATE POLICY branding_admin_insert ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'branding' AND private.can_manage_settings());
+
+DROP POLICY IF EXISTS branding_admin_update ON storage.objects;
+CREATE POLICY branding_admin_update ON storage.objects FOR UPDATE TO authenticated
+  USING (bucket_id = 'branding' AND private.can_manage_settings())
+  WITH CHECK (bucket_id = 'branding' AND private.can_manage_settings());
+
+DROP POLICY IF EXISTS branding_admin_delete ON storage.objects;
+CREATE POLICY branding_admin_delete ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'branding' AND private.can_manage_settings());
+
 COMMIT;

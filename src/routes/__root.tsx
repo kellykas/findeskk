@@ -11,6 +11,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
+import { BrandingProvider } from "@/hooks/use-branding";
 import { LanguageProvider, useLanguage } from "@/hooks/use-language";
 import { SessionProvider } from "@/hooks/use-session";
 import appCss from "../styles.css?url";
@@ -135,13 +136,15 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <SessionProvider>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </SessionProvider>
-        <Toaster />
-      </LanguageProvider>
+      <BrandingProvider>
+        <LanguageProvider>
+          <SessionProvider>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+          </SessionProvider>
+          <Toaster />
+        </LanguageProvider>
+      </BrandingProvider>
     </QueryClientProvider>
   );
 }

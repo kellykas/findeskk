@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { CURRENCY_REGISTRY, BASE_CURRENCY, getCurrency } from "@/domain/currency";
 import { PERMISSIONS, ROLE_PERMISSIONS, isStaffAdmin } from "@/domain/access";
+import { BRAND_COLORS, brandInitials, readableInk } from "@/domain/branding";
 import { ROLES, ROLE_LABELS, type Role } from "@/domain/roles";
 import {
   MONTH_LABELS,
@@ -30,7 +31,9 @@ import {
   type ReceiptFormat,
 } from "@/domain/settings";
 import { useSession } from "@/hooks/use-session";
+import { uploadLogo } from "@/services/branding.service";
 import { settingsQuery, updateSettings } from "@/services/settings.service";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -59,6 +62,7 @@ function Settings() {
 
   const [form, setForm] = useState<CompanySettingsForm | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const loaded = settings.data;
   useEffect(() => {
@@ -70,6 +74,8 @@ function Settings() {
     onSuccess: () => {
       toast.success("Company settings saved.");
       void queryClient.invalidateQueries({ queryKey: ["settings"] });
+      // The shell, the sign-in screen and the tab title read branding separately.
+      void queryClient.invalidateQueries({ queryKey: ["branding"] });
       setError(null);
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
@@ -105,6 +111,24 @@ function Settings() {
       return;
     }
     save.mutate(parsed.data);
+  }
+
+  async function handleLogo(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Cleared so choosing the same file twice still fires a change event.
+    event.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const url = await uploadLogo(file);
+      update("logoUrl", url);
+      toast.success(t("Logo uploaded. Save branding to publish it."));
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : t("Could not upload the logo."));
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -150,6 +174,138 @@ function Settings() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            <SectionCard
+              title={t("Branding")}
+              action={
+                <span className="text-xs text-muted-foreground">
+                  {t("Name, logo and theme colour")}
+                </span>
+              }
+            >
+              <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="settings-app-name">{t("Website name")}</Label>
+                  <Input
+                    id="settings-app-name"
+                    value={form?.appName ?? ""}
+                    onChange={(event) => update("appName", event.target.value)}
+                    disabled={!editable}
+                    maxLength={40}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t("Shown in the sidebar, the sign-in screen and the browser tab.")}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="settings-logo">{t("Logo")}</Label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {form?.logoUrl ? (
+                      <img
+                        src={form.logoUrl}
+                        alt=""
+                        className="h-10 w-10 rounded-xl border border-border/60 bg-card object-contain p-1"
+                      />
+                    ) : (
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[oklch(0.48_0.2_280)] text-sm font-bold text-primary-foreground">
+                        {brandInitials(form?.appName || "FinDesk")}
+                      </span>
+                    )}
+                    <label
+                      htmlFor="settings-logo"
+                      className={cn(
+                        "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent",
+                        (!editable || uploading) && "pointer-events-none opacity-50",
+                      )}
+                    >
+                      {uploading ? t("Uploading…") : t("Upload logo")}
+                    </label>
+                    <input
+                      id="settings-logo"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={handleLogo}
+                      disabled={!editable || uploading}
+                    />
+                    {form?.logoUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => update("logoUrl", "")}
+                        disabled={!editable}
+                      >
+                        {t("Remove logo")}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t("PNG, JPEG or WebP, up to 2 MB. A square image looks best.")}
+                  </p>
+                </div>
+
+                <div className="space-y-3 sm:col-span-2">
+                  <Label>{t("Brand colour")}</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {BRAND_COLORS.map((colour) => (
+                      <button
+                        key={colour.hex}
+                        type="button"
+                        aria-label={colour.label}
+                        aria-pressed={form?.themePrimary === colour.hex}
+                        onClick={() => update("themePrimary", colour.hex)}
+                        disabled={!editable}
+                        className={cn(
+                          "h-8 w-8 cursor-pointer rounded-full border-2 transition-transform hover:scale-105 disabled:cursor-not-allowed",
+                          form?.themePrimary === colour.hex
+                            ? "border-foreground"
+                            : "border-transparent",
+                        )}
+                        style={{ backgroundColor: colour.hex }}
+                      />
+                    ))}
+                    <label className="ml-1 flex cursor-pointer items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs font-medium">
+                      {t("Custom")}
+                      <input
+                        type="color"
+                        aria-label={t("Custom brand colour")}
+                        value={form?.themePrimary ?? "#7c3aed"}
+                        onChange={(event) => update("themePrimary", event.target.value)}
+                        disabled={!editable}
+                        className="h-6 w-8 cursor-pointer rounded border-0 bg-transparent p-0"
+                      />
+                    </label>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {form?.themePrimary ?? ""}
+                    </span>
+                    <span
+                      className="ml-1 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                      style={{
+                        backgroundColor: form?.themePrimary,
+                        color: readableInk(form?.themePrimary ?? "#7c3aed"),
+                      }}
+                    >
+                      {t("Sample")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "Buttons, links, the active menu item and charts follow this colour. Text contrast is chosen automatically.",
+                    )}
+                  </p>
+                </div>
+              </div>
+              {editable && (
+                <div className="flex justify-end border-t px-4 py-3">
+                  <Button type="submit" size="sm" disabled={save.isPending || !form}>
+                    {save.isPending ? "Saving…" : t("Save branding")}
+                  </Button>
+                </div>
+              )}
+            </SectionCard>
+
             <SectionCard
               title="Company profile"
               action={
