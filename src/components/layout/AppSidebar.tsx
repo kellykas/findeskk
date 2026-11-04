@@ -4,7 +4,9 @@ import { Moon, Sun } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { can, type Permission } from "@/domain/roles";
+import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
+import { LanguageToggle } from "./LanguageToggle";
 import {
   LayoutDashboard,
   BookOpen,
@@ -114,6 +116,7 @@ const THEME_KEY = "findesk-theme";
 
 export function AppSidebar() {
   const { viewer, signOut } = useSession();
+  const { t } = useLanguage();
 
   const visibleModules = NAV_ITEMS.filter((item) =>
     viewer ? can(viewer.roles, item.permission) : false,
@@ -128,7 +131,7 @@ export function AppSidebar() {
         </div>
         <div className="leading-tight">
           <h2 className="text-base font-semibold tracking-tight">FinDesk</h2>
-          <p className="text-[11px] text-muted-foreground">Forex &amp; Mobile Money</p>
+          <p className="text-[11px] text-muted-foreground">{t("Forex & Mobile Money")}</p>
         </div>
       </div>
 
@@ -136,7 +139,7 @@ export function AppSidebar() {
         {groups.map((group) => (
           <div key={group} className="mb-3">
             <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-              {group}
+              {t(group)}
             </p>
             <div className="space-y-0.5">
               {visibleModules
@@ -167,7 +170,7 @@ export function AppSidebar() {
               className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <LogOut className="h-4 w-4" />
-              Sign out
+              {t("Sign out")}
             </button>
           </>
         ) : (
@@ -175,10 +178,11 @@ export function AppSidebar() {
             to="/login"
             className="flex w-full items-center justify-center rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
           >
-            Sign in
+            {t("Sign in")}
           </Link>
         )}
 
+        <LanguageToggle />
         <ThemeToggle />
       </div>
     </aside>
@@ -186,6 +190,7 @@ export function AppSidebar() {
 }
 
 function SidebarLink({ item }: { item: NavItem }) {
+  const { t } = useLanguage();
   return (
     <Link
       to={item.path}
@@ -200,7 +205,7 @@ function SidebarLink({ item }: { item: NavItem }) {
       )}
     >
       <item.icon className="h-[18px] w-[18px] shrink-0" />
-      <span className="truncate">{item.title}</span>
+      <span className="truncate">{t(item.title)}</span>
     </Link>
   );
 }
@@ -210,6 +215,7 @@ function SidebarLink({ item }: { item: NavItem }) {
  * never involved because this is a display preference, not company data.
  */
 function ThemeToggle() {
+  const { t } = useLanguage();
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -230,7 +236,7 @@ function ThemeToggle() {
     <div className="flex items-center gap-1 rounded-full bg-muted p-1">
       <button
         type="button"
-        aria-label="Light theme"
+        aria-label={t("Light theme")}
         aria-pressed={!dark}
         onClick={() => choose(false)}
         className={cn(
@@ -242,7 +248,7 @@ function ThemeToggle() {
       </button>
       <button
         type="button"
-        aria-label="Dark theme"
+        aria-label={t("Dark theme")}
         aria-pressed={dark}
         onClick={() => choose(true)}
         className={cn(

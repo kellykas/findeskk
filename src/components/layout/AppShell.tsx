@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { AppSidebar } from "./AppSidebar";
 import { AppTopBar } from "./AppTopBar";
@@ -14,21 +15,22 @@ export interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const [open, setOpen] = useState(false);
   const { status } = useSession();
+  const { t } = useLanguage();
   const pathname = useLocation({ select: (l) => l.pathname });
   useEffect(() => setOpen(false), [pathname]);
 
   let body: ReactNode = children ?? <Outlet />;
   if (status === "loading" || status === "loading_viewer") {
-    body = <p className="p-6 text-sm text-muted-foreground">Loading your workspace…</p>;
+    body = <p className="p-6 text-sm text-muted-foreground">{t("Loading your workspace…")}</p>;
   } else if (status === "signed_out") {
     body = (
       <div className="mx-auto mt-12 max-w-sm rounded-2xl border border-border bg-card p-6 text-center">
-        <h2 className="text-lg font-semibold">Sign in to FinDesk</h2>
+        <h2 className="text-lg font-semibold">{t("Sign in to FinDesk")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Staff access only. Sign in with the account your administrator created.
+          {t("Staff access only. Sign in with the account your administrator created.")}
         </p>
         <Button asChild className="mt-4 w-full rounded-full">
-          <Link to="/login">Sign in</Link>
+          <Link to="/login">{t("Sign in")}</Link>
         </Button>
       </div>
     );
@@ -42,7 +44,7 @@ export function AppShell({ children }: AppShellProps) {
         </div>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetContent side="left" className="w-[268px] p-0">
-            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <SheetTitle className="sr-only">{t("Navigation")}</SheetTitle>
             <AppSidebar />
           </SheetContent>
         </Sheet>
@@ -53,7 +55,7 @@ export function AppShell({ children }: AppShellProps) {
                 variant="ghost"
                 size="icon"
                 className="shrink-0 rounded-full md:hidden"
-                aria-label="Open menu"
+                aria-label={t("Open menu")}
                 onClick={() => setOpen(true)}
               >
                 <Menu className="h-5 w-5" />

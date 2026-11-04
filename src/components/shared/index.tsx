@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import { ArrowUpRight, ShieldAlert } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 
 export function PageHeader({
@@ -114,13 +115,15 @@ export function SectionCard({
  * instead of leaving a raw error on screen.
  */
 export function SetupNotice({ file, children }: { file: string; children?: ReactNode }) {
+  const { t } = useLanguage();
   return (
     <div className="space-y-2 px-5 py-6 text-sm">
-      <p className="font-medium">One database step is still needed</p>
+      <p className="font-medium">{t("One database step is still needed")}</p>
       <p className="text-muted-foreground">
-        In Supabase open <span className="font-medium">SQL Editor → New query</span>, paste the
-        contents of <code className="rounded bg-muted px-1 py-0.5 text-xs">{file}</code> from the
-        repository, run it, then press Try again here.
+        {t("In Supabase open")} <span className="font-medium">SQL Editor → New query</span>,{" "}
+        {t("paste the contents of")}{" "}
+        <code className="rounded bg-muted px-1 py-0.5 text-xs">{file}</code>{" "}
+        {t("from the repository, run it, then press Try again here.")}
       </p>
       {children}
     </div>
@@ -129,10 +132,11 @@ export function SetupNotice({ file, children }: { file: string; children?: React
 
 /** Honest list of capabilities a module does not have yet. */
 export function PlannedNext({ features }: { features: string[] }) {
+  const { t } = useLanguage();
   if (features.length === 0) return null;
   return (
     <div className="mt-6">
-      <SectionCard title="Planned next">
+      <SectionCard title={t("Planned next")}>
         <ul className="divide-y divide-border/60 text-sm">
           {features.map((feature) => (
             <li key={feature} className="flex items-center gap-3 px-5 py-3">

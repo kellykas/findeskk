@@ -1,0 +1,120 @@
+/**
+ * French interface text, keyed by the English sentence it replaces.
+ * Anything absent falls back to English, so this file can grow safely.
+ */
+export const FRENCH: Record<string, string> = {
+  // Navigation and shell -----------------------------------------------------
+  Overview: "Vue d'ensemble",
+  Operations: "Opérations",
+  Administration: "Administration",
+  Oversight: "Supervision",
+  Dashboard: "Tableau de bord",
+  Ledger: "Grand livre",
+  "Forex Bureau": "Bureau de change",
+  "Mobile Money": "Mobile money",
+  "Cash & Float": "Caisse et float",
+  Customers: "Clients",
+  Employees: "Employés",
+  "Expenses & Finance": "Dépenses et finances",
+  Reports: "Rapports",
+  "Audit Trail": "Piste d'audit",
+  Settings: "Paramètres",
+  "Sign in": "Se connecter",
+  "Sign out": "Se déconnecter",
+  "Forex & Mobile Money": "Change et mobile money",
+  Navigation: "Navigation",
+  "Open menu": "Ouvrir le menu",
+  "Search pages": "Rechercher une page",
+  "Search pages…": "Rechercher une page…",
+  "No page matches “{query}”.": "Aucune page ne correspond à « {query} ».",
+  "Not signed in": "Non connecté",
+  Staff: "Personnel",
+  Language: "Langue",
+  "Light theme": "Thème clair",
+  "Dark theme": "Thème sombre",
+  "Loading your workspace…": "Chargement de votre espace…",
+  "Sign in to FinDesk": "Connectez-vous à FinDesk",
+  "Staff access only. Sign in with the account your administrator created.":
+    "Accès réservé au personnel. Connectez-vous avec le compte créé par votre administrateur.",
+
+  // Sign-in screen -----------------------------------------------------------
+  "Use your staff account.": "Utilisez votre compte personnel.",
+  Email: "Adresse e-mail",
+  Password: "Mot de passe",
+  "Signing in…": "Connexion…",
+  "Forex Bureau and Mobile Money agency operations, on one ledger.":
+    "Les opérations de bureau de change et d'agence mobile money, sur un seul grand livre.",
+  "Kampala · Uganda": "Kampala · Ouganda",
+  "Staff accounts are issued by your company administrator. Roles and branch access are granted after your first sign-in.":
+    "Les comptes du personnel sont créés par l'administrateur de votre entreprise. Les rôles et l'accès aux agences sont attribués après votre première connexion.",
+  "Check your details and try again.": "Vérifiez vos informations et réessayez.",
+  "Sign-in failed. Try again.": "Échec de la connexion. Réessayez.",
+
+  // Shared components --------------------------------------------------------
+  "Planned next": "Prochaines étapes",
+  "One database step is still needed": "Une étape de base de données est encore nécessaire",
+  "In Supabase open": "Dans Supabase, ouvrez",
+  "paste the contents of": "collez le contenu de",
+  "from the repository, run it, then press Try again here.":
+    "du dépôt, exécutez-le, puis appuyez sur Réessayer ici.",
+  "Try again": "Réessayer",
+  "Planned · Phase {phase}": "Prévu · Phase {phase}",
+  "Planned capabilities": "Fonctionnalités prévues",
+  "This module is restricted": "Ce module est restreint",
+  "Your current roles do not include access to this module. Ask a super admin or the company owner to review your roles.":
+    "Vos rôles actuels ne donnent pas accès à ce module. Demandez à un super administrateur ou au propriétaire de l'entreprise de revoir vos rôles.",
+  "This module is not yet operational. No transactions can be recorded here until its phase is delivered on top of the accounting ledger.":
+    "Ce module n'est pas encore opérationnel. Aucune opération ne peut y être enregistrée tant que sa phase n'est pas livrée au-dessus du grand livre comptable.",
+
+  // Error and not-found screens ---------------------------------------------
+  "Page not found": "Page introuvable",
+  "The page you're looking for doesn't exist or has been moved.":
+    "La page que vous cherchez n'existe pas ou a été déplacée.",
+  "Go home": "Retour à l'accueil",
+  "This page didn't load": "Cette page n'a pas pu se charger",
+  "Something went wrong on our end. You can try refreshing or head back home.":
+    "Une erreur est survenue de notre côté. Actualisez la page ou revenez à l'accueil.",
+
+  // Dashboard ---------------------------------------------------------------
+  "Welcome back, {name}!": "Bon retour, {name} !",
+  "Welcome back!": "Bon retour !",
+  "Loading the ledger…": "Chargement du grand livre…",
+  "Loading ledger balances…": "Chargement des soldes du grand livre…",
+  "Company-wide position.": "Situation de l'ensemble de l'entreprise.",
+  "Balances unavailable": "Soldes indisponibles",
+  "Could not read ledger balances:": "Impossible de lire les soldes du grand livre :",
+  "unknown error": "erreur inconnue",
+  "It is the best time to manage your finances.": "C'est le bon moment pour gérer vos finances.",
+  Refresh: "Actualiser",
+  "Refreshing…": "Actualisation…",
+  "Total assets": "Total de l'actif",
+  "Everything the company owns, all branches": "Tout ce que l'entreprise possède, toutes agences",
+  Income: "Produits",
+  Expense: "Charges",
+  "vs last month": "par rapport au mois dernier",
+  "Net profit": "Résultat net",
+  "Loss this month": "Perte ce mois-ci",
+  "Income less expenses": "Produits moins charges",
+  "No transactions posted yet": "Aucune opération enregistrée pour l'instant",
+  "The ledger is empty, so every figure here is zero. Nothing on this page is simulated or estimated.":
+    "Le grand livre est vide, donc tous les chiffres affichés sont nuls. Rien sur cette page n'est simulé ni estimé.",
+  "Figures appear as soon as you record your first transaction: an expense or income, a forex trade, or a mobile money entry.":
+    "Les chiffres apparaissent dès que vous enregistrez votre première opération : une dépense ou un produit, une opération de change ou une opération mobile money.",
+  "Money flow": "Flux de trésorerie",
+  "Expense mix": "Répartition des charges",
+  "No expenses recorded yet.": "Aucune charge enregistrée pour l'instant.",
+  "Total expense": "Total des charges",
+  "Recent transactions": "Opérations récentes",
+  "No journal entries have been posted yet.": "Aucune écriture n'a encore été comptabilisée.",
+  Date: "Date",
+  Description: "Description",
+  Amount: "Montant",
+  "No cash accounts found.": "Aucun compte de caisse trouvé.",
+  "Account balances with movement": "Soldes des comptes avec mouvements",
+  Code: "Code",
+  Account: "Compte",
+  Type: "Type",
+  Balance: "Solde",
+  "Balances are derived from immutable journal entries; nothing is edited in place. Postings recorded manually are never shown as network-verified.":
+    "Les soldes proviennent d'écritures comptables immuables ; rien n'est modifié sur place. Les écritures saisies manuellement ne sont jamais présentées comme vérifiées par le réseau.",
+};

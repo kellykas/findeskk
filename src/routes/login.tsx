@@ -3,7 +3,9 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { signInSchema } from "@/domain/auth";
+import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 
 export const Route = createFileRoute("/login")({
@@ -26,6 +28,7 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
   const { status, signIn } = useSession();
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +40,9 @@ function Login() {
     event.preventDefault();
     const parsed = signInSchema.safeParse({ email, password });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Check your details and try again.");
+      // Zod messages come from the schema, which is English; the fallback keeps
+      // the screen usable when it has no message of its own.
+      setError(parsed.error.issues[0]?.message ?? t("Check your details and try again."));
       return;
     }
 
@@ -46,7 +51,7 @@ function Login() {
     try {
       await signIn(parsed.data.email, parsed.data.password);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Sign-in failed. Try again.");
+      setError(caught instanceof Error ? caught.message : t("Sign-in failed. Try again."));
     } finally {
       setPending(false);
     }
@@ -58,17 +63,18 @@ function Login() {
         <div className="text-lg font-semibold text-sidebar-primary">FinDesk</div>
         <div>
           <p className="max-w-sm text-2xl font-medium leading-snug text-sidebar-primary">
-            Forex Bureau and Mobile Money agency operations, on one ledger.
+            {t("Forex Bureau and Mobile Money agency operations, on one ledger.")}
           </p>
-          <p className="mt-3 text-sm">Kampala · Uganda</p>
+          <p className="mt-3 text-sm">{t("Kampala · Uganda")}</p>
         </div>
         <div className="text-xs opacity-60">© FinDesk</div>
       </div>
-      <div className="flex items-center justify-center px-6">
+      <div className="relative flex items-center justify-center px-6">
+        <LanguageToggle className="absolute right-6 top-6" />
         <form className="w-full max-w-sm space-y-5" onSubmit={handleSubmit}>
           <div>
-            <h1 className="text-xl font-semibold">Sign in</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Use your staff account.</p>
+            <h1 className="text-xl font-semibold">{t("Sign in")}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t("Use your staff account.")}</p>
           </div>
 
           {error && (
@@ -81,7 +87,7 @@ function Login() {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("Email")}</Label>
             <Input
               id="email"
               type="email"
@@ -92,7 +98,7 @@ function Login() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("Password")}</Label>
             <Input
               id="password"
               type="password"
@@ -103,11 +109,12 @@ function Login() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? "Signing in…" : "Sign in"}
+            {pending ? t("Signing in…") : t("Sign in")}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Staff accounts are issued by your company administrator. Roles and branch access are
-            granted after your first sign-in.
+            {t(
+              "Staff accounts are issued by your company administrator. Roles and branch access are granted after your first sign-in.",
+            )}
           </p>
         </form>
       </div>

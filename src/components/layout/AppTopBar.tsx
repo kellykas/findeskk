@@ -3,16 +3,18 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { MODULES, type AppModule } from "@/config/modules";
 import { can } from "@/domain/roles";
+import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 
 export function AppTopBar({ menuButton }: { menuButton?: ReactNode }) {
   const { viewer } = useSession();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
-  const name = viewer?.displayName?.trim() || viewer?.email || "Staff";
+  const name = viewer?.displayName?.trim() || viewer?.email || t("Staff");
   const initials =
     name
       .split(/\s+/)
@@ -59,8 +61,8 @@ export function AppTopBar({ menuButton }: { menuButton?: ReactNode }) {
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           type="search"
-          aria-label="Search pages"
-          placeholder="Search pages…"
+          aria-label={t("Search pages")}
+          placeholder={t("Search pages…")}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -81,7 +83,7 @@ export function AppTopBar({ menuButton }: { menuButton?: ReactNode }) {
           <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-lg">
             {matches.length === 0 ? (
               <p className="px-4 py-3 text-xs text-muted-foreground">
-                No page matches “{query.trim()}”.
+                {t("No page matches “{query}”.", { query: query.trim() })}
               </p>
             ) : (
               <ul className="max-h-72 overflow-y-auto py-1">
@@ -102,9 +104,9 @@ export function AppTopBar({ menuButton }: { menuButton?: ReactNode }) {
                     >
                       <module.icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                       <span className="min-w-0">
-                        <span className="block font-medium leading-tight">{module.title}</span>
+                        <span className="block font-medium leading-tight">{t(module.title)}</span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {module.description}
+                          {t(module.description)}
                         </span>
                       </span>
                     </Link>
@@ -124,7 +126,7 @@ export function AppTopBar({ menuButton }: { menuButton?: ReactNode }) {
           <div className="hidden min-w-0 leading-tight sm:block">
             <div className="max-w-[150px] truncate text-xs font-semibold">{name}</div>
             <div className="max-w-[150px] truncate text-[11px] text-muted-foreground">
-              {viewer?.email ?? "Not signed in"}
+              {viewer?.email ?? t("Not signed in")}
             </div>
           </div>
         </div>

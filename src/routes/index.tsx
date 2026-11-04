@@ -21,6 +21,7 @@ import { BASE_CURRENCY } from "@/domain/currency";
 import { formatDelta, monthOverMonth } from "@/domain/dashboard";
 import { ACCOUNT_TYPE_LABELS } from "@/domain/ledger";
 import { formatMoney, money, type Money } from "@/domain/money";
+import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { dashboardQuery } from "@/services/dashboard.service";
 
@@ -78,16 +79,18 @@ function Dashboard() {
 
 function DashboardContent() {
   const { viewer } = useSession();
+  const { t, locale } = useLanguage();
   const { data, isPending, isError, error, isFetching, refetch } = useQuery(dashboardQuery);
 
-  const monthName = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const firstName = viewer?.displayName?.trim().split(/\s+/)[0] ?? "there";
+  const monthName = new Date().toLocaleDateString(locale, { month: "long", year: "numeric" });
+  const firstName = viewer?.displayName?.trim().split(/\s+/)[0] ?? "";
+  const greeting = firstName ? t("Welcome back, {name}!", { name: firstName }) : t("Welcome back!");
 
   if (isPending) {
     return (
       <AppShell>
-        <PageHeader title={`Welcome back, ${firstName}!`} description="Loading the ledger…" />
-        <p className="text-sm text-muted-foreground">Loading ledger balances…</p>
+        <PageHeader title={greeting} description={t("Loading the ledger…")} />
+        <p className="text-sm text-muted-foreground">{t("Loading ledger balances…")}</p>
       </AppShell>
     );
   }
@@ -95,12 +98,12 @@ function DashboardContent() {
   if (isError) {
     return (
       <AppShell>
-        <PageHeader title={`Welcome back, ${firstName}!`} description="Company-wide position." />
-        <SectionCard title="Balances unavailable">
+        <PageHeader title={greeting} description={t("Company-wide position.")} />
+        <SectionCard title={t("Balances unavailable")}>
           <div className="space-y-3 px-5 py-6 text-sm">
             <p className="text-destructive">
-              Could not read ledger balances:{" "}
-              {error instanceof Error ? error.message : "unknown error"}
+              {t("Could not read ledger balances:")}{" "}
+              {error instanceof Error ? error.message : t("unknown error")}
             </p>
             <Button
               variant="outline"
@@ -108,7 +111,7 @@ function DashboardContent() {
               className="rounded-full"
               onClick={() => void refetch()}
             >
-              Try again
+              {t("Try again")}
             </Button>
           </div>
         </SectionCard>
@@ -151,9 +154,9 @@ function DashboardContent() {
     <AppShell>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome back, {firstName}!</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            It is the best time to manage your finances.
+            {t("It is the best time to manage your finances.")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -169,50 +172,52 @@ function DashboardContent() {
             disabled={isFetching}
           >
             <RefreshCw className={isFetching ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
-            {isFetching ? "Refreshing…" : "Refresh"}
+            {isFetching ? t("Refreshing…") : t("Refresh")}
           </Button>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total assets"
+          label={t("Total assets")}
           value={fmt(totalFor("asset"))}
-          hint="Everything the company owns, all branches"
+          hint={t("Everything the company owns, all branches")}
         />
         <StatCard
-          label="Income"
+          label={t("Income")}
           value={fmt(income)}
           delta={formatDelta(incomeDelta)}
           tone={(incomeDelta ?? 0) >= 0 ? "positive" : "negative"}
-          hint="vs last month"
+          hint={t("vs last month")}
         />
         <StatCard
-          label="Expense"
+          label={t("Expense")}
           value={fmt(expense)}
           delta={formatDelta(expenseDelta)}
           tone={(expenseDelta ?? 0) > 0 ? "negative" : "positive"}
-          hint="vs last month"
+          hint={t("vs last month")}
         />
         <StatCard
-          label="Net profit"
+          label={t("Net profit")}
           value={fmt(net)}
-          hint={net.minor < 0n ? "Loss this month" : "Income less expenses"}
+          hint={net.minor < 0n ? t("Loss this month") : t("Income less expenses")}
           tone={net.minor < 0n ? "negative" : "positive"}
         />
       </div>
 
       {!data.hasData && (
         <div className="mt-6">
-          <SectionCard title="No transactions posted yet">
+          <SectionCard title={t("No transactions posted yet")}>
             <div className="space-y-2 px-5 pb-6 text-sm text-muted-foreground">
               <p>
-                The ledger is empty, so every figure here is zero. Nothing on this page is simulated
-                or estimated.
+                {t(
+                  "The ledger is empty, so every figure here is zero. Nothing on this page is simulated or estimated.",
+                )}
               </p>
               <p>
-                Figures appear as soon as you record your first transaction: an expense or income, a
-                forex trade, or a mobile money entry.
+                {t(
+                  "Figures appear as soon as you record your first transaction: an expense or income, a forex trade, or a mobile money entry.",
+                )}
               </p>
             </div>
           </SectionCard>
@@ -224,16 +229,16 @@ function DashboardContent() {
           <div className="mt-6 grid gap-4 xl:grid-cols-3">
             <div className="xl:col-span-2">
               <SectionCard
-                title="Money flow"
+                title={t("Money flow")}
                 action={
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-chart-1" />
-                      Income
+                      {t("Income")}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-chart-2" />
-                      Expense
+                      {t("Expense")}
                     </span>
                   </div>
                 }
@@ -273,14 +278,14 @@ function DashboardContent() {
                       />
                       <Bar
                         dataKey="income"
-                        name="Income"
+                        name={t("Income")}
                         fill="var(--chart-1)"
                         radius={[6, 6, 6, 6]}
                         maxBarSize={18}
                       />
                       <Bar
                         dataKey="expense"
-                        name="Expense"
+                        name={t("Expense")}
                         fill="var(--chart-2)"
                         radius={[6, 6, 6, 6]}
                         maxBarSize={18}
@@ -291,9 +296,11 @@ function DashboardContent() {
               </SectionCard>
             </div>
 
-            <SectionCard title="Expense mix">
+            <SectionCard title={t("Expense mix")}>
               {expenseAccounts.length === 0 ? (
-                <p className="px-5 pb-6 text-sm text-muted-foreground">No expenses recorded yet.</p>
+                <p className="px-5 pb-6 text-sm text-muted-foreground">
+                  {t("No expenses recorded yet.")}
+                </p>
               ) : (
                 <>
                   <div className="relative h-[196px]">
@@ -326,7 +333,9 @@ function DashboardContent() {
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-[11px] text-muted-foreground">Total expense</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {t("Total expense")}
+                      </span>
                       <span className="tabular text-base font-semibold">
                         {fmt(money(mixTotal, BASE_CURRENCY))}
                       </span>
@@ -353,10 +362,10 @@ function DashboardContent() {
 
           <div className="mt-4 grid gap-4 xl:grid-cols-3">
             <div className="xl:col-span-2">
-              <SectionCard title="Recent transactions">
+              <SectionCard title={t("Recent transactions")}>
                 {data.recent.length === 0 ? (
                   <p className="px-5 pb-6 text-sm text-muted-foreground">
-                    No journal entries have been posted yet.
+                    {t("No journal entries have been posted yet.")}
                   </p>
                 ) : (
                   <DataTable
@@ -364,10 +373,10 @@ function DashboardContent() {
                     rowKey={(entry) => entry.id}
                     columns={[
                       {
-                        header: "Date",
+                        header: t("Date"),
                         cell: (entry) => (
                           <span className="tabular text-xs">
-                            {new Date(entry.entryDate).toLocaleDateString("en-GB", {
+                            {new Date(entry.entryDate).toLocaleDateString(locale, {
                               day: "2-digit",
                               month: "short",
                             })}
@@ -375,7 +384,7 @@ function DashboardContent() {
                         ),
                       },
                       {
-                        header: "Description",
+                        header: t("Description"),
                         cell: (entry) => (
                           <div className="leading-tight">
                             <div className="font-medium">{entry.description}</div>
@@ -384,7 +393,7 @@ function DashboardContent() {
                         ),
                       },
                       {
-                        header: "Amount",
+                        header: t("Amount"),
                         align: "right",
                         cell: (entry) => (
                           <span className="tabular font-medium">{fmt(entry.debitTotal)}</span>
@@ -396,9 +405,11 @@ function DashboardContent() {
               </SectionCard>
             </div>
 
-            <SectionCard title="Cash & float">
+            <SectionCard title={t("Cash & float")}>
               {data.cash.length === 0 ? (
-                <p className="px-5 pb-6 text-sm text-muted-foreground">No cash accounts found.</p>
+                <p className="px-5 pb-6 text-sm text-muted-foreground">
+                  {t("No cash accounts found.")}
+                </p>
               ) : (
                 <div className="space-y-4 px-5 pb-5 pt-1">
                   {data.cash.map((line) => {
@@ -426,19 +437,19 @@ function DashboardContent() {
           </div>
 
           <div className="mt-4">
-            <SectionCard title="Account balances with movement">
+            <SectionCard title={t("Account balances with movement")}>
               <DataTable
                 rows={data.balances}
                 rowKey={(row) => row.code}
                 columns={[
                   {
-                    header: "Code",
+                    header: t("Code"),
                     cell: (row) => <span className="tabular text-xs font-medium">{row.code}</span>,
                   },
-                  { header: "Account", cell: (row) => row.name },
-                  { header: "Type", cell: (row) => ACCOUNT_TYPE_LABELS[row.type] },
+                  { header: t("Account"), cell: (row) => row.name },
+                  { header: t("Type"), cell: (row) => ACCOUNT_TYPE_LABELS[row.type] },
                   {
-                    header: "Balance",
+                    header: t("Balance"),
                     align: "right",
                     cell: (row) => (
                       <span className={row.balance.minor < 0n ? "text-destructive" : "font-medium"}>
@@ -454,8 +465,9 @@ function DashboardContent() {
       )}
 
       <p className="mt-4 text-xs text-muted-foreground">
-        Balances are derived from immutable journal entries; nothing is edited in place. Postings
-        recorded manually are never shown as network-verified.
+        {t(
+          "Balances are derived from immutable journal entries; nothing is edited in place. Postings recorded manually are never shown as network-verified.",
+        )}
       </p>
     </AppShell>
   );
