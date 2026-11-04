@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { can, type Permission } from "@/domain/roles";
 import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
+import { BrandMark } from "@/components/auth/BrandMark";
 import { LanguageToggle } from "./LanguageToggle";
 import {
   LayoutDashboard,
@@ -126,9 +127,7 @@ export function AppSidebar() {
   return (
     <aside className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-3 px-5 pb-4 pt-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[oklch(0.48_0.2_280)] text-sm font-bold text-primary-foreground shadow-sm">
-          FD
-        </div>
+        <BrandMark />
         <div className="leading-tight">
           <h2 className="text-base font-semibold tracking-tight">FinDesk</h2>
           <p className="text-[11px] text-muted-foreground">{t("Forex & Mobile Money")}</p>

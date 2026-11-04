@@ -118,6 +118,17 @@ export const FRENCH: Record<string, string> = {
   "Balances are derived from immutable journal entries; nothing is edited in place. Postings recorded manually are never shown as network-verified.":
     "Les soldes proviennent d'écritures comptables immuables ; rien n'est modifié sur place. Les écritures saisies manuellement ne sont jamais présentées comme vérifiées par le réseau.",
 
+  // Sign-in brand panel ------------------------------------------------------
+  "Everything, on one ledger.": "Tout, sur un seul grand livre.",
+  "Cash, float and foreign currency recorded once and reconciled by the books.":
+    "Caisse, float et devises saisies une fois, puis rapprochées par la comptabilité.",
+  "What you keep in one place": "Ce que vous suivez au même endroit",
+  Cash: "Caisse",
+  Float: "Float",
+  Forex: "Change",
+  "Show password": "Afficher le mot de passe",
+  "Hide password": "Masquer le mot de passe",
+
   // Page headers ------------------------------------------------------------
   "Buy and sell foreign currency.": "Achetez et vendez des devises.",
   "Buy and sell foreign currency and manage exchange rates.":

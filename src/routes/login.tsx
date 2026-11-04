@@ -1,9 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { Eye, EyeOff } from "lucide-react";
+
+import { BrandMark } from "@/components/auth/BrandMark";
+import { LoginShowcase } from "@/components/auth/LoginShowcase";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { signInSchema } from "@/domain/auth";
 import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
@@ -31,6 +35,7 @@ function Login() {
   const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [reveal, setReveal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -58,65 +63,103 @@ function Login() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="hidden flex-col justify-between bg-sidebar p-10 text-sidebar-foreground lg:flex">
-        <div className="text-lg font-semibold text-sidebar-primary">FinDesk</div>
-        <div>
-          <p className="max-w-sm text-2xl font-medium leading-snug text-sidebar-primary">
-            {t("Forex Bureau and Mobile Money agency operations, on one ledger.")}
-          </p>
-          <p className="mt-3 text-sm">{t("Kampala · Uganda")}</p>
-        </div>
-        <div className="text-xs opacity-60">© FinDesk</div>
-      </div>
-      <div className="relative flex items-center justify-center px-6">
-        <LanguageToggle className="absolute right-6 top-6" />
-        <form className="w-full max-w-sm space-y-5" onSubmit={handleSubmit}>
-          <div>
-            <h1 className="text-xl font-semibold">{t("Sign in")}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{t("Use your staff account.")}</p>
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
+    <div className="flex min-h-dvh items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
+      <div className="grid w-full max-w-[1180px] overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-[0_40px_90px_-60px_oklch(0.42_0.14_300/0.7)] lg:grid-cols-2">
+        <div className="flex min-h-[560px] flex-col p-6 sm:p-10">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <BrandMark />
+              <span className="text-lg font-semibold tracking-tight">FinDesk</span>
             </div>
-          )}
+            <LanguageToggle />
+          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">{t("Email")}</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
+          <div className="flex flex-1 flex-col justify-center py-10">
+            <div className="mx-auto w-full max-w-[360px]">
+              <h1 className="text-center text-2xl font-semibold tracking-tight sm:text-[26px]">
+                {t("Sign in to FinDesk")}
+              </h1>
+              <p className="mt-2 text-center text-sm text-muted-foreground">
+                {t("Use your staff account.")}
+              </p>
+
+              <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+                {error && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs font-medium">
+                    {t("Email")}
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@company.co.ug"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                    className="h-12 rounded-xl border-border/80 bg-background/60 px-3.5 text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-xs font-medium">
+                    {t("Password")}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={reveal ? "text" : "password"}
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                      className="h-12 rounded-xl border-border/80 bg-background/60 pl-3.5 pr-11 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReveal((current) => !current)}
+                      aria-label={t(reveal ? "Hide password" : "Show password")}
+                      aria-pressed={reveal}
+                      className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      {reveal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={pending}
+                  className="mt-2 h-12 w-full rounded-xl text-sm font-semibold shadow-sm"
+                >
+                  {pending ? t("Signing in…") : t("Sign in")}
+                </Button>
+              </form>
+
+              <p className="mt-5 text-center text-[11px] leading-relaxed text-muted-foreground">
+                {t(
+                  "Staff accounts are issued by your company administrator. Roles and branch access are granted after your first sign-in.",
+                )}
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">{t("Password")}</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
+
+          <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+            <span>© FinDesk</span>
+            <span>{t("Kampala · Uganda")}</span>
           </div>
-          <Button type="submit" className="w-full" disabled={pending}>
-            {pending ? t("Signing in…") : t("Sign in")}
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            {t(
-              "Staff accounts are issued by your company administrator. Roles and branch access are granted after your first sign-in.",
-            )}
-          </p>
-        </form>
+        </div>
+
+        <LoginShowcase />
       </div>
     </div>
   );
