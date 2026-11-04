@@ -8,6 +8,8 @@
 --     triggers inside its own transaction and restores them before it returns.
 --   * The whole wipe is one transaction: a failure leaves the books untouched,
 --     never half-erased.
+--   * Supabase's safeupdate extension refuses a DELETE without a WHERE clause,
+--     so every statement here carries `WHERE true`.
 --   * Employees survive, with the setup the app needs to keep working: staff
 --     profiles, their roles and branch assignments, branches, the company profile
 --     and branding, the chart of accounts, mobile money networks and currencies.
@@ -62,44 +64,44 @@ BEGIN
 
   -- Children first: reversals and journal lines, then the transaction records
   -- that point at journal entries, then the entries themselves.
-  DELETE FROM public.momo_reversals;
+  DELETE FROM public.momo_reversals WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('momo_reversals', v_n);
 
-  DELETE FROM public.journal_lines;
+  DELETE FROM public.journal_lines WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('journal_lines', v_n);
 
-  DELETE FROM public.momo_transactions;
+  DELETE FROM public.momo_transactions WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('momo_transactions', v_n);
 
-  DELETE FROM public.fx_transactions;
+  DELETE FROM public.fx_transactions WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('fx_transactions', v_n);
 
-  DELETE FROM public.expenses;
+  DELETE FROM public.expenses WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('expenses', v_n);
 
-  DELETE FROM public.incomes;
+  DELETE FROM public.incomes WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('incomes', v_n);
 
-  DELETE FROM public.currency_transfers;
+  DELETE FROM public.currency_transfers WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('currency_transfers', v_n);
 
-  DELETE FROM public.journal_entries;
+  DELETE FROM public.journal_entries WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('journal_entries', v_n);
 
-  DELETE FROM public.customers;
+  DELETE FROM public.customers WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('customers', v_n);
 
   -- Rates are entered by staff each day, so they are history, not setup.
-  DELETE FROM public.fx_rates;
+  DELETE FROM public.fx_rates WHERE true;
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('fx_rates', v_n);
 
@@ -130,7 +132,7 @@ BEGIN
 
   -- The per-row audit entries written by the deletes above go too: a clean book
   -- includes a clean trail. One record of the reset itself survives.
-  DELETE FROM public.audit_log;
+  DELETE FROM public.audit_log WHERE true;
   INSERT INTO public.audit_log(actor_id, table_name, action, record_id, old_data, new_data)
   VALUES (
     auth.uid(),
