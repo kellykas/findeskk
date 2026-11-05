@@ -7,7 +7,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLES, type Role } from "@/domain/roles";
-import type { StaffAccountInput, StaffUpdateInput } from "@/domain/staff";
+import type { BranchUpdateInput, StaffAccountInput, StaffUpdateInput } from "@/domain/staff";
 import {
   createStaffAccountFn,
   deleteStaffAccountFn,
@@ -151,6 +151,18 @@ export async function listBranches(): Promise<BranchRecord[]> {
     createdAt: branch.created_at,
     staffCount: counts.get(branch.id) ?? 0,
   }));
+}
+
+/**
+ * Rename a branch. The database policy allows this only for a super admin or
+ * the company owner, so a hidden button is not what keeps it safe.
+ */
+export async function updateBranch(input: BranchUpdateInput): Promise<void> {
+  const { error } = await supabase
+    .from("branches")
+    .update({ name: input.name, address: input.address })
+    .eq("id", input.id);
+  if (error) throw new Error(staffErrorMessage(error.message));
 }
 
 /**

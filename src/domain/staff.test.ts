@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeEmail, staffAccountSchema, staffUpdateSchema } from "./staff";
+import { branchUpdateSchema, normalizeEmail, staffAccountSchema, staffUpdateSchema } from "./staff";
 
 const accountId = "8f1c3a8e-6a1d-4a4f-9a3e-4b6a1f2c3d4e";
 
@@ -49,6 +49,35 @@ describe("staff update input", () => {
     expect(staffUpdateSchema.safeParse({ ...base, password: "short" }).success).toBe(false);
     expect(staffUpdateSchema.safeParse({ ...base, userId: "not-a-uuid" }).success).toBe(false);
     expect(staffUpdateSchema.safeParse({ ...base, roles: [] }).success).toBe(false);
+  });
+});
+
+describe("branch rename input", () => {
+  const branchId = "2b7d5c1f-3f4a-42d7-8c1e-5a6b7c8d9e0f";
+
+  it("trims the name and address", () => {
+    const parsed = branchUpdateSchema.parse({
+      id: branchId,
+      name: "  Kampala Main  ",
+      address: " Plot 12, Kampala Road ",
+    });
+    expect(parsed.name).toBe("Kampala Main");
+    expect(parsed.address).toBe("Plot 12, Kampala Road");
+  });
+
+  it("refuses a blank name and an over-long one", () => {
+    expect(branchUpdateSchema.safeParse({ id: branchId, name: "   ", address: "" }).success).toBe(
+      false,
+    );
+    expect(
+      branchUpdateSchema.safeParse({ id: branchId, name: "a".repeat(61), address: "" }).success,
+    ).toBe(false);
+    expect(
+      branchUpdateSchema.safeParse({ id: branchId, name: "a".repeat(60), address: "" }).success,
+    ).toBe(true);
+    expect(branchUpdateSchema.safeParse({ id: "nope", name: "Main", address: "" }).success).toBe(
+      false,
+    );
   });
 });
 

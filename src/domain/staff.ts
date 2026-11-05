@@ -39,6 +39,21 @@ export const staffUpdateSchema = z.object({
 });
 export type StaffUpdateInput = z.infer<typeof staffUpdateSchema>;
 
+/**
+ * Renaming a branch. The name is printed on receipts, transfers and reports,
+ * so it may not be blank.
+ */
+export const branchUpdateSchema = z.object({
+  id: z.string().uuid(),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter the branch name")
+    .max(60, "Branch name can have at most 60 characters"),
+  address: z.string().trim().max(120, "Address can have at most 120 characters"),
+});
+export type BranchUpdateInput = z.infer<typeof branchUpdateSchema>;
+
 /** Trim an email and reject blanks so the UI never renders empty labels. */
 export function normalizeEmail(value: unknown): string | null {
   if (typeof value !== "string") return null;

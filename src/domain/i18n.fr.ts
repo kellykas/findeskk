@@ -272,6 +272,20 @@ export const FRENCH: Record<string, string> = {
   "All company data deleted. The book is clean.":
     "Toutes les données de l'entreprise ont été supprimées. Les comptes sont vierges.",
 
+  // Branches -------------------------------------------------------------------
+  Branches: "Agences",
+  "Branch name": "Nom de l'agence",
+  Address: "Adresse",
+  "Rename a branch when the location changes its name. The new name appears on receipts, transfers and reports.":
+    "Renommez une agence lorsque le lieu change de nom. Le nouveau nom apparaît sur les reçus, les transferts et les rapports.",
+  "Save branch": "Enregistrer l'agence",
+  "Branch saved.": "Agence enregistrée.",
+  "Could not save the branch.": "Impossible d'enregistrer l'agence.",
+  "Enter the branch name": "Saisissez le nom de l'agence",
+  "Branch name can have at most 60 characters":
+    "Le nom de l'agence ne peut pas dépasser 60 caractères",
+  "Address can have at most 120 characters": "L'adresse ne peut pas dépasser 120 caractères",
+
   // Company phone -------------------------------------------------------------
   "Separate several numbers with / or a comma. They all appear on receipts.":
     "Séparez plusieurs numéros par / ou une virgule. Ils apparaîtront tous sur les reçus.",

@@ -32,6 +32,7 @@ import { PERMISSIONS, ROLE_PERMISSIONS, isStaffAdmin, isSuperAdmin } from "@/dom
 import { BRAND_COLORS, brandInitials, readableInk } from "@/domain/branding";
 import { RESET_PHRASE, resetConfirmationMatches } from "@/domain/reset";
 import { ROLES, ROLE_LABELS, type Role } from "@/domain/roles";
+import { branchUpdateSchema, type BranchUpdateInput } from "@/domain/staff";
 import {
   MONTH_LABELS,
   RECEIPT_FORMATS,
@@ -45,6 +46,7 @@ import { useSession } from "@/hooks/use-session";
 import { resetCompanyData } from "@/services/admin.service";
 import { uploadLogo } from "@/services/branding.service";
 import { settingsQuery, updateSettings } from "@/services/settings.service";
+import { branchesQuery, updateBranch, type BranchRecord } from "@/services/staff.service";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
@@ -71,6 +73,7 @@ function Settings() {
   const editable = Boolean(viewer && isStaffAdmin(viewer.roles));
   const superAdmin = Boolean(viewer && isSuperAdmin(viewer.roles));
   const settings = useQuery({ ...settingsQuery, enabled: canRead });
+  const branches = useQuery({ ...branchesQuery, enabled: canRead });
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState<CompanySettingsForm | null>(null);
@@ -92,6 +95,17 @@ function Settings() {
       // The shell, the sign-in screen and the tab title read branding separately.
       void queryClient.invalidateQueries({ queryKey: ["branding"] });
       setError(null);
+    },
+    onError: (mutationError: Error) => toast.error(mutationError.message),
+  });
+
+  const rename = useMutation({
+    mutationFn: (values: BranchUpdateInput) => updateBranch(values),
+    onSuccess: () => {
+      toast.success(t("Branch saved."));
+      // Branch names label transactions, transfers, receipts and the staff page.
+      void queryClient.invalidateQueries({ queryKey: ["branches"] });
+      void queryClient.invalidateQueries({ queryKey: ["staff"] });
     },
     onError: (mutationError: Error) => toast.error(mutationError.message),
   });
@@ -498,6 +512,37 @@ function Settings() {
             </SectionCard>
           </form>
 
+          {editable && (
+            <div className="mt-6">
+              <SectionCard title={t("Branches")}>
+                <p className="px-5 pb-2 text-xs text-muted-foreground">
+                  {t(
+                    "Rename a branch when the location changes its name. The new name appears on receipts, transfers and reports.",
+                  )}
+                </p>
+                {branches.isPending && (
+                  <p className="px-5 pb-5 text-sm text-muted-foreground">Loading branches…</p>
+                )}
+                {branches.isError && (
+                  <p className="px-5 pb-5 text-sm text-destructive">{branches.error.message}</p>
+                )}
+                {!branches.isPending && !branches.isError && (branches.data ?? []).length === 0 && (
+                  <p className="px-5 pb-5 text-sm text-muted-foreground">{t("No branches yet.")}</p>
+                )}
+                <div className="divide-y divide-border/60 border-t border-border/60">
+                  {(branches.data ?? []).map((branch) => (
+                    <BranchRow
+                      key={branch.id}
+                      branch={branch}
+                      saving={rename.isPending && rename.variables?.id === branch.id}
+                      onSave={(values) => rename.mutate(values)}
+                    />
+                  ))}
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
           <div className="mt-6">
             <SectionCard
               title="Currencies"
@@ -649,6 +694,67 @@ function Settings() {
         </>
       )}
     </AppShell>
+  );
+}
+
+/**
+ * One branch, editable in place. The name is the only thing that matters on
+ * documents, so the row saves both fields together.
+ */
+function BranchRow({
+  branch,
+  saving,
+  onSave,
+}: {
+  branch: BranchRecord;
+  saving: boolean;
+  onSave: (values: BranchUpdateInput) => void;
+}) {
+  const [name, setName] = useState(branch.name);
+  const [address, setAddress] = useState(branch.address);
+  const parsed = branchUpdateSchema.safeParse({ id: branch.id, name, address });
+  const dirty = name !== branch.name || address !== branch.address;
+  const issue = dirty && !parsed.success ? parsed.error.issues[0]?.message : null;
+
+  return (
+    <div className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <Label htmlFor={`branch-name-${branch.id}`}>{t("Branch name")}</Label>
+          <span className="text-xs text-muted-foreground">{branch.code}</span>
+        </div>
+        <Input
+          id={`branch-name-${branch.id}`}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          disabled={saving}
+          maxLength={60}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`branch-address-${branch.id}`}>{t("Address")}</Label>
+        <Input
+          id={`branch-address-${branch.id}`}
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
+          disabled={saving}
+          maxLength={120}
+        />
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        className="rounded-full"
+        variant={dirty ? "default" : "outline"}
+        disabled={!dirty || !parsed.success || saving}
+        onClick={() => {
+          if (parsed.success) onSave(parsed.data);
+        }}
+      >
+        {saving ? t("Saving…") : t("Save branch")}
+      </Button>
+      {issue && <p className="text-xs text-destructive sm:col-span-3">{t(issue)}</p>}
+    </div>
   );
 }
 
