@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ReceiptPaperPicker } from "@/components/receipts/ReceiptPaperPicker";
+import { ReceiptQrCode } from "@/components/receipts/ReceiptQrCode";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/domain/money";
 import { receiptPageStyle, receiptSheetStyle, type ReceiptPaper } from "@/domain/receiptPaper";
@@ -115,6 +116,13 @@ function ReceiptSheet({
           </span>
         </span>
         <span className="shrink-0">Date: {day(trade.entryDate)}</span>
+      </div>
+
+      <div className="mt-3 flex justify-center">
+        <ReceiptQrCode
+          size={96}
+          value={`${documentNo}|${trade.entryDate.slice(0, 10)}|${trade.type}|${trade.currency}|${trade.ugxAmount.minor}`}
+        />
       </div>
     </div>
   );

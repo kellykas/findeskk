@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 
 import { ReceiptPaperPicker } from "@/components/receipts/ReceiptPaperPicker";
+import { ReceiptQrCode } from "@/components/receipts/ReceiptQrCode";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -135,6 +136,13 @@ function ReceiptSheet({
           </span>
         </span>
         <span className="shrink-0">Date: {day(receipt.entryDate)}</span>
+      </div>
+
+      <div className="mt-3 flex justify-center">
+        <ReceiptQrCode
+          size={96}
+          value={`${documentNo}|${receipt.entryDate.slice(0, 10)}|${receipt.type}|${receipt.network}|${receipt.amount.minor}`}
+        />
       </div>
     </div>
   );
