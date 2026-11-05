@@ -7,6 +7,36 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
+// Browser protections for every response this server produces: pages, server
+// functions and the error page. vercel.json sets the same headers at the edge
+// so hashed static assets are covered too; values are identical, so a response
+// that already carries them is left untouched.
+const SECURITY_HEADERS: Record<string, string> = {
+  "strict-transport-security": "max-age=63072000; includeSubDomains",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "content-security-policy":
+    "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  "cross-origin-opener-policy": "same-origin",
+};
+
+function withSecurityHeaders(response: Response): Response {
+  const missing = Object.entries(SECURITY_HEADERS).filter(([key]) => !response.headers.has(key));
+  if (missing.length === 0) return response;
+
+  // A fresh Response keeps the original body stream, so streaming SSR still works.
+  const headers = new Headers(response.headers);
+  for (const [key, value] of missing) headers.set(key, value);
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -49,13 +79,15 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return withSecurityHeaders(
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
     }
   },
 };

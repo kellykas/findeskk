@@ -4,6 +4,10 @@
  * Runs on the server so the project's gateway key never reaches the browser.
  * Every failure path returns the deterministic rules suggestion instead of
  * throwing: a model outage must never stop someone recording an expense.
+ *
+ * The caller's access token travels in the payload and is verified with
+ * Supabase before the gateway is called, so an anonymous visitor cannot spend
+ * the project's model credits by posting to this endpoint directly.
  */
 import { createServerFn } from "@tanstack/react-start";
 import {
@@ -20,6 +24,29 @@ const TIMEOUT_MS = 12_000;
 export interface SuggestionInput {
   description: string;
   amount: string;
+  accessToken: string;
+}
+
+/** True only for a signed-in employee whose profile is still active. */
+async function isActiveStaff(accessToken: string): Promise<boolean> {
+  if (!accessToken) return false;
+
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
+    if (error || !data.user) return false;
+
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("id", data.user.id)
+      .eq("active", true)
+      .maybeSingle();
+
+    return !profileError && Boolean(profile);
+  } catch {
+    return false;
+  }
 }
 
 /** Models sometimes wrap JSON in prose or fences; pull out the object. */
@@ -51,12 +78,14 @@ export const suggestExpenseCategoryFn = createServerFn({ method: "POST" })
         .trim()
         .slice(0, 200),
       amount: String(record["amount"] ?? "").slice(0, 40),
+      accessToken: typeof record["accessToken"] === "string" ? record["accessToken"] : "",
     };
   })
   .handler(async ({ data }): Promise<CategorySuggestion> => {
     const fallback = guessExpenseCategory(data.description);
     const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey || data.description.length < 4) return fallback;
+    if (!(await isActiveStaff(data.accessToken))) return fallback;
 
     try {
       const response = await fetch(GATEWAY_URL, {
