@@ -1853,6 +1853,7 @@ AS $$
     'phone', s.phone,
     'email', s.email,
     'taxNumber', s.tax_number,
+    'receiptFormat', s.receipt_format,
     'receiptFooter', s.receipt_footer
   )
   FROM public.company_settings s

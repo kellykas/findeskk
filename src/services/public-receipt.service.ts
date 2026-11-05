@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { parseMoney } from "@/domain/money";
-import type { CompanySettings } from "@/domain/settings";
+import { RECEIPT_FORMATS, type CompanySettings, type ReceiptFormat } from "@/domain/settings";
 import { toMoney } from "./ledger.service";
 import type { FxRecord } from "./forex.service";
 import type { MomoNetwork, MomoType } from "@/domain/momo";
@@ -51,6 +51,10 @@ export interface PublicReceiptPage {
 
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
 
+/** The sheet was printed on the company's own paper size; fall back to the default. */
+const formatFrom = (value: string): ReceiptFormat =>
+  (RECEIPT_FORMATS as readonly string[]).includes(value) ? (value as ReceiptFormat) : "80mm";
+
 /** Only the fields the printed header uses; the rest of the profile is not needed. */
 function companyFromRow(row: Row): CompanySettings {
   return {
@@ -65,7 +69,7 @@ function companyFromRow(row: Row): CompanySettings {
     themePrimary: "",
     baseCurrency: "UGX",
     currencyCodes: [],
-    receiptFormat: "80mm",
+    receiptFormat: formatFrom(str(row["receiptFormat"])),
     receiptFooter: str(row["receiptFooter"]),
     fiscalYearStartMonth: 1,
     updatedAt: "",
