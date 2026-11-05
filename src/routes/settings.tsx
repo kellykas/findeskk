@@ -355,7 +355,7 @@ function Settings() {
                     role="alert"
                     className="sm:col-span-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
                   >
-                    {error}
+                    {t(error)}
                   </div>
                 )}
                 <div className="space-y-2">
@@ -387,9 +387,12 @@ function Settings() {
                     value={form?.phone ?? ""}
                     onChange={(event) => update("phone", event.target.value)}
                     disabled={!editable}
-                    maxLength={30}
-                    placeholder="+256 …"
+                    maxLength={60}
+                    placeholder="+256 757 094429 / +256 751 090"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    {t("Separate several numbers with / or a comma. They all appear on receipts.")}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="settings-email">Email</Label>

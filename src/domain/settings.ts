@@ -65,8 +65,8 @@ export const companySettingsSchema = z.object({
   phone: z
     .string()
     .trim()
-    .max(30, "Phone can have at most 30 characters")
-    .regex(/^[0-9+() -]*$/, "Phone can only contain digits, spaces and + ( ) -"),
+    .max(60, "Phone can have at most 60 characters")
+    .regex(/^[0-9+() /,-]*$/, "Phone can only contain digits, spaces, / , and + ( ) -"),
   email: z
     .string()
     .trim()

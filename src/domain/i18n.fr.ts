@@ -271,4 +271,14 @@ export const FRENCH: Record<string, string> = {
   "Yes, delete everything": "Oui, tout supprimer",
   "All company data deleted. The book is clean.":
     "Toutes les données de l'entreprise ont été supprimées. Les comptes sont vierges.",
+
+  // Company phone -------------------------------------------------------------
+  "Separate several numbers with / or a comma. They all appear on receipts.":
+    "Séparez plusieurs numéros par / ou une virgule. Ils apparaîtront tous sur les reçus.",
+  "Phone can have at most 60 characters": "Le téléphone ne peut pas dépasser 60 caractères",
+  "Phone can only contain digits, spaces, / , and + ( ) -":
+    "Le téléphone ne peut contenir que des chiffres, des espaces, / , et + ( ) -",
+  "Phone can have at most 30 characters": "Le téléphone ne peut pas dépasser 30 caractères",
+  "Phone can only contain digits, spaces and + ( ) -":
+    "Le téléphone ne peut contenir que des chiffres, des espaces et + ( ) -",
 };
