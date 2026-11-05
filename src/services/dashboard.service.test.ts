@@ -39,6 +39,7 @@ const emptyInput = {
   entries: [] as JournalEntry[],
   branches: [] as { id: string; name: string }[],
   totalPostings: 0,
+  floatAccountCodes: ["1110", "1120"],
 };
 
 describe("buildDashboardSnapshot", () => {
@@ -113,6 +114,29 @@ describe("buildDashboardSnapshot", () => {
 
     expect(snapshot.cash.map((line) => line.code)).toEqual(["1000", "1100", "1110"]);
     expect(snapshot.cash.find((line) => line.code === "1110")?.kind).toBe("electronic_float");
+  });
+
+  it("shows a wallet the company added as its own float line", () => {
+    const snapshot = buildDashboardSnapshot({
+      ...emptyInput,
+      totalPostings: 1,
+      // Only the added wallet's account is a float now, so the seeded codes are not.
+      floatAccountCodes: ["1130"],
+      balances: [
+        account({
+          accountId: "m",
+          code: "1130",
+          name: "Mobile money float — M-Pesa",
+          balance: ugx(250),
+          credit: ugx(250),
+        }),
+        account({ accountId: "f", code: "1110", name: "MTN float", balance: ugx(0) }),
+      ],
+    });
+
+    expect(snapshot.cash.map((line) => [line.code, line.kind])).toEqual([
+      ["1130", "electronic_float"],
+    ]);
   });
 
   it("only lists accounts with movement and groups recent postings by branch", () => {

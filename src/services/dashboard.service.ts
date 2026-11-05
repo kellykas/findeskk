@@ -17,6 +17,7 @@ import {
   type JournalEntry,
   type LedgerAccountBalance,
 } from "./ledger.service";
+import { resolveFloatAccountCodes } from "./cash.service";
 
 export interface DashboardTotal {
   label: string;
@@ -53,13 +54,15 @@ export interface DashboardCore {
   branches: BranchActivity[];
 }
 
-/** Accounts shown in the cash & float strip, with how they are grouped. */
+/**
+ * Accounts shown in the cash & float strip, with how they are grouped. Wallet
+ * floats are not listed: they come from momo_networks, so a network added by
+ * the company shows up without a code change.
+ */
 export const CASH_ACCOUNTS: Record<string, CashLine["kind"]> = {
   "1000": "physical_cash",
   "1010": "physical_cash",
   "1100": "bank",
-  "1110": "electronic_float",
-  "1120": "electronic_float",
 };
 
 const TYPE_LABELS: Record<AccountType, string> = {
@@ -83,6 +86,8 @@ export interface DashboardInput {
   entries: JournalEntry[];
   branches: { id: string; name: string }[];
   totalPostings: number;
+  /** Accounts holding a wallet's float, from momo_networks. */
+  floatAccountCodes: string[];
 }
 
 export function buildDashboardSnapshot(input: DashboardInput): DashboardCore {
@@ -100,14 +105,16 @@ export function buildDashboardSnapshot(input: DashboardInput): DashboardCore {
     amount: typeTotals.get(type) ?? zero(),
   }));
 
+  const floatCodes = new Set(input.floatAccountCodes);
   const cash: CashLine[] = input.balances
-    .filter((account) => CASH_ACCOUNTS[account.code] !== undefined)
-    .map((account) => ({
-      code: account.code,
-      label: account.name,
-      kind: CASH_ACCOUNTS[account.code] ?? "physical_cash",
-      amount: account.balance,
-    }))
+    .map((account) => {
+      const kind =
+        CASH_ACCOUNTS[account.code] ?? (floatCodes.has(account.code) ? "electronic_float" : null);
+      return kind
+        ? { code: account.code, label: account.name, kind, amount: account.balance }
+        : null;
+    })
+    .filter((line): line is CashLine => line !== null)
     .sort((a, b) => a.code.localeCompare(b.code));
 
   const balances = input.balances
@@ -232,12 +239,13 @@ async function loadFlow(months: readonly string[]): Promise<MonthlyFlowPoint[]> 
 export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
   const months = recentMonthKeys(6);
 
-  const [balances, entries, branchResult, countResult, flow] = await Promise.all([
+  const [balances, entries, branchResult, countResult, flow, networkResult] = await Promise.all([
     listAccountBalances(),
     listRecentEntries(10),
     supabase.from("branches").select("id, name").order("name"),
     supabase.from("journal_entries").select("id", { count: "exact", head: true }),
     loadFlow(months),
+    supabase.from("momo_networks").select("float_account_code"),
   ]);
 
   if (branchResult.error) throw new Error(branchResult.error.message);
@@ -251,6 +259,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
       entries,
       branches: branchResult.data ?? [],
       totalPostings: countResult.count ?? 0,
+      floatAccountCodes: resolveFloatAccountCodes(networkResult.data, Boolean(networkResult.error)),
     }),
   };
 }

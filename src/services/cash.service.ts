@@ -18,15 +18,40 @@ import {
 
 export type CashKind = "physical_cash" | "bank" | "electronic_float" | "imprest";
 
-/** Accounts shown on the cash & float screen, with how they are grouped. */
+/**
+ * Cash positions with a fixed kind. Mobile money floats are deliberately absent:
+ * the company adds wallets at any time, so those accounts come from
+ * momo_networks through {@link resolveFloatAccountCodes}.
+ */
 export const CASH_POSITIONS: Record<string, CashKind> = {
   "1000": "physical_cash",
   "1010": "physical_cash",
   "1100": "bank",
-  "1110": "electronic_float",
-  "1120": "electronic_float",
   "1200": "imprest",
 };
+
+/** Seeded wallet floats, used only while momo_networks cannot be read. */
+export const SEEDED_FLOAT_CODES: readonly string[] = ["1110", "1120"];
+
+/**
+ * The asset accounts that hold a wallet's float, taken from momo_networks so a
+ * network added by the company appears as a float without a code change. Falls
+ * back to the seeded MTN and Airtel accounts before that setup has been run.
+ */
+export function resolveFloatAccountCodes(
+  rows: { float_account_code: string }[] | null | undefined,
+  failed = false,
+): string[] {
+  if (failed) return [...SEEDED_FLOAT_CODES];
+  const codes = [
+    ...new Set(
+      (rows ?? [])
+        .map((row) => row.float_account_code)
+        .filter((code): code is string => Boolean(code)),
+    ),
+  ];
+  return codes.length > 0 ? codes : [...SEEDED_FLOAT_CODES];
+}
 
 export const CASH_KIND_LABELS: Record<CashKind, string> = {
   physical_cash: "Physical cash",
@@ -79,6 +104,8 @@ export interface CashInput {
   balances: LedgerAccountBalance[];
   entries: JournalEntry[];
   branches: { id: string; name: string }[];
+  /** Accounts holding a wallet's float, from momo_networks. */
+  floatAccountCodes: string[];
 }
 
 const zero = () => money(0n, BASE_CURRENCY);
@@ -96,9 +123,12 @@ export function buildCashSnapshot(input: CashInput): CashSnapshot {
   const accountById = new Map(input.balances.map((account) => [account.accountId, account]));
   const branchNames = new Map(input.branches.map((branch) => [branch.id, branch.name]));
 
+  const floatCodes = new Set(input.floatAccountCodes);
   const positions = new Map<string, CashPosition>();
   for (const account of input.balances) {
-    const kind = CASH_POSITIONS[account.code];
+    const kind =
+      CASH_POSITIONS[account.code] ??
+      (floatCodes.has(account.code) ? "electronic_float" : undefined);
     if (kind === undefined) continue;
     positions.set(account.accountId, {
       code: account.code,
@@ -180,10 +210,11 @@ export function buildCashSnapshot(input: CashInput): CashSnapshot {
 }
 
 export async function getCashSnapshot(): Promise<CashSnapshot> {
-  const [balances, entries, branchResult] = await Promise.all([
+  const [balances, entries, branchResult, networkResult] = await Promise.all([
     listAccountBalances(),
     listRecentEntries(100),
     supabase.from("branches").select("id, name").order("name"),
+    supabase.from("momo_networks").select("float_account_code"),
   ]);
   if (branchResult.error) throw new Error(branchResult.error.message);
 
@@ -191,6 +222,7 @@ export async function getCashSnapshot(): Promise<CashSnapshot> {
     balances,
     entries,
     branches: branchResult.data ?? [],
+    floatAccountCodes: resolveFloatAccountCodes(networkResult.data, Boolean(networkResult.error)),
   });
 }
 

@@ -96,7 +96,7 @@ function Cash() {
             <StatCard
               label="MoMo float"
               value={formatMoney(snap.totals.float)}
-              hint="MTN + Airtel"
+              hint="Every mobile money wallet"
             />
             <StatCard
               label="Staff advances"
