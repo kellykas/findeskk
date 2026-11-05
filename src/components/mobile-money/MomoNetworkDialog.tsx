@@ -53,9 +53,9 @@ export function MomoNetworkDialog({
   const editing = Boolean(network);
   const [code, setCode] = useState(network?.code ?? "");
   const [name, setName] = useState(network?.name ?? "");
-  const [floatAccountCode, setFloatAccountCode] = useState(
-    network?.floatAccountCode ?? floatAccounts[0]?.code ?? "",
-  );
+  // A new network is given its own float account by the database, so only an
+  // existing one can be moved to a different active account here.
+  const [floatAccountCode, setFloatAccountCode] = useState(network?.floatAccountCode ?? "");
   const [active, setActive] = useState(network?.active ?? true);
   const [sortOrder, setSortOrder] = useState(String(network?.sortOrder ?? 100));
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +65,7 @@ export function MomoNetworkDialog({
     const parsed = momoNetworkSchema.safeParse({
       code,
       name,
-      floatAccountCode,
+      floatAccountCode: editing ? floatAccountCode : undefined,
       active,
       sortOrder,
     });
@@ -122,24 +122,35 @@ export function MomoNetworkDialog({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Float account</Label>
-            <Select value={floatAccountCode} onValueChange={setFloatAccountCode}>
-              <SelectTrigger aria-label="Float account">
-                <SelectValue placeholder="Choose an account" />
-              </SelectTrigger>
-              <SelectContent>
-                {floatAccounts.map((account) => (
-                  <SelectItem key={account.code} value={account.code}>
-                    {account.code} · {account.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              The asset account that holds this network&apos;s float.
-            </p>
-          </div>
+          {editing ? (
+            <div className="space-y-2">
+              <Label>Float account</Label>
+              <Select value={floatAccountCode} onValueChange={setFloatAccountCode}>
+                <SelectTrigger aria-label="Float account">
+                  <SelectValue placeholder="Choose an account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {floatAccounts.map((account) => (
+                    <SelectItem key={account.code} value={account.code}>
+                      {account.code} · {account.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Move this wallet to another active account. Entries already posted stay on the
+                account they used.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md border bg-muted/40 p-3">
+              <p className="text-sm font-medium">Its own float account</p>
+              <p className="text-xs text-muted-foreground">
+                A dedicated asset account is created for this wallet, so its float never mixes with
+                the till or another network. You can move it to a different account afterwards.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">

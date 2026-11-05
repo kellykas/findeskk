@@ -102,7 +102,8 @@ export async function saveMomoNetwork(input: MomoNetworkForm): Promise<void> {
   const { error } = await supabase.rpc("save_momo_network", {
     _code: input.code,
     _name: input.name,
-    _float_account_code: input.floatAccountCode,
+    // Null on a new network: the database creates its own float account.
+    _float_account_code: input.floatAccountCode ?? null,
     _active: input.active,
     _sort_order: input.sortOrder,
   } as never);

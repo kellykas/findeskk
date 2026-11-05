@@ -7,11 +7,10 @@ import {
 } from "@/domain/referenceData";
 
 describe("mobile money networks", () => {
-  it("accepts a new network with its float account", () => {
+  it("accepts a new network without a float account, so the database creates one", () => {
     const parsed = momoNetworkSchema.safeParse({
       code: "Mpesa",
       name: "M-Pesa",
-      floatAccountCode: "1130",
       active: true,
       sortOrder: "30",
     });
@@ -19,6 +18,19 @@ describe("mobile money networks", () => {
     expect(parsed.success).toBe(true);
     expect(parsed.success && parsed.data.code).toBe("mpesa");
     expect(parsed.success && parsed.data.sortOrder).toBe(30);
+    expect(parsed.success && parsed.data.floatAccountCode).toBeUndefined();
+  });
+
+  it("keeps the account named when an existing network is moved", () => {
+    const parsed = momoNetworkSchema.safeParse({
+      code: "mpesa",
+      name: "M-Pesa",
+      floatAccountCode: " 1130 ",
+      active: true,
+      sortOrder: 30,
+    });
+
+    expect(parsed.success && parsed.data.floatAccountCode).toBe("1130");
   });
 
   it("rejects a code that would not survive being stored on a transaction", () => {

@@ -1055,7 +1055,7 @@ export type Database = {
         Args: {
           _active?: boolean;
           _code: string;
-          _float_account_code: string;
+          _float_account_code?: string | null;
           _name: string;
           _sort_order?: number;
         };

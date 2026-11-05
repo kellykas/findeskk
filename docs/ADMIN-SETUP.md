@@ -129,9 +129,12 @@ select proname from pg_proc
 where proname in ('save_momo_network','delete_momo_network','save_fx_currency','delete_fx_currency');
 ```
 
-4. Reload the app. **Mobile Money → Mobile money networks** can then add a network (choose the float
-   account it uses), and **Forex Bureau → Currencies & rates** can add a currency and publish its
-   rate.
+4. Run `supabase/migrations/20261105160000_momo_network_float.sql` the same way. It makes adding
+   a network create the float account that holds that wallet's money; without it, a new network
+   still has to be pointed at an existing account.
+5. Reload the app. **Mobile Money → Mobile money networks** can then add a network (it gets its own
+   float account, and the account can be changed afterwards), and **Forex Bureau → Currencies &
+   rates** can add a currency and publish its rate.
 
 What the rules are, so nobody is surprised:
 
@@ -144,7 +147,9 @@ What the rules are, so nobody is surprised:
 - A network or currency that already has transactions (or published rates) cannot be deleted — switch
   it off instead. Recorded history must keep resolving.
 - A network's code never changes after it is created, because every recorded transaction stores it.
-  The float account can change: earlier entries stay on the account they posted to.
+  The float account can change: earlier entries stay on the account they posted to. A new network
+  gets its own asset account (`1130` upwards, named "Mobile money float — <network>"), so two
+  wallets never share a balance.
 - Exchange rates stay append-only. "Changing" a rate means publishing a new one from today; the old
   rate stays in history, which is what an auditor expects.
 

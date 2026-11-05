@@ -19,7 +19,16 @@ export const momoNetworkSchema = z.object({
     .trim()
     .min(2, "Give the network a name")
     .max(40, "Name can have at most 40 characters"),
-  floatAccountCode: z.string().trim().min(1, "Choose the float account this wallet uses"),
+  /**
+   * Optional on purpose: a new network is given a dedicated float account by the
+   * database, so the add form does not choose one. Editing can name another
+   * active account to move the wallet.
+   */
+  floatAccountCode: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value ? value : undefined)),
   active: z.boolean(),
   sortOrder: z.coerce.number().int().min(0).max(9999),
 });

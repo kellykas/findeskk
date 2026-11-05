@@ -452,8 +452,9 @@ function MobileMoney() {
             }
           >
             <p className="px-5 pb-3 text-sm text-muted-foreground">
-              Add the wallets you work with and pick the float account each one uses. A network that
-              already has transactions can be switched off, but not deleted.
+              Add the wallets you work with: each one gets its own float account, so its balance
+              stays separate. A network that already has transactions can be switched off, but not
+              deleted.
             </p>
             {networks.isPending && (
               <p className="px-5 py-6 text-sm text-muted-foreground">Loading networks…</p>
