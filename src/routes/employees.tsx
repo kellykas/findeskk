@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { t } from "@/domain/i18n";
 import { StaffAccountDialog } from "@/components/employees/StaffAccountDialog";
 import { StaffAccessDialog } from "@/components/employees/StaffAccessDialog";
+import { StaffIdCardDialog } from "@/components/employees/StaffIdCardDialog";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ function Employees() {
   const queryClient = useQueryClient();
 
   const [editing, setEditing] = useState<StaffMember | null>(null);
+  const [cardFor, setCardFor] = useState<StaffMember | null>(null);
   const [creating, setCreating] = useState(false);
   const [setupIssue, setSetupIssue] = useState<string | null>(null);
 
@@ -252,18 +254,30 @@ function Employees() {
                 header: "Access",
                 align: "right",
                 cell: (member) => (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full"
-                    disabled={member.id === viewer?.userId}
-                    title={
-                      member.id === viewer?.userId ? "You cannot change your own access" : undefined
-                    }
-                    onClick={() => setEditing(member)}
-                  >
-                    Manage
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => setCardFor(member)}
+                    >
+                      ID card
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      disabled={member.id === viewer?.userId}
+                      title={
+                        member.id === viewer?.userId
+                          ? "You cannot change your own access"
+                          : undefined
+                      }
+                      onClick={() => setEditing(member)}
+                    >
+                      Manage
+                    </Button>
+                  </div>
                 ),
               },
             ]}
@@ -293,6 +307,17 @@ function Employees() {
           }}
           onSave={(input) => update.mutate(input)}
           onDelete={(userId) => remove.mutate(userId)}
+        />
+      )}
+
+      {cardFor && (
+        <StaffIdCardDialog
+          key={cardFor.id}
+          staff={cardFor}
+          open
+          onOpenChange={(next) => {
+            if (!next) setCardFor(null);
+          }}
         />
       )}
     </AppShell>

@@ -22,6 +22,7 @@ import { Route as MobileMoneyRouteImport } from './routes/mobile-money'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as IdTokenRouteImport } from './routes/id.$token'
 import { Route as ReceiptKindIdRouteImport } from './routes/receipt.$kind.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -89,6 +90,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IdTokenRoute = IdTokenRouteImport.update({
+  id: '/id/$token',
+  path: '/id/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReceiptKindIdRoute = ReceiptKindIdRouteImport.update({
   id: '/receipt/$kind/$id',
   path: '/receipt/$kind/$id',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof ReportsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/id/$token': typeof IdTokenRoute
   '/receipt/$kind/$id': typeof ReceiptKindIdRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/id/$token': typeof IdTokenRoute
   '/receipt/$kind/$id': typeof ReceiptKindIdRoute
 }
 export interface FileRoutesById {
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/reports': typeof ReportsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/id/$token': typeof IdTokenRoute
   '/receipt/$kind/$id': typeof ReceiptKindIdRoute
 }
 export interface FileRouteTypes {
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/reset-password'
     | '/settings'
+    | '/id/$token'
     | '/receipt/$kind/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/reset-password'
     | '/settings'
+    | '/id/$token'
     | '/receipt/$kind/$id'
   id:
     | '__root__'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/reset-password'
     | '/settings'
+    | '/id/$token'
     | '/receipt/$kind/$id'
   fileRoutesById: FileRoutesById
 }
@@ -209,6 +221,7 @@ export interface RootRouteChildren {
   ReportsRoute: typeof ReportsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
+  IdTokenRoute: typeof IdTokenRoute
   ReceiptKindIdRoute: typeof ReceiptKindIdRoute
 }
 
@@ -305,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/id/$token': {
+      id: '/id/$token'
+      path: '/id/$token'
+      fullPath: '/id/$token'
+      preLoaderRoute: typeof IdTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/receipt/$kind/$id': {
       id: '/receipt/$kind/$id'
       path: '/receipt/$kind/$id'
@@ -329,6 +349,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsRoute: ReportsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
+  IdTokenRoute: IdTokenRoute,
   ReceiptKindIdRoute: ReceiptKindIdRoute,
 }
 export const routeTree = rootRouteImport

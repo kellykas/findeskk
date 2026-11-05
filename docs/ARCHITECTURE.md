@@ -58,6 +58,18 @@ Components only receive typed domain objects. The dashboard now reads ledger bal
   the single active branch automatically. Branches are deactivated rather than deleted, so
   historical data and assignments stay intact.
 
+### Employee ID cards
+
+`/employees → ID card` issues one card per staff profile: a photo in the private `staff-photos`
+bucket, a unique employee number (`FD-0001`, editable by an administrator) and a random
+`id_card_token`. The card is laid out at CR80 size (85.6 × 54 mm) and printed through the browser's
+own print-to-PDF, so the file is vector-crisp without a PDF dependency. The printed QR code opens
+`/id/<token>`, a public route that reads `public.get_staff_id_card()` — a security-definer function
+returning only the printed fields (name, number, role, branch, status, photo path) and never the
+email, phone or any transaction. The photo itself is served through a short-lived signed URL minted
+by a server function, because the bucket stays private. Writes go through a server function too:
+`profiles` is not writable from the browser, and creating that photo path needs the service role.
+
 ## Accounting ledger (Phase 3)
 
 ```text

@@ -204,7 +204,7 @@
 }
 
 @media print {
-  body > *:not(.receipt-print-root) {
+  body > *:not(.receipt-print-root):not(.id-card-print-root) {
     display: none !important;
   }
 
@@ -249,7 +249,33 @@
   header,
   nav,
   aside,
-  [data-sidebar],
+  /*
+ * Employee ID card.
+ *
+ * The card prints at CR80 size (85.6 × 54 mm), which is what card printers and
+ * laminating pouches expect. The dialog portals a copy to <body> as
+ * .id-card-print-root; on screen it stays hidden, and while printing only the
+ * card reaches the paper. Background colours are kept, because the brand bar is
+ * part of the card.
+ */
+.id-card-print-root {
+  display: none;
+}
+
+@media print {
+  .id-card-print-root {
+    display: block !important;
+    background: #fff;
+  }
+
+  .id-card-print-root,
+  .id-card-print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+[data-sidebar],
   [role="navigation"],
   button:not(.print-allow),
   .no-print {

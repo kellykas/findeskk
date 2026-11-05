@@ -3,6 +3,45 @@
  * Anything absent falls back to English, so this file can grow safely.
  */
 export const FRENCH: Record<string, string> = {
+  // Employee ID cards --------------------------------------------------------
+  "Employee ID card": "Carte d'employé",
+  "Staff ID": "Carte du personnel",
+  Photo: "Photo",
+  "Employee ID": "Matricule",
+  "Card preview": "Aperçu de la carte",
+  "Verification link": "Lien de vérification",
+  "Copy link": "Copier le lien",
+  "Download PDF": "Télécharger le PDF",
+  "Upload photo": "Téléverser une photo",
+  "Replace photo": "Remplacer la photo",
+  "Save card": "Enregistrer la carte",
+  "Main branch": "Agence principale",
+  "Active employee": "Employé actif",
+  "No longer active": "N'est plus actif",
+  "Verified employee": "Employé vérifié",
+  "This card is no longer active": "Cette carte n'est plus active",
+  "Employee verification": "Vérification d'employé",
+  "Checking employee ID…": "Vérification de la carte…",
+  Name: "Nom",
+  Role: "Rôle",
+  Branch: "Agence",
+  Status: "Statut",
+  "This employee card could not be found.": "Cette carte d'employé est introuvable.",
+  "This employee card could not be loaded.": "Cette carte d'employé n'a pas pu être chargée.",
+  "Verification link copied.": "Lien de vérification copié.",
+  "Could not copy the link. Copy it from the address bar instead.":
+    "Impossible de copier le lien. Copiez-le depuis la barre d'adresse.",
+  "Upload a photo and confirm the employee number. The QR code opens a verification page that shows only what is printed on this card.":
+    "Téléversez une photo et confirmez le matricule. Le code QR ouvre une page de vérification qui n'affiche que ce qui est imprimé sur cette carte.",
+  "JPG, PNG or WebP, up to 5 MB. A plain background and a square crop print best.":
+    "JPG, PNG ou WebP, jusqu'à 5 Mo. Un fond uni et un cadrage carré s'impriment le mieux.",
+  "Printed under the name and used by the QR verification page.":
+    "Imprimé sous le nom et utilisé par la page de vérification QR.",
+  "Loading the verification link…": "Chargement du lien de vérification…",
+  "Download PDF opens the print dialog at card size (85.6 × 54 mm). Choose “Save as PDF” as the printer, then send that file to the printing company.":
+    "Télécharger le PDF ouvre la boîte d'impression à la taille de la carte (85,6 × 54 mm). Choisissez « Enregistrer au format PDF » comme imprimante, puis envoyez ce fichier à l'imprimeur.",
+  "This page is issued by the company that printed the card. It shows only what is printed on the card.":
+    "Cette page est émise par l'entreprise qui a imprimé la carte. Elle n'affiche que ce qui est imprimé sur la carte.",
   // Navigation and shell -----------------------------------------------------
   Overview: "Vue d'ensemble",
   Operations: "Opérations",

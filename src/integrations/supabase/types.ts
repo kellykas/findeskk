@@ -879,6 +879,10 @@ export type Database = {
           display_name: string;
           email: string;
           id: string;
+          id_card_issued_at: string | null;
+          id_card_token: string;
+          photo_path: string | null;
+          staff_code: string | null;
           updated_at: string;
         };
         Insert: {
@@ -887,6 +891,10 @@ export type Database = {
           display_name?: string;
           email?: string;
           id: string;
+          id_card_issued_at?: string | null;
+          id_card_token?: string;
+          photo_path?: string | null;
+          staff_code?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -895,6 +903,10 @@ export type Database = {
           display_name?: string;
           email?: string;
           id?: string;
+          id_card_issued_at?: string | null;
+          id_card_token?: string;
+          photo_path?: string | null;
+          staff_code?: string | null;
           updated_at?: string;
         };
         Relationships: [];

@@ -156,6 +156,41 @@ What the rules are, so nobody is surprised:
 If a migration is skipped, the app keeps working with MTN, Airtel and the four original currencies,
 so order of deployment does not matter.
 
+## Employee ID cards (one-time database step)
+
+Cards need somewhere to keep the photo, the employee number and the QR link. Until this migration is
+applied, the **ID card** button reports that setup is needed; employee accounts, roles and the rest
+of the app keep working.
+
+1. Open `supabase/migrations/20261105170000_staff_id_cards.sql` in the repository (on GitHub: the
+   file → **Copy raw file**).
+2. Supabase dashboard → **SQL Editor** → **New query** → paste → **Run**. This also creates the
+   private `staff-photos` storage bucket.
+3. Confirm both exist — one row each:
+
+```sql
+select proname from pg_proc where proname = 'get_staff_id_card';
+select id, public from storage.buckets where id = 'staff-photos'; -- public must be false
+```
+
+4. Reload the app → **Employees** → **ID card** on a row. Upload the photo, confirm the employee
+   number (generated as `FD-0001`, editable) and press **Save card**.
+5. **Download PDF** opens the print dialog at card size (85.6 × 54 mm). Choose **Save as PDF** and
+   send that file to the printing company. The QR code on the printed card opens `/id/<token>` for
+   anyone who scans it.
+
+What the rules are, so nobody is surprised:
+
+- Only a super admin or the company owner can upload a photo or change an employee number. The
+  storage bucket and the server function both enforce it, so a hidden button is not the guard.
+- Photos are private. The verification page receives a link that expires in ten minutes, so a photo
+  URL copied out of the page stops working; faces are personal data.
+- The verification page shows the name, employee number, role, branch, status and photo — never the
+  email, the phone number or any transaction.
+- An employee number is unique and is never reused. A card belonging to a deactivated employee still
+  scans, and the page says the card is no longer active.
+- The QR token is random per employee, so cards cannot be enumerated from the public link.
+
 ## Why not in the app?
 
 Creating auth accounts requires the Supabase **service role** key, which must never reach the

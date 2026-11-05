@@ -170,7 +170,7 @@ export async function updateBranch(input: BranchUpdateInput): Promise<void> {
  * storage, and framework server-function calls carry no Authorization header,
  * so the token is sent with the payload and verified on the server.
  */
-async function currentAccessToken(): Promise<string> {
+export async function currentAccessToken(): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const existing = data.session?.access_token ?? "";
   if (existing) return existing;
