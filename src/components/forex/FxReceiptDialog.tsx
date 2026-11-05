@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { ReceiptPaperPicker } from "@/components/receipts/ReceiptPaperPicker";
 import { ReceiptQrCode } from "@/components/receipts/ReceiptQrCode";
+import { receiptLink } from "@/services/public-receipt.service";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/domain/money";
 import { receiptPageStyle, receiptSheetStyle, type ReceiptPaper } from "@/domain/receiptPaper";
@@ -34,7 +35,7 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
  * dialog and once into a print-only portal — so what prints is exactly what was
  * reviewed on screen.
  */
-function ReceiptSheet({
+export function ReceiptSheet({
   trade,
   settings,
   branchName,
@@ -119,10 +120,7 @@ function ReceiptSheet({
       </div>
 
       <div className="mt-3 flex justify-center">
-        <ReceiptQrCode
-          size={96}
-          value={`${documentNo}|${trade.entryDate.slice(0, 10)}|${trade.type}|${trade.currency}|${trade.ugxAmount.minor}`}
-        />
+        <ReceiptQrCode size={96} value={receiptLink("fx", trade.id)} />
       </div>
     </div>
   );

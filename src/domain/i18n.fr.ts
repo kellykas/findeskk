@@ -295,4 +295,7 @@ export const FRENCH: Record<string, string> = {
   "Phone can have at most 30 characters": "Le téléphone ne peut pas dépasser 30 caractères",
   "Phone can only contain digits, spaces and + ( ) -":
     "Le téléphone ne peut contenir que des chiffres, des espaces et + ( ) -",
+  "This receipt could not be found.": "Ce reçu est introuvable.",
+  "This receipt could not be loaded.": "Ce reçu n'a pas pu être chargé.",
+  "Loading receipt…": "Chargement du reçu…",
 };

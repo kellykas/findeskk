@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 
 import { ReceiptPaperPicker } from "@/components/receipts/ReceiptPaperPicker";
 import { ReceiptQrCode } from "@/components/receipts/ReceiptQrCode";
+import { receiptLink, type MomoReceiptData } from "@/services/public-receipt.service";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,19 +24,7 @@ import {
 } from "@/domain/momo";
 import type { CompanySettings } from "@/domain/settings";
 
-/** Everything a receipt needs, built from either a fresh recording or a listed row. */
-export interface MomoReceiptData {
-  id: string;
-  branchId: string;
-  network: MomoNetwork;
-  type: MomoType;
-  amount: Money;
-  commission: Money;
-  entryDate: string;
-  customer: string;
-  networkRef: string;
-  notes: string;
-}
+export type { MomoReceiptData } from "@/services/public-receipt.service";
 
 const day = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -49,7 +38,7 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
-function ReceiptSheet({
+export function ReceiptSheet({
   receipt,
   settings,
   branchName,
@@ -139,10 +128,7 @@ function ReceiptSheet({
       </div>
 
       <div className="mt-3 flex justify-center">
-        <ReceiptQrCode
-          size={96}
-          value={`${documentNo}|${receipt.entryDate.slice(0, 10)}|${receipt.type}|${receipt.network}|${receipt.amount.minor}`}
-        />
+        <ReceiptQrCode size={96} value={receiptLink("momo", receipt.id)} />
       </div>
     </div>
   );
