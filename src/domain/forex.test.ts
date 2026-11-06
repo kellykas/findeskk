@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { previewTrade, tradeRateFor } from "./forex";
+import { previewTrade, tradeRateFor, ugxValueOfForeign } from "./forex";
 
 const rate = { buyRate: "4300.000000", sellRate: "4400.000000" };
+
+describe("ugxValueOfForeign", () => {
+  it("converts a foreign amount at the rate, to the shilling", () => {
+    expect(ugxValueOfForeign("10", "4300.000000")?.minor).toBe(43000n);
+  });
+
+  it("rounds half up to the shilling", () => {
+    // 0.10 * 4301 = 430.1 rounds down; 0.12 * 4301.5 = 516.18 rounds down too
+    expect(ugxValueOfForeign("0.10", "4301")?.minor).toBe(430n);
+    expect(ugxValueOfForeign("0.12", "4301.5")?.minor).toBe(516n);
+  });
+
+  it("rejects an invalid amount or rate", () => {
+    expect(ugxValueOfForeign("abc", "4300")).toBeNull();
+    expect(ugxValueOfForeign("10", "0")).toBeNull();
+  });
+});
 
 describe("tradeRateFor", () => {
   it("prices a buy at the published buy rate", () => {

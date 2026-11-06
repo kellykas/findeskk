@@ -26,6 +26,7 @@ import { BASE_CURRENCY } from "@/domain/currency";
 import { MOMO_TYPE_LABELS, momoCashMovement, momoNetworkLabel } from "@/domain/momo";
 import { isSetupMissing } from "@/domain/referenceDataMessages";
 import {
+  activeCurrencies,
   activeNetworks,
   type MomoNetworkForm,
   type MomoNetworkRecord,
@@ -45,6 +46,8 @@ import {
   momoNetworksQuery,
   saveMomoNetwork,
 } from "@/services/referenceData.service";
+import { fxRatesQuery, latestRates } from "@/services/forex.service";
+import { fxCurrenciesQuery } from "@/services/referenceData.service";
 import { branchesQuery } from "@/services/staff.service";
 import { customersQuery } from "@/services/customers.service";
 import { settingsQuery } from "@/services/settings.service";
@@ -87,6 +90,8 @@ function MobileMoney() {
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
   const customers = useQuery({ ...customersQuery, enabled: allowed });
   const settings = useQuery({ ...settingsQuery, enabled: allowed });
+  const fxRates = useQuery({ ...fxRatesQuery, enabled: allowed });
+  const fxCurrencies = useQuery({ ...fxCurrenciesQuery, enabled: allowed });
   const queryClient = useQueryClient();
   const [recordForm, setRecordForm] = useState(false);
   const [reversing, setReversing] = useState<MomoRecord | null>(null);
@@ -133,6 +138,18 @@ function MobileMoney() {
     if (managed.length > 0) return managed;
     return networks.isError ? FALLBACK_NETWORKS : [];
   }, [networks.data, networks.isError]);
+  // Only currencies with a published rate can price a commission; the base
+  // currency is never offered here because UGX has its own unit.
+  const foreignRateOptions = useMemo(() => {
+    const names = new Map(activeCurrencies(fxCurrencies.data ?? []).map((c) => [c.code, c.name]));
+    return latestRates(fxRates.data ?? [])
+      .filter((rate) => rate.currency !== BASE_CURRENCY && names.has(rate.currency))
+      .map((rate) => ({
+        code: rate.currency,
+        name: names.get(rate.currency) ?? rate.currency,
+        buyRate: rate.buyRate,
+      }));
+  }, [fxRates.data, fxCurrencies.data]);
   const accountNames = useMemo(
     () =>
       new Map(
@@ -565,6 +582,7 @@ function MobileMoney() {
           branches={branchOptions}
           customers={customerOptions}
           networks={networkOptions}
+          foreignRates={foreignRateOptions}
           open
           saving={saveMomo.isPending}
           onOpenChange={setRecordForm}

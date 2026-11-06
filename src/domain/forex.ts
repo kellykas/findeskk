@@ -148,6 +148,18 @@ export function previewTrade(input: {
 }
 
 /**
+ * UGX value of a foreign amount at one published rate, rounded half-up to the
+ * shilling. Used for a commission the customer pays in another currency: the
+ * buy rate values currency held, so it is the rate that matches the ledger.
+ */
+export function ugxValueOfForeign(foreignAmount: string, rate: string): Money | null {
+  const foreign = parseForeignAmount(foreignAmount);
+  const micros = rateMicros(rate);
+  if (foreign === null || micros === null) return null;
+  return money(roundDivide(foreign * micros, 100_000_000n), BASECURRENCY);
+}
+
+/**
  * The published rate that prices this side of a trade: a buy pays UGX at the
  * buy rate, a sell receives UGX at the sell rate. record_fx_transaction()
  * rejects a trade priced off the other side, so this is the rate to send.
