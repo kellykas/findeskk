@@ -40,32 +40,68 @@ function NotFoundComponent() {
   );
 }
 
+/**
+ * Every deploy replaces the hashed asset files. A tab opened before a deploy
+ * therefore asks for chunks that no longer exist, and the route dies with an
+ * import failure that "Try again" cannot fix. Recognising it lets the page
+ * reload itself once, which is the only recovery that works.
+ */
+function isStaleChunkError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /failed to fetch dynamically imported module|importing a module script failed|chunkloaderror|error loading dynamically imported module/i.test(
+    message,
+  );
+}
+
+const STALE_CHUNK_RELOAD_KEY = "findesk-stale-chunk-reload";
+
+/** True when a reload is worth trying, and never more than once every 15 s. */
+function shouldReloadForStaleChunk(): boolean {
+  try {
+    const previous = Number(window.sessionStorage.getItem(STALE_CHUNK_RELOAD_KEY) ?? 0);
+    if (Date.now() - previous < 15_000) return false;
+    window.sessionStorage.setItem(STALE_CHUNK_RELOAD_KEY, String(Date.now()));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const { t } = useLanguage();
   const router = useRouter();
+  const staleChunk = isStaleChunkError(error);
+  const detail = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+    if (staleChunk && shouldReloadForStaleChunk()) window.location.reload();
+  }, [error, staleChunk]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          {t("This page didn't load")}
+          {staleChunk ? t("A new version of the app is available") : t("This page didn't load")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {t("Something went wrong on our end. You can try refreshing or head back home.")}
+          {staleChunk
+            ? t("Reload the page to continue.")
+            : t("Something went wrong on our end. You can try refreshing or head back home.")}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
+              if (staleChunk) {
+                window.location.reload();
+                return;
+              }
               router.invalidate();
               reset();
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            {t("Try again")}
+            {staleChunk ? t("Reload") : t("Try again")}
           </button>
           <a
             href="/"
@@ -74,6 +110,16 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             {t("Go home")}
           </a>
         </div>
+        {!staleChunk && detail ? (
+          <details className="mt-6 text-left">
+            <summary className="cursor-pointer text-xs text-muted-foreground">
+              {t("Technical details")}
+            </summary>
+            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted px-3 py-2 text-[11px] text-muted-foreground">
+              {detail}
+            </pre>
+          </details>
+        ) : null}
       </div>
     </div>
   );

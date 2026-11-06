@@ -194,6 +194,29 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
 
         <FormError message={error} />
 
+        {/* Without this the dialog would sit on an empty card and an endless
+            "Loading the verification link…" whenever the read fails. */}
+        {details.isError && (
+          <div
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            <p>
+              {t("Could not load this card")}: {details.error.message}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => void details.refetch()}
+              disabled={details.isFetching}
+            >
+              {t("Try again")}
+            </Button>
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="card-photo">{t("Photo")}</Label>

@@ -38,6 +38,11 @@ export const FRENCH: Record<string, string> = {
   "This employee card could not be found.": "Cette carte d'employé est introuvable.",
   "This employee card could not be loaded.": "Cette carte d'employé n'a pas pu être chargée.",
   "Verification link copied.": "Lien de vérification copié.",
+  "Could not load this card": "Impossible de charger cette carte",
+  "A new version of the app is available": "Une nouvelle version de l'application est disponible",
+  "Reload the page to continue.": "Rechargez la page pour continuer.",
+  Reload: "Recharger",
+  "Technical details": "Détails techniques",
   "Could not copy the link. Copy it from the address bar instead.":
     "Impossible de copier le lien. Copiez-le depuis la barre d'adresse.",
   "Upload a photo and confirm the employee number. The QR code opens a verification page that shows only what is printed on this card.":
