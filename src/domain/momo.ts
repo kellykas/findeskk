@@ -13,7 +13,7 @@ import { z } from "zod";
 import { BASE_CURRENCY } from "./currency";
 import { todayUtcDate } from "./date";
 import { parseLedgerAmount } from "./ledger";
-import { add, subtract, type Money } from "./money";
+import { add, money, subtract, type Money } from "./money";
 
 /**
  * Networks are company-managed reference data (public.momo_networks), so a
@@ -102,4 +102,24 @@ export type MomoReversalInput = z.infer<typeof momoReversalSchema>;
  */
 export function momoCashMovement(type: MomoType, amount: Money, commission: Money): Money {
   return type === "deposit" ? add(amount, commission) : subtract(amount, commission);
+}
+
+/**
+ * Commission taken as a percentage of the amount, rounded to the nearest minor
+ * unit (half up). Networks such as MPESA and Airtel Money in the DRC deduct a
+ * rate — 3 % is usual — so the teller types the rate and the deduction follows.
+ *
+ * Everything is integer maths: 3 % of a large withdrawal must land on the same
+ * shilling as the same rate worked out on paper, which floats cannot promise.
+ * Returns null when the text is not a percentage the form can use.
+ */
+export function commissionForPercent(amount: Money, percent: string): Money | null {
+  const value = percent.trim();
+  if (!/^\d{1,3}(\.\d{1,3})?$/.test(value)) return null;
+  const [whole = "0", fraction = ""] = value.split(".");
+  // Thousandths of a percent, so "3", "2.5" and "0.125" all stay exact.
+  const thousandths = BigInt(whole) * 1000n + BigInt(fraction.padEnd(3, "0"));
+  if (thousandths > 100_000n) return null;
+  const rounded = (amount.minor * thousandths + 50_000n) / 100_000n;
+  return money(rounded, amount.currency);
 }

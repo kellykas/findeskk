@@ -19,9 +19,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatMoney } from "@/domain/money";
-import { MOMO_TYPES, MOMO_TYPE_LABELS, momoCashMovement, momoSchema } from "@/domain/momo";
+import { formatMoney, money, toDecimalString } from "@/domain/money";
+import {
+  MOMO_TYPES,
+  MOMO_TYPE_LABELS,
+  commissionForPercent,
+  momoCashMovement,
+  momoSchema,
+} from "@/domain/momo";
 import { parseLedgerAmount } from "@/domain/ledger";
+import { BASE_CURRENCY } from "@/domain/currency";
 import { todayUtcDate } from "@/domain/date";
 import type { Money } from "@/domain/money";
 
@@ -81,7 +88,11 @@ export function MomoDialog({
   const [network, setNetwork] = useState(networks[0]?.code ?? "");
   const [type, setType] = useState<(typeof MOMO_TYPES)[number]>("deposit");
   const [amount, setAmount] = useState("");
-  const [commission, setCommission] = useState("0");
+  // Commission is normally a rate of the amount (3 % on MPESA and Airtel Money
+  // withdrawals), so the field opens in percentage mode; a flat fee is one click
+  // away, and either way the recorded commission is always the money itself.
+  const [commission, setCommission] = useState("");
+  const [commissionUnit, setCommissionUnit] = useState<"percent" | "amount">("percent");
   const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
   const [customerId, setCustomerId] = useState(NONE);
   const [customerRef, setCustomerRef] = useState("");
@@ -103,7 +114,20 @@ export function MomoDialog({
   }, [networks, network]);
 
   const parsedAmount = parseLedgerAmount(amount);
-  const parsedCommission = parseLedgerAmount(commission);
+  // A typed rate is turned into money before anything reads it, so both units
+  // feed the same validation, the same preview and the same ledger entry.
+  const percentCommission =
+    commissionUnit === "percent" && parsedAmount
+      ? commissionForPercent(parsedAmount, commission)
+      : null;
+  const parsedCommission =
+    commissionUnit === "percent"
+      ? commission.trim() === ""
+        ? money(0n, BASE_CURRENCY)
+        : percentCommission
+      : parseLedgerAmount(commission);
+  const commissionPercentLabel =
+    commissionUnit === "percent" && percentCommission ? commission.trim() : null;
   const showPreview =
     parsedAmount !== null &&
     parsedAmount.minor > 0n &&
@@ -114,11 +138,21 @@ export function MomoDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (commissionUnit === "percent" && commission.trim() !== "" && !percentCommission) {
+      setError("Enter a commission rate between 0 and 100, for example 3.");
+      return;
+    }
+    const commissionInput =
+      commissionUnit === "percent"
+        ? percentCommission
+          ? toDecimalString(percentCommission)
+          : "0"
+        : commission;
     const parsed = momoSchema.safeParse({
       network,
       type,
       amount,
-      commission,
+      commission: commissionInput,
       branchId,
       customerId: customerId === NONE ? "" : customerId,
       customerRef,
@@ -220,14 +254,53 @@ export function MomoDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="momo-commission">Commission (UGX)</Label>
-              <Input
-                id="momo-commission"
-                value={commission}
-                onChange={(event) => setCommission(event.target.value)}
-                inputMode="decimal"
-                placeholder="0"
-              />
+              <Label htmlFor="momo-commission">Commission</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="momo-commission"
+                  value={commission}
+                  onChange={(event) => setCommission(event.target.value)}
+                  inputMode="decimal"
+                  placeholder={commissionUnit === "percent" ? "3" : "0"}
+                  aria-describedby="momo-commission-hint"
+                  className="min-w-0 flex-1"
+                />
+                {/* One field, two units: a rate is the usual case, a flat fee
+                    stays available without a second input. */}
+                <div className="flex gap-1" role="group" aria-label="Commission unit">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={commissionUnit === "percent" ? "default" : "outline"}
+                    aria-pressed={commissionUnit === "percent"}
+                    onClick={() => {
+                      setCommissionUnit("percent");
+                      setCommission("");
+                    }}
+                  >
+                    %
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={commissionUnit === "amount" ? "default" : "outline"}
+                    aria-pressed={commissionUnit === "amount"}
+                    onClick={() => {
+                      setCommissionUnit("amount");
+                      setCommission("");
+                    }}
+                  >
+                    {BASE_CURRENCY}
+                  </Button>
+                </div>
+              </div>
+              <p id="momo-commission-hint" className="text-xs text-muted-foreground">
+                {commissionUnit === "percent"
+                  ? percentCommission && parsedAmount
+                    ? `${formatMoney(percentCommission)} taken from ${formatMoney(parsedAmount)}`
+                    : "Type the rate, e.g. 3 for 3% of the amount."
+                  : `Type the fee in ${BASE_CURRENCY}.`}
+              </p>
             </div>
           </div>
 
@@ -320,9 +393,9 @@ export function MomoDialog({
             <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
-                  {type === "deposit" ? "Cash received" : "Cash paid out"}
+                  {type === "deposit" ? "Cash received" : "Give the customer"}
                 </span>
-                <span className="tabular font-medium">{formatMoney(cashMovement)}</span>
+                <span className="tabular font-semibold">{formatMoney(cashMovement)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
@@ -332,7 +405,9 @@ export function MomoDialog({
               </div>
               {(parsedCommission?.minor ?? 0n) > 0n && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Commission income</span>
+                  <span className="text-muted-foreground">
+                    Commission income{commissionPercentLabel ? ` (${commissionPercentLabel}%)` : ""}
+                  </span>
                   <span className="tabular font-medium">{formatMoney(parsedCommission)}</span>
                 </div>
               )}
