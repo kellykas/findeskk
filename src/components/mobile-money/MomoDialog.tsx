@@ -103,8 +103,12 @@ export function MomoDialog({
   // withdrawals), so the field opens in percentage mode; a flat fee is one click
   // away, and either way the recorded commission is always the money itself.
   const [commission, setCommission] = useState("");
-  const [commissionUnit, setCommissionUnit] = useState<"percent" | "amount" | "foreign">("percent");
-  const [foreignCode, setForeignCode] = useState(foreignRates[0]?.code ?? "");
+  // The amount can be typed in UGX or in a published foreign currency (USD by
+  // default); the commission is always a percentage of the UGX amount.
+  const [amountUnit, setAmountUnit] = useState<"ugx" | "foreign">("ugx");
+  const [foreignCode, setForeignCode] = useState(
+    foreignRates.find((option) => option.code === "USD")?.code ?? foreignRates[0]?.code ?? "",
+  );
   const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
   const [customerId, setCustomerId] = useState(NONE);
   const [customerRef, setCustomerRef] = useState("");
@@ -125,34 +129,21 @@ export function MomoDialog({
     if (!networks.some((option) => option.code === network)) setNetwork(networks[0]?.code ?? "");
   }, [networks, network]);
 
-  const parsedAmount = parseLedgerAmount(amount);
-  // A typed rate is turned into money before anything reads it, so both units
-  // feed the same validation, the same preview and the same ledger entry.
+  const foreignRate = foreignRates.find((option) => option.code === foreignCode);
+  // A foreign amount is converted once, at the published buy rate, so the
+  // preview, the validation and the saved UGX amount all agree.
+  const parsedAmount =
+    amountUnit === "foreign"
+      ? foreignRate && amount.trim() !== ""
+        ? ugxValueOfForeign(amount, foreignRate.buyRate)
+        : null
+      : parseLedgerAmount(amount);
   const percentCommission =
-    commissionUnit === "percent" && parsedAmount
+    parsedAmount && commission.trim() !== ""
       ? commissionForPercent(parsedAmount, commission)
       : null;
-  const foreignRate = foreignRates.find((option) => option.code === foreignCode);
-  // A commission typed in another currency is converted once, here, so the
-  // preview, the validation and the saved UGX commission all agree.
-  const foreignCommission =
-    commissionUnit === "foreign" && foreignRate && commission.trim() !== ""
-      ? ugxValueOfForeign(commission, foreignRate.buyRate)
-      : null;
-  const parsedCommission =
-    commissionUnit === "percent"
-      ? commission.trim() === ""
-        ? money(0n, BASE_CURRENCY)
-        : percentCommission
-      : commissionUnit === "foreign"
-        ? commission.trim() === ""
-          ? money(0n, BASE_CURRENCY)
-          : foreignCommission
-        : commission.trim() === ""
-          ? money(0n, BASE_CURRENCY)
-          : parseLedgerAmount(commission);
-  const commissionPercentLabel =
-    commissionUnit === "percent" && percentCommission ? commission.trim() : null;
+  const parsedCommission = commission.trim() === "" ? money(0n, BASE_CURRENCY) : percentCommission;
+  const commissionPercentLabel = percentCommission ? commission.trim() : null;
   const showPreview =
     parsedAmount !== null &&
     parsedAmount.minor > 0n &&
@@ -163,31 +154,19 @@ export function MomoDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (commissionUnit === "percent" && commission.trim() !== "" && !percentCommission) {
+    if (amountUnit === "foreign" && !parsedAmount) {
+      setError(`Enter a ${foreignCode || "foreign"} amount, for example 100.`);
+      return;
+    }
+    if (commission.trim() !== "" && !percentCommission) {
       setError("Enter a commission rate between 0 and 100, for example 3.");
       return;
     }
-    if (commissionUnit === "foreign" && commission.trim() !== "" && !foreignCommission) {
-      setError(`Enter a ${foreignCode || "foreign"} amount, for example 10.`);
-      return;
-    }
-    const commissionInput =
-      commissionUnit === "percent"
-        ? percentCommission
-          ? toDecimalString(percentCommission)
-          : "0"
-        : commissionUnit === "foreign"
-          ? foreignCommission
-            ? toDecimalString(foreignCommission)
-            : "0"
-          : commission.trim() === ""
-            ? "0"
-            : commission;
     const parsed = momoSchema.safeParse({
       network,
       type,
-      amount,
-      commission: commissionInput,
+      amount: parsedAmount ? toDecimalString(parsedAmount) : amount,
+      commission: parsedCommission ? toDecimalString(parsedCommission) : "0",
       branchId,
       customerId: customerId === NONE ? "" : customerId,
       customerRef,
@@ -278,74 +257,50 @@ export function MomoDialog({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="momo-amount">Amount (UGX)</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="momo-amount">
+                  Amount ({amountUnit === "foreign" ? (foreignRate?.code ?? "USD") : BASE_CURRENCY})
+                </Label>
+                {foreignRates.length > 0 && (
+                  <div className="flex gap-1" role="group" aria-label="Amount currency">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={amountUnit === "ugx" ? "default" : "outline"}
+                      aria-pressed={amountUnit === "ugx"}
+                      onClick={() => {
+                        setAmountUnit("ugx");
+                        setAmount("");
+                      }}
+                    >
+                      {BASE_CURRENCY}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={amountUnit === "foreign" ? "default" : "outline"}
+                      aria-pressed={amountUnit === "foreign"}
+                      onClick={() => {
+                        setAmountUnit("foreign");
+                        setAmount("");
+                      }}
+                    >
+                      Other
+                    </Button>
+                  </div>
+                )}
+              </div>
               <Input
                 id="momo-amount"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 inputMode="decimal"
-                placeholder="100000"
+                placeholder={amountUnit === "foreign" ? "100" : "100000"}
                 required
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="momo-commission">Commission (optional)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="momo-commission"
-                  value={commission}
-                  onChange={(event) => setCommission(event.target.value)}
-                  inputMode="decimal"
-                  placeholder={commissionUnit === "percent" ? "3" : "0"}
-                  aria-describedby="momo-commission-hint"
-                  className="min-w-0 flex-1"
-                />
-                {/* One field, two units: a rate is the usual case, a flat fee
-                    stays available without a second input. */}
-                <div className="flex gap-1" role="group" aria-label="Commission unit">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={commissionUnit === "percent" ? "default" : "outline"}
-                    aria-pressed={commissionUnit === "percent"}
-                    onClick={() => {
-                      setCommissionUnit("percent");
-                      setCommission("");
-                    }}
-                  >
-                    %
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={commissionUnit === "amount" ? "default" : "outline"}
-                    aria-pressed={commissionUnit === "amount"}
-                    onClick={() => {
-                      setCommissionUnit("amount");
-                      setCommission("");
-                    }}
-                  >
-                    {BASE_CURRENCY}
-                  </Button>
-                  {foreignRates.length > 0 && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={commissionUnit === "foreign" ? "default" : "outline"}
-                      aria-pressed={commissionUnit === "foreign"}
-                      onClick={() => {
-                        setCommissionUnit("foreign");
-                        setCommission("");
-                      }}
-                    >
-                      Other currencies
-                    </Button>
-                  )}
-                </div>
-              </div>
-              {commissionUnit === "foreign" && foreignRates.length > 0 && (
+              {amountUnit === "foreign" && foreignRates.length > 0 && (
                 <Select value={foreignCode} onValueChange={setForeignCode}>
-                  <SelectTrigger aria-label="Commission currency">
+                  <SelectTrigger aria-label="Amount currency code">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -357,16 +312,26 @@ export function MomoDialog({
                   </SelectContent>
                 </Select>
               )}
+              {amountUnit === "foreign" && parsedAmount && (
+                <p className="text-xs text-muted-foreground">
+                  {`${amount.trim()} ${foreignRate?.code ?? ""} is ${formatMoney(parsedAmount)} at ${formatRate(foreignRate?.buyRate ?? "0")}`}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="momo-commission">Commission % (optional)</Label>
+              <Input
+                id="momo-commission"
+                value={commission}
+                onChange={(event) => setCommission(event.target.value)}
+                inputMode="decimal"
+                placeholder="3"
+                aria-describedby="momo-commission-hint"
+              />
               <p id="momo-commission-hint" className="text-xs text-muted-foreground">
-                {commissionUnit === "percent"
-                  ? percentCommission && parsedAmount
-                    ? `${formatMoney(percentCommission)} taken from ${formatMoney(parsedAmount)}`
-                    : "Type the rate, e.g. 3 for 3% of the amount."
-                  : commissionUnit === "foreign"
-                    ? foreignCommission && foreignRate
-                      ? `${commission.trim()} ${foreignRate.code} is ${formatMoney(foreignCommission)} at ${formatRate(foreignRate.buyRate)}`
-                      : `Type the fee in ${foreignRate?.code ?? "the currency"}, converted at the published buy rate.`
-                    : `Type the fee in ${BASE_CURRENCY}.`}
+                {percentCommission && parsedAmount
+                  ? `${commissionPercentLabel}% = ${formatMoney(percentCommission)} taken from ${formatMoney(parsedAmount)}`
+                  : "Type the rate, e.g. 3 for 3% of the amount. Leave blank for none."}
               </p>
             </div>
           </div>
