@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   BRAND_COLORS,
   DEFAULT_BRAND_COLOR,
+  DEFAULT_FAVICON,
   brandInitials,
   brandTheme,
+  faviconType,
   isHexColor,
   isLogoUrl,
   normalizeHex,
@@ -59,5 +61,15 @@ describe("branding", () => {
 
   it("offers only real hex presets", () => {
     for (const colour of BRAND_COLORS) expect(isHexColor(colour.hex)).toBe(true);
+  });
+
+  it("describes an uploaded logo with its real image type", () => {
+    expect(faviconType("https://cdn.example.com/logo-17.png")).toBe("image/png");
+    expect(faviconType("https://cdn.example.com/logo-17.png?download=1")).toBe("image/png");
+    expect(faviconType("https://cdn.example.com/logo.webp")).toBe("image/webp");
+    expect(faviconType("https://cdn.example.com/logo.JPG")).toBe("image/jpeg");
+    expect(faviconType("https://cdn.example.com/logo.jpeg")).toBe("image/jpeg");
+    expect(faviconType(DEFAULT_FAVICON)).toBe("image/x-icon");
+    expect(faviconType("https://cdn.example.com/logo-without-extension")).toBe("image/png");
   });
 });

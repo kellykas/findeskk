@@ -28,6 +28,25 @@ export interface Branding {
   primary: string;
 }
 
+/** The static FinDesk mark, shown in the tab until a company logo is uploaded. */
+export const DEFAULT_FAVICON = "/favicon.ico";
+
+/**
+ * The MIME type of a tab icon, read from the logo's file extension. Uploaded
+ * logos are PNG, JPEG or WebP, and the public storage URL keeps that extension,
+ * so the browser is told what the image really is instead of being handed an
+ * .ico type for a PNG.
+ */
+export function faviconType(url: string): string {
+  const path = url.split(/[?#]/)[0] ?? "";
+  const extension = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  if (extension === "ico") return "image/x-icon";
+  if (extension === "webp") return "image/webp";
+  if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
+  if (extension === "svg") return "image/svg+xml";
+  return "image/png";
+}
+
 export const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 export const LOGO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 

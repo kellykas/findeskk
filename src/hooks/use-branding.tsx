@@ -5,7 +5,9 @@ import { useRouterState } from "@tanstack/react-router";
 import {
   DEFAULT_APP_NAME,
   DEFAULT_BRAND_COLOR,
+  DEFAULT_FAVICON,
   brandTheme,
+  faviconType,
   type Branding,
 } from "@/domain/branding";
 import { brandingQuery } from "@/services/branding.service";
@@ -41,6 +43,23 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     if (value.appName === DEFAULT_APP_NAME) return;
     document.title = document.title.split(DEFAULT_APP_NAME).join(value.appName);
   }, [value.appName, pathname]);
+
+  // The tab icon follows the uploaded logo, so a rebrand shows up in the browser
+  // tab as well as in the sidebar. Without a logo it stays the FinDesk mark.
+  // Head attributes can be rewritten by a route change, so this runs again on
+  // navigation as well as when the logo changes.
+  useEffect(() => {
+    const head = document.head;
+    let link = head.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      head.appendChild(link);
+    }
+    const logo = value.logoUrl.trim();
+    link.href = logo || DEFAULT_FAVICON;
+    link.type = logo ? faviconType(logo) : "image/x-icon";
+  }, [value.logoUrl, pathname]);
 
   return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>;
 }
