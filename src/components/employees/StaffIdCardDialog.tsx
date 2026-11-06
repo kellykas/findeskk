@@ -82,13 +82,14 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
 
   const token = details.data?.token ?? "";
   const link = token ? idCardLink(token) : "";
+  // The card prints the office address, so the employee's own branch comes
+  // first and the first branch on file is the fallback.
+  const cardBranches = (branches.data ?? []).filter((branch) =>
+    staff.branchIds.includes(branch.id),
+  );
+  const cardBranch = cardBranches[0] ?? branches.data?.[0];
   const branchName =
-    (branches.data ?? [])
-      .filter((branch) => staff.branchIds.includes(branch.id))
-      .map((branch) => branch.name)
-      .join(", ") ||
-    branches.data?.[0]?.name ||
-    t("Main branch");
+    cardBranches.map((branch) => branch.name).join(", ") || cardBranch?.name || t("Main branch");
 
   const card: StaffCard = useMemo(
     () => ({
@@ -100,7 +101,7 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
       companyName: settings.data?.companyName ?? branding.appName,
       email: details.data?.email ?? "",
       phone,
-      branchAddress: "",
+      branchAddress: cardBranch?.address ?? "",
       companyAddress: settings.data?.address ?? "",
       companyPhone: settings.data?.phone ?? "",
       companyEmail: settings.data?.email ?? "",
@@ -112,6 +113,7 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
       staffCode,
       phone,
       branchName,
+      cardBranch?.address,
       settings.data,
       branding.appName,
       details.data?.email,

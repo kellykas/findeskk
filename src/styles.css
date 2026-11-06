@@ -248,8 +248,8 @@
 /*
  * Employee ID card.
  *
- * The card prints at CR80 size (85.6 × 54 mm), which is what card printers and
- * laminating pouches expect. The dialog portals a copy to <body> as
+ * The card prints at CR80 size in portrait (54 × 85.6 mm), which is what card
+ * printers and laminating pouches expect. The dialog portals a copy to <body> as
  * .id-card-print-root; on screen it stays hidden, and while printing only the
  * card reaches the paper. Background colours are kept, because the brand bar is
  * part of the card.
