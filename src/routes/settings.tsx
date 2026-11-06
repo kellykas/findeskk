@@ -466,8 +466,9 @@ function Settings() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    The default paper size. Each till can switch paper on the receipt itself,
-                    because the printer in front of the teller is the one that matters.
+                    The paper used for receipt links customers open. Each till starts on 80 mm and
+                    can switch paper on the receipt itself, because the printer in front of the
+                    teller is the one that matters.
                   </p>
                 </div>
                 <div className="space-y-2">

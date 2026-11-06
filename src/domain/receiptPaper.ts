@@ -27,6 +27,14 @@ export interface ReceiptPaperSpec {
   charsPerLine: number;
 }
 
+/**
+ * Paper receipts use when nothing else says otherwise.
+ *
+ * 80 mm is the roll nearly every thermal printer in a till holds, so a receipt
+ * opens on it instead of asking the teller to fix the paper on every sale.
+ */
+export const DEFAULT_RECEIPT_PAPER: ReceiptPaper = "80mm";
+
 export const RECEIPT_PAPERS: Record<ReceiptPaper, ReceiptPaperSpec> = {
   "58mm": {
     id: "58mm",
@@ -67,7 +75,7 @@ export function isReceiptPaper(value: unknown): value is ReceiptPaper {
 }
 
 export function receiptPaperSpec(paper: ReceiptPaper): ReceiptPaperSpec {
-  return RECEIPT_PAPERS[paper] ?? RECEIPT_PAPERS["80mm"];
+  return RECEIPT_PAPERS[paper] ?? RECEIPT_PAPERS[DEFAULT_RECEIPT_PAPER];
 }
 
 /**

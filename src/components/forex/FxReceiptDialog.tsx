@@ -142,7 +142,8 @@ export function FxReceiptDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   // Hook before the early return so the order stays stable across renders.
-  const { paper, choose } = useReceiptPaper(settings?.receiptFormat ?? "80mm");
+  // Till receipts open on 80 mm; the teller can switch paper for this receipt.
+  const { paper, choose } = useReceiptPaper();
   if (!trade) return null;
 
   async function printReceipt() {

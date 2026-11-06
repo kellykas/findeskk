@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ReceiptSheet as FxSheet } from "@/components/forex/FxReceiptDialog";
 import { ReceiptSheet as MomoSheet } from "@/components/mobile-money/MomoReceiptDialog";
+import { DEFAULT_RECEIPT_PAPER } from "@/domain/receiptPaper";
 import { useReceiptPaper } from "@/hooks/use-receipt-paper";
 import { getPublicReceipt } from "@/services/public-receipt.service";
 import { t } from "@/domain/i18n";
@@ -27,7 +28,7 @@ function PublicReceiptPage() {
   });
   const page = query.data;
   // Printed on the company's default paper; the reader cannot change the printer here.
-  const { paper } = useReceiptPaper(page?.settings.receiptFormat ?? "80mm");
+  const { paper } = useReceiptPaper(page?.settings.receiptFormat ?? DEFAULT_RECEIPT_PAPER);
 
   if (!validKind || !validId || (!query.isPending && !page)) {
     return <Notice text={t("This receipt could not be found.")} />;
