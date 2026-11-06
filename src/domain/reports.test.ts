@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { buildPeriodReport, numericToMinor, profitAndLossCsv } from "./reports";
+import { money } from "./money";
+import {
+  buildBranchPerformance,
+  buildPeriodReport,
+  buildTellerPerformance,
+  changeVsPrevious,
+  numericToMinor,
+  previousPeriod,
+  profitAndLossCsv,
+  trialBalanceCsv,
+} from "./reports";
 
 const accounts = [
   {
@@ -79,5 +89,95 @@ describe("period report", () => {
     expect(csv).toContain("Income,4000 Forex trading income,300000");
     expect(csv).toContain("Expense total,,80000");
     expect(csv).toContain("Net profit,,220000");
+  });
+
+  it("exports a trial balance with the totals and the balance check", () => {
+    const csv = trialBalanceCsv(buildPeriodReport(accounts, lines), {
+      from: "2026-10-01",
+      to: "2026-10-31",
+    });
+    expect(csv).toContain("Cash on hand");
+    expect(csv).toContain("Total,,,380000,380000");
+    expect(csv).toContain("Balanced");
+  });
+});
+
+describe("previous period", () => {
+  it("covers the same number of days immediately before the range", () => {
+    expect(previousPeriod({ from: "2026-10-01", to: "2026-10-31" })).toEqual({
+      from: "2026-08-31",
+      to: "2026-09-30",
+    });
+  });
+
+  it("handles a single day and rejects a backwards range", () => {
+    expect(previousPeriod({ from: "2026-11-06", to: "2026-11-06" })).toEqual({
+      from: "2026-11-05",
+      to: "2026-11-05",
+    });
+    expect(previousPeriod({ from: "2026-11-06", to: "2026-11-01" })).toBeNull();
+  });
+});
+
+describe("change against the previous period", () => {
+  it("reports a rise and a fall with one decimal", () => {
+    expect(changeVsPrevious(money(1124n, "UGX"), money(1000n, "UGX"))).toEqual({
+      delta: "+12.4%",
+      direction: "up",
+    });
+    expect(changeVsPrevious(money(800n, "UGX"), money(1000n, "UGX"))).toEqual({
+      delta: "-20.0%",
+      direction: "down",
+    });
+  });
+
+  it("has no percentage without a baseline", () => {
+    expect(changeVsPrevious(money(500n, "UGX"), money(0n, "UGX"))).toBeNull();
+    expect(changeVsPrevious(money(500n, "UGX"), money(500n, "UGX"))).toEqual({
+      delta: "0.0%",
+      direction: "flat",
+    });
+  });
+});
+
+describe("branch and teller performance", () => {
+  const sources = {
+    branches: [
+      { id: "b1", code: "001", name: "Kampala" },
+      { id: "b2", code: "002", name: "Gulu" },
+      { id: "b3", code: "003", name: "Idle" },
+    ],
+    staff: [{ id: "u1", displayName: "Kelly" }],
+    trades: [{ branchId: "b1", ugxAmount: money(1000n, "UGX"), createdBy: "u1" }],
+    momo: [
+      {
+        branchId: "b1",
+        type: "deposit" as const,
+        amount: money(200n, "UGX"),
+        commission: money(50n, "UGX"),
+        createdBy: "u1",
+      },
+    ],
+    expenses: [{ branchId: "b2", amount: money(300n, "UGX"), createdBy: "u2" }],
+    income: [{ branchId: "b2", amount: money(120n, "UGX"), createdBy: null }],
+  };
+
+  it("totals each branch and drops branches with no activity", () => {
+    const rows = buildBranchPerformance(sources);
+    expect(rows.map((row) => row.branchId)).toEqual(["b1", "b2"]);
+    expect(rows[0]?.label).toBe("001 · Kampala");
+    expect(rows[0]?.forexTurnover.minor).toBe(1000n);
+    expect(rows[0]?.momoVolume.minor).toBe(250n);
+    expect(rows[0]?.activityCount).toBe(2);
+    expect(rows[1]?.expenseTotal.minor).toBe(300n);
+    expect(rows[1]?.incomeTotal.minor).toBe(120n);
+  });
+
+  it("ranks staff by the value that passed through them", () => {
+    const rows = buildTellerPerformance(sources);
+    expect(rows.map((row) => row.userId)).toEqual(["u1", "u2"]);
+    expect(rows[0]).toMatchObject({ name: "Kelly", count: 2 });
+    expect(rows[0]?.value.minor).toBe(1250n);
+    expect(rows[1]?.name).toBe("u2");
   });
 });

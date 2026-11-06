@@ -12,6 +12,7 @@ import type { Money } from "@/domain/money";
 import { toDecimalString } from "@/domain/money";
 import { toMoney } from "./ledger.service";
 import { incomeErrorMessage } from "@/domain/income";
+import { fetchAllPages } from "./paged-rows";
 
 export interface IncomeRow {
   id: string;
@@ -95,3 +96,25 @@ export const incomesQuery = queryOptions({
   queryKey: ["income", "list"],
   queryFn: () => listIncome(),
 });
+
+/** Every income record inside a date range, for reports that total the period. */
+export async function listIncomeInRange(from: string, to: string): Promise<IncomeRecord[]> {
+  const rows = await fetchAllPages<IncomeRow>((pageFrom, pageTo) =>
+    supabase
+      .from("incomes")
+      .select("*")
+      .gte("income_date", from)
+      .lte("income_date", to)
+      .order("income_date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .range(pageFrom, pageTo),
+  );
+  return rows.map(mapIncome);
+}
+
+export function incomesRangeQuery(range: { from: string; to: string }) {
+  return queryOptions({
+    queryKey: ["income", "range", range.from, range.to],
+    queryFn: () => listIncomeInRange(range.from, range.to),
+  });
+}

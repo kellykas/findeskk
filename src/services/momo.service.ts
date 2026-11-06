@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { MOMO_TYPES, type MomoNetwork, type MomoType } from "@/domain/momo";
 import { toDecimalString, type Money } from "@/domain/money";
 import { toMoney } from "./ledger.service";
+import { fetchAllPages } from "./paged-rows";
 
 export interface MomoReversal {
   id: string;
@@ -208,5 +209,32 @@ export function momoQuery(limit = 100) {
   return queryOptions({
     queryKey: ["momo", "list", limit],
     queryFn: () => listMomo(limit),
+  });
+}
+
+/** Every transaction inside a date range, for reports that must total the period. */
+export async function listMomoInRange(from: string, to: string): Promise<MomoRecord[]> {
+  const [rows, reversals] = await Promise.all([
+    fetchAllPages<MomoRow>((pageFrom, pageTo) =>
+      supabase
+        .from("momo_transactions")
+        .select("*")
+        .gte("entry_date", from)
+        .lte("entry_date", to)
+        .order("entry_date", { ascending: true })
+        .order("created_at", { ascending: true })
+        .range(pageFrom, pageTo),
+    ),
+    supabase.from("momo_reversals").select("*"),
+  ]);
+
+  const reversalRows = reversals.error ? [] : ((reversals.data ?? []) as MomoReversalRow[]);
+  return mapMomoRows(rows, reversalRows);
+}
+
+export function momoRangeQuery(range: { from: string; to: string }) {
+  return queryOptions({
+    queryKey: ["momo", "range", range.from, range.to],
+    queryFn: () => listMomoInRange(range.from, range.to),
   });
 }

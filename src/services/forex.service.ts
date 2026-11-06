@@ -18,6 +18,7 @@ import {
 import { money, parseMoney, toDecimalString, type Money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
 import { toMoney } from "./ledger.service";
+import { fetchAllPages } from "./paged-rows";
 
 export interface FxRate {
   id: string;
@@ -246,5 +247,27 @@ export function fxQuery(limit = 100) {
   return queryOptions({
     queryKey: ["forex", "transactions", limit],
     queryFn: () => listFxTransactions(limit),
+  });
+}
+
+/** Every trade inside a date range, for reports that must total the whole period. */
+export async function listFxTransactionsInRange(from: string, to: string): Promise<FxRecord[]> {
+  const rows = await fetchAllPages<FxRow>((pageFrom, pageTo) =>
+    supabase
+      .from("fx_transactions")
+      .select("*")
+      .gte("entry_date", from)
+      .lte("entry_date", to)
+      .order("entry_date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .range(pageFrom, pageTo),
+  );
+  return mapFxTransactions(rows);
+}
+
+export function fxRangeQuery(range: { from: string; to: string }) {
+  return queryOptions({
+    queryKey: ["forex", "range", range.from, range.to],
+    queryFn: () => listFxTransactionsInRange(range.from, range.to),
   });
 }

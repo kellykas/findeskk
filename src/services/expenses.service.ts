@@ -11,6 +11,7 @@ import { isExpenseCategory, isPaymentSource, type ExpenseRecord } from "@/domain
 import type { Money } from "@/domain/money";
 import { toDecimalString } from "@/domain/money";
 import { toMoney } from "./ledger.service";
+import { fetchAllPages } from "./paged-rows";
 
 export interface ExpenseRow {
   id: string;
@@ -113,3 +114,25 @@ export const expensesQuery = queryOptions({
   queryKey: ["expenses", "list"],
   queryFn: () => listExpenses(),
 });
+
+/** Every expense inside a date range, for reports that must total the period. */
+export async function listExpensesInRange(from: string, to: string): Promise<ExpenseRecord[]> {
+  const rows = await fetchAllPages<ExpenseRow>((pageFrom, pageTo) =>
+    supabase
+      .from("expenses")
+      .select("*")
+      .gte("expense_date", from)
+      .lte("expense_date", to)
+      .order("expense_date", { ascending: true })
+      .order("created_at", { ascending: true })
+      .range(pageFrom, pageTo),
+  );
+  return rows.map(mapExpense);
+}
+
+export function expensesRangeQuery(range: { from: string; to: string }) {
+  return queryOptions({
+    queryKey: ["expenses", "range", range.from, range.to],
+    queryFn: () => listExpensesInRange(range.from, range.to),
+  });
+}

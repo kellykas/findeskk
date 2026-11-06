@@ -204,7 +204,13 @@
 }
 
 @media print {
-  body > *:not(.receipt-print-root):not(.id-card-print-root) {
+  /*
+   * A receipt or ID card portals its printable sheet into <body>; while it is
+   * there the rest of the app is hidden so only the sheet prints. Scoped with
+   * :has so ordinary pages, such as the reports screen, still print themselves.
+   */
+  body:has(.receipt-print-root) > *:not(.receipt-print-root),
+  body:has(.id-card-print-root) > *:not(.id-card-print-root) {
     display: none !important;
   }
 
