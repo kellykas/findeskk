@@ -62,7 +62,7 @@ Components only receive typed domain objects. The dashboard now reads ledger bal
 
 `/employees → ID card` issues one card per staff profile: a photo in the private `staff-photos`
 bucket, a unique employee number (`FD-0001`, editable by an administrator) and a random
-`id_card_token`. The card is laid out at CR80 size (85.6 × 54 mm) and printed through the browser's
+`id_card_token`. The card is laid out at CR80 size, portrait (54 × 85.6 mm) and printed through the browser's
 own print-to-PDF, so the file is vector-crisp without a PDF dependency. The printed QR code opens
 `/id/<token>`, a public route that reads `public.get_staff_id_card()` — a security-definer function
 returning only the printed fields (name, number, role, branch, status, photo path) and never the

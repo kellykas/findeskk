@@ -55,6 +55,7 @@ export async function saveStaffCard(input: {
   userId: string;
   staffCode: string;
   photoPath: string;
+  phone: string;
 }): Promise<void> {
   await saveStaffCardFn({ data: { ...input, accessToken: await currentAccessToken() } });
 }
@@ -64,6 +65,8 @@ export async function getStaffCardAdmin(userId: string): Promise<{
   token: string;
   photoPath: string;
   photoUrl: string;
+  phone: string;
+  email: string;
 }> {
   return staffCardAdminFn({ data: { userId, accessToken: await currentAccessToken() } });
 }

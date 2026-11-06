@@ -54,14 +54,23 @@ export interface StaffCard {
   branchName: string;
   active: boolean;
   companyName: string;
+  email: string;
+  phone: string;
+  branchAddress: string;
+  companyAddress: string;
+  companyPhone: string;
+  companyEmail: string;
   /** Short-lived signed link, or an empty string when no photo is on file. */
   photoUrl: string;
   token: string;
 }
 
-/** ISO/IEC 7810 ID-1 (CR80): the size every card printer and pouch expects. */
-export const ID_CARD_WIDTH_MM = 85.6;
-export const ID_CARD_HEIGHT_MM = 54;
+/**
+ * ISO/IEC 7810 ID-1 (CR80), printed in portrait as the reference design requires:
+ * 54 mm wide and 85.6 mm tall. Every card printer and pouch takes this size.
+ */
+export const ID_CARD_WIDTH_MM = 54;
+export const ID_CARD_HEIGHT_MM = 85.6;
 
 export function idCardPath(token: string): string {
   return `/id/${encodeURIComponent(token)}`;

@@ -6,6 +6,15 @@ export const FRENCH: Record<string, string> = {
   // Employee ID cards --------------------------------------------------------
   "Employee ID card": "Carte d'employé",
   "Staff ID": "Carte du personnel",
+  "ID NO.": "N° D'IDENTIFICATION",
+  "EMAIL.": "E-MAIL.",
+  "PHONE.": "TÉLÉPHONE.",
+  "If this card is found, please, Inform:": "Si cette carte est trouvée, veuillez informer :",
+  "Office:": "Bureau :",
+  "Email:": "E-mail :",
+  Phone: "Téléphone",
+  "Printed under EMAIL. on the front. Use / to separate several numbers.":
+    "Imprimé sous E-MAIL. au recto. Utilisez / pour séparer plusieurs numéros.",
   Photo: "Photo",
   "Employee ID": "Matricule",
   "Card preview": "Aperçu de la carte",
@@ -38,7 +47,7 @@ export const FRENCH: Record<string, string> = {
   "Printed under the name and used by the QR verification page.":
     "Imprimé sous le nom et utilisé par la page de vérification QR.",
   "Loading the verification link…": "Chargement du lien de vérification…",
-  "Download PDF opens the print dialog at card size (85.6 × 54 mm). Choose “Save as PDF” as the printer, then send that file to the printing company.":
+  "Download PDF opens the print dialog at card size (54 × 85.6 mm, portrait, front then back). Choose “Save as PDF” as the printer, then send that file to the printing company.":
     "Télécharger le PDF ouvre la boîte d'impression à la taille de la carte (85,6 × 54 mm). Choisissez « Enregistrer au format PDF » comme imprimante, puis envoyez ce fichier à l'imprimeur.",
   "This page is issued by the company that printed the card. It shows only what is printed on the card.":
     "Cette page est émise par l'entreprise qui a imprimé la carte. Elle n'affiche que ce qui est imprimé sur la carte.",

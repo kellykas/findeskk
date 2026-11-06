@@ -15,6 +15,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROLE_SET = new Set<string>(ROLES);
 const PHOTO_TTL_SECONDS = 600;
 const PHOTO_BUCKET = "staff-photos";
+const PHONE_PATTERN = /^[0-9+() /,-]{1,40}$/;
 
 function readToken(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -63,6 +64,7 @@ export const saveStaffCardFn = createServerFn({ method: "POST" })
       userId: str(record["userId"]).trim(),
       staffCode: str(record["staffCode"]),
       photoPath: str(record["photoPath"]).trim(),
+      phone: str(record["phone"]).trim(),
     };
   })
   .handler(async ({ data }): Promise<void> => {
@@ -71,6 +73,9 @@ export const saveStaffCardFn = createServerFn({ method: "POST" })
 
     if (!UUID.test(data.userId)) throw new Error("Choose an employee.");
     const staffCode = readStaffCode(data.staffCode);
+    if (data.phone && !PHONE_PATTERN.test(data.phone)) {
+      throw new Error("Use digits, spaces and + ( ) - only for the phone number.");
+    }
 
     // The folder is the owner: an administrator may only attach a photo that
     // belongs to this employee, never one from another profile.
@@ -84,7 +89,7 @@ export const saveStaffCardFn = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing, error: readError } = await supabaseAdmin
       .from("profiles")
-      .select("staff_code, photo_path")
+      .select("staff_code, photo_path, phone")
       .eq("id", data.userId)
       .maybeSingle();
     if (readError) throw new Error(readError.message);
@@ -98,8 +103,11 @@ export const saveStaffCardFn = createServerFn({ method: "POST" })
       .update({
         staff_code: staffCode,
         photo_path: photoPath,
+        phone: data.phone || null,
         // Only a card that actually changed is re-issued.
-        ...(photoChanged || staffCode !== existing.staff_code
+        ...(photoChanged ||
+        staffCode !== existing.staff_code ||
+        (data.phone || null) !== (existing.phone || null)
           ? { id_card_issued_at: new Date().toISOString() }
           : {}),
       })
@@ -129,7 +137,14 @@ export const staffCardAdminFn = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
-    }): Promise<{ staffCode: string; token: string; photoPath: string; photoUrl: string }> => {
+    }): Promise<{
+      staffCode: string;
+      token: string;
+      photoPath: string;
+      photoUrl: string;
+      phone: string;
+      email: string;
+    }> => {
       const caller = await requireCaller(data.accessToken);
       await assertStaffAdmin(caller);
       if (!UUID.test(data.userId)) throw new Error("Choose an employee.");
@@ -137,7 +152,7 @@ export const staffCardAdminFn = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: row, error } = await supabaseAdmin
         .from("profiles")
-        .select("staff_code, photo_path, id_card_token")
+        .select("staff_code, photo_path, id_card_token, phone, email")
         .eq("id", data.userId)
         .maybeSingle();
       if (error) throw new Error(error.message);
@@ -148,6 +163,8 @@ export const staffCardAdminFn = createServerFn({ method: "POST" })
         token: row.id_card_token,
         photoPath: row.photo_path ?? "",
         photoUrl: await signPhoto(row.photo_path ?? ""),
+        phone: row.phone ?? "",
+        email: row.email ?? "",
       };
     },
   );
@@ -185,6 +202,12 @@ export const staffCardPublicFn = createServerFn({ method: "POST" })
       branchName: str(record["branchName"]),
       active: record["active"] === true,
       companyName: str(record["companyName"]),
+      email: str(record["email"]),
+      phone: str(record["phone"]),
+      branchAddress: str(record["branchAddress"]),
+      companyAddress: str(record["companyAddress"]),
+      companyPhone: str(record["companyPhone"]),
+      companyEmail: str(record["companyEmail"]),
       photoUrl: await signPhoto(str(record["photoPath"])),
       token: data.token,
     };

@@ -245,11 +245,7 @@
   }
 }
 
-@media print {
-  header,
-  nav,
-  aside,
-  /*
+/*
  * Employee ID card.
  *
  * The card prints at CR80 size (85.6 × 54 mm), which is what card printers and
@@ -268,6 +264,15 @@
     background: #fff;
   }
 
+  /* One card side per printed page: front, then back. */
+  .id-card-print-page {
+    break-after: page;
+    overflow: hidden;
+  }
+  .id-card-print-page:last-child {
+    break-after: auto;
+  }
+
   .id-card-print-root,
   .id-card-print-root * {
     -webkit-print-color-adjust: exact;
@@ -275,7 +280,8 @@
   }
 }
 
-[data-sidebar],
+@media print {
+  [data-sidebar],
   [role="navigation"],
   button:not(.print-allow),
   .no-print {

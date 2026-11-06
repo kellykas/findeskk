@@ -881,6 +881,7 @@ export type Database = {
           id: string;
           id_card_issued_at: string | null;
           id_card_token: string;
+          phone: string | null;
           photo_path: string | null;
           staff_code: string | null;
           updated_at: string;
@@ -893,6 +894,7 @@ export type Database = {
           id: string;
           id_card_issued_at?: string | null;
           id_card_token?: string;
+          phone?: string | null;
           photo_path?: string | null;
           staff_code?: string | null;
           updated_at?: string;
@@ -905,6 +907,7 @@ export type Database = {
           id?: string;
           id_card_issued_at?: string | null;
           id_card_token?: string;
+          phone?: string | null;
           photo_path?: string | null;
           staff_code?: string | null;
           updated_at?: string;

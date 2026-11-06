@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Download, ImagePlus, Link2 } from "lucide-react";
 
-import { StaffIdCard } from "@/components/employees/StaffIdCard";
+import { CARD_PX_WIDTH, StaffIdCard } from "@/components/employees/StaffIdCard";
 import { FormError } from "@/components/shared/FormError";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,10 +39,9 @@ interface Props {
 }
 
 /** CSS pixels at 96 dpi, which is the unit the card component is laid out in. */
-const CARD_WIDTH_PX = 340;
 const MM_TO_PX = 96 / 25.4;
-/** Scale that turns the 340 px card into exactly 85.6 mm on paper. */
-const PRINT_SCALE = (ID_CARD_WIDTH_MM * MM_TO_PX) / CARD_WIDTH_PX;
+/** Scale that turns the card's CSS width into exactly 54 mm on paper. */
+const PRINT_SCALE = (ID_CARD_WIDTH_MM * MM_TO_PX) / CARD_PX_WIDTH;
 
 /**
  * Issues one employee's ID card: photo, employee number, QR code and a
@@ -60,6 +59,7 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
   const branches = useQuery({ ...branchesQuery, enabled: open });
 
   const [staffCode, setStaffCode] = useState("");
+  const [phone, setPhone] = useState("");
   const [photoPath, setPhotoPath] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [pending, setPending] = useState<{ file: File; url: string } | null>(null);
@@ -68,6 +68,7 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
   useEffect(() => {
     if (!details.data) return;
     setStaffCode(details.data.staffCode);
+    setPhone(details.data.phone);
     setPhotoPath(details.data.photoPath);
     setPhotoUrl(details.data.photoUrl);
   }, [details.data]);
@@ -97,15 +98,23 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
       branchName,
       active: staff.active,
       companyName: settings.data?.companyName ?? branding.appName,
+      email: details.data?.email ?? "",
+      phone,
+      branchAddress: "",
+      companyAddress: settings.data?.address ?? "",
+      companyPhone: settings.data?.phone ?? "",
+      companyEmail: settings.data?.email ?? "",
       photoUrl: pending?.url ?? photoUrl,
       token,
     }),
     [
       staff,
       staffCode,
+      phone,
       branchName,
-      settings.data?.companyName,
+      settings.data,
       branding.appName,
+      details.data?.email,
       pending,
       photoUrl,
       token,
@@ -123,6 +132,7 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
         userId: staff.id,
         staffCode: parsed.data.staffCode,
         photoPath: path,
+        phone: phone.trim(),
       });
       return parsed.data.staffCode;
     },
@@ -215,6 +225,22 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
             </p>
           </div>
 
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="card-phone">{t("Phone")}</Label>
+            <Input
+              id="card-phone"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="+256 743 199 932 / +256 740 690 451"
+              maxLength={40}
+              autoComplete="off"
+              disabled={details.isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("Printed under EMAIL. on the front. Use / to separate several numbers.")}
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="card-code">{t("Employee ID")}</Label>
             <Input
@@ -236,7 +262,7 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
 
         <div className="space-y-2">
           <Label>{t("Card preview")}</Label>
-          <div className="flex justify-center rounded-lg border bg-muted/40 p-4">
+          <div className="flex justify-center rounded-lg border bg-muted/40 p-4 sm:p-6">
             <StaffIdCard
               card={card}
               link={link}
@@ -277,7 +303,7 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
 
         <p className="text-xs text-muted-foreground">
           {t(
-            "Download PDF opens the print dialog at card size (85.6 × 54 mm). Choose “Save as PDF” as the printer, then send that file to the printing company.",
+            "Download PDF opens the print dialog at card size (54 × 85.6 mm, portrait, front then back). Choose “Save as PDF” as the printer, then send that file to the printing company.",
           )}
         </p>
       </DialogContent>
@@ -287,19 +313,28 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
         createPortal(
           <div
             className="id-card-print-root overflow-hidden bg-white"
-            style={{ width: `${ID_CARD_WIDTH_MM}mm`, height: `${ID_CARD_HEIGHT_MM}mm` }}
+            style={{ width: `${ID_CARD_WIDTH_MM}mm` }}
           >
             {/* @page cannot read a class or a variable, so the size is literal. */}
             <style>{`@page { size: ${ID_CARD_WIDTH_MM}mm ${ID_CARD_HEIGHT_MM}mm; margin: 0 }`}</style>
-            <div style={{ transform: `scale(${PRINT_SCALE})`, transformOrigin: "top left" }}>
-              <StaffIdCard
-                card={card}
-                link={link}
-                logoUrl={branding.logoUrl}
-                primary={branding.primary}
-                className="rounded-none border-0"
-              />
-            </div>
+            {(["front", "back"] as const).map((side) => (
+              <div
+                key={side}
+                className="id-card-print-page"
+                style={{ width: `${ID_CARD_WIDTH_MM}mm`, height: `${ID_CARD_HEIGHT_MM}mm` }}
+              >
+                <div style={{ transform: `scale(${PRINT_SCALE})`, transformOrigin: "top left" }}>
+                  <StaffIdCard
+                    card={card}
+                    link={link}
+                    logoUrl={branding.logoUrl}
+                    primary={branding.primary}
+                    side={side}
+                    className="rounded-none border-0"
+                  />
+                </div>
+              </div>
+            ))}
           </div>,
           document.body,
         )}
