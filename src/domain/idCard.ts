@@ -72,6 +72,26 @@ export interface StaffCard {
 export const ID_CARD_WIDTH_MM = 54;
 export const ID_CARD_HEIGHT_MM = 85.6;
 
+/**
+ * The card palette is fixed, not the app theme: it is printed artwork, so a
+ * change to the screen brand colour must not alter a card staff already hold.
+ */
+export const ID_CARD_GREEN = "#0f7a3d";
+export const ID_CARD_GOLD = "#f5c518";
+
+/**
+ * Largest size that keeps a name on one line, so a long name shrinks instead of
+ * being cut off. Bold capitals of the interface font average about 0.64 em of
+ * advance width; measuring for real needs a browser, and the card is also
+ * rendered on the server where there is none.
+ */
+export function cardNameFontSize(name: string, maxWidth = 320, base = 25, min = 13): number {
+  const glyphs = [...name.trim()].length;
+  if (glyphs === 0) return base;
+  const fitted = maxWidth / (glyphs * 0.64);
+  return Math.max(min, Math.min(base, Math.floor(fitted * 10) / 10));
+}
+
 export function idCardPath(token: string): string {
   return `/id/${encodeURIComponent(token)}`;
 }

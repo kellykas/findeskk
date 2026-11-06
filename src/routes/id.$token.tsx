@@ -39,18 +39,10 @@ function VerifyStaffCard() {
   if (query.isPending) return <Notice text={t("Checking employee ID…")} />;
   if (query.isError) return <Notice text={t("This employee card could not be loaded.")} />;
 
-  return <Verification card={card!} logoUrl={branding.logoUrl} primary={branding.primary} />;
+  return <Verification card={card!} logoUrl={branding.logoUrl} />;
 }
 
-function Verification({
-  card,
-  logoUrl,
-  primary,
-}: {
-  card: StaffCard;
-  logoUrl: string;
-  primary: string;
-}) {
+function Verification({ card, logoUrl }: { card: StaffCard; logoUrl: string }) {
   const roles = card.roles.map((role) => ROLE_LABELS[role]).join(" · ") || "Staff";
 
   return (
@@ -89,12 +81,7 @@ function Verification({
         </div>
 
         <div className="flex justify-center">
-          <StaffIdCard
-            card={card}
-            link={idCardLink(card.token)}
-            logoUrl={logoUrl}
-            primary={primary}
-          />
+          <StaffIdCard card={card} link={idCardLink(card.token)} logoUrl={logoUrl} />
         </div>
 
         <dl className="divide-y divide-border/60 rounded-lg border border-border/60 bg-card text-sm">

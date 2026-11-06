@@ -288,12 +288,7 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
         <div className="space-y-2">
           <Label>{t("Card preview")}</Label>
           <div className="flex justify-center rounded-lg border bg-muted/40 p-4 sm:p-6">
-            <StaffIdCard
-              card={card}
-              link={link}
-              logoUrl={branding.logoUrl}
-              primary={branding.primary}
-            />
+            <StaffIdCard card={card} link={link} logoUrl={branding.logoUrl} />
           </div>
           <p className="break-all text-xs text-muted-foreground">
             {link ? `${t("Verification link")}: ${link}` : t("Loading the verification link…")}
@@ -353,7 +348,6 @@ export function StaffIdCardDialog({ staff, open, onOpenChange }: Props) {
                     card={card}
                     link={link}
                     logoUrl={branding.logoUrl}
-                    primary={branding.primary}
                     side={side}
                     className="rounded-none border-0"
                   />

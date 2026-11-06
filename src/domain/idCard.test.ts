@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cardNameFontSize,
+  ID_CARD_GREEN,
   idCardLink,
   idCardPath,
   normalizeStaffCode,
@@ -77,5 +79,31 @@ describe("card text", () => {
   it("names the most senior role", () => {
     expect(primaryRoleLabel(["forex_teller", "super_admin"])).toBe("Super Admin");
     expect(primaryRoleLabel([])).toBe("Staff");
+  });
+});
+
+describe("card name sizing", () => {
+  it("keeps the reference name at full size", () => {
+    expect(cardNameFontSize("Kasongo Kelly David")).toBe(25);
+  });
+
+  it("shrinks a long name instead of cutting it off", () => {
+    const size = cardNameFontSize("Bartholomew Nsubuga-Kirunda Wasswa");
+    expect(size).toBeLessThan(25);
+    expect(size).toBeGreaterThanOrEqual(13);
+  });
+
+  it("stops at the smallest readable size for an absurdly long name", () => {
+    expect(cardNameFontSize("A".repeat(80))).toBe(13);
+  });
+
+  it("falls back to the reference size for an empty name", () => {
+    expect(cardNameFontSize("   ")).toBe(25);
+  });
+});
+
+describe("card palette", () => {
+  it("is the printed artwork colour, not the screen theme", () => {
+    expect(ID_CARD_GREEN).toBe("#0f7a3d");
   });
 });

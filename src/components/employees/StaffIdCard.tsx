@@ -1,5 +1,12 @@
 import { QrCode } from "@/components/shared/QrCode";
-import { primaryRoleLabel, staffInitials, type StaffCard } from "@/domain/idCard";
+import {
+  ID_CARD_GOLD,
+  ID_CARD_GREEN,
+  cardNameFontSize,
+  primaryRoleLabel,
+  staffInitials,
+  type StaffCard,
+} from "@/domain/idCard";
 import { t } from "@/domain/i18n";
 import { cn } from "@/lib/utils";
 
@@ -8,10 +15,6 @@ interface Props {
   /** Absolute verification link encoded in both QR codes. */
   link: string;
   logoUrl?: string | undefined;
-  /** The company green: name, photo frame, QR side bars and the back header. */
-  primary?: string;
-  /** The company gold: the paired bar on both sides of the card. */
-  accent?: string;
   /** Which side to draw; the print dialog prints one side per page. */
   side?: "front" | "back" | "both";
   className?: string | undefined;
@@ -25,50 +28,23 @@ export const CARD_PX_HEIGHT = 539;
 /** Matches the app's own family, with the classic grotesque as a fallback. */
 const CARD_FONT = '"IBM Plex Sans", Arial, Helvetica, sans-serif';
 
-/** Deep emerald and gold of the approved reference card. */
-const DEFAULT_PRIMARY = "#0f7a3d";
-const DEFAULT_ACCENT = "#f5c518";
-
 /**
  * The printed card, built to the approved reference: a portrait CR80 front
- * (photo in a green frame, two-tone-free green name, ID/email/phone block, logo
- * and QR) and a back with the company header, office details and a large QR.
+ * (photo in a green frame, green name, ID/email/phone block, mark and QR) and a
+ * back with the company header, office details and a large QR.
  *
  * Every measurement is in card pixels against {@link CARD_PX_WIDTH}, so the
  * dialog can scale the whole card to millimetres for printing without any
- * element drifting out of place.
+ * element drifting out of place. The colours are the card's own
+ * ({@link ID_CARD_GREEN} / {@link ID_CARD_GOLD}), not the screen theme.
  */
-export function StaffIdCard({
-  card,
-  link,
-  logoUrl,
-  primary = DEFAULT_PRIMARY,
-  accent = DEFAULT_ACCENT,
-  side = "both",
-  className,
-}: Props) {
+export function StaffIdCard({ card, link, logoUrl, side = "both", className }: Props) {
   const company = card.companyName || t("FinDesk");
   const front = (
-    <CardFront
-      card={card}
-      link={link}
-      logoUrl={logoUrl}
-      company={company}
-      primary={primary}
-      accent={accent}
-      className={className}
-    />
+    <CardFront card={card} link={link} logoUrl={logoUrl} company={company} className={className} />
   );
   const back = (
-    <CardBack
-      card={card}
-      link={link}
-      logoUrl={logoUrl}
-      company={company}
-      primary={primary}
-      accent={accent}
-      className={className}
-    />
+    <CardBack card={card} link={link} logoUrl={logoUrl} company={company} className={className} />
   );
   if (side === "front") return front;
   if (side === "back") return back;
@@ -108,22 +84,19 @@ function Logo({
   color,
   fontSize,
   className,
-  style,
 }: {
   logoUrl?: string | undefined;
   company: string;
   color: string;
   fontSize: number;
   className?: string | undefined;
-  style?: React.CSSProperties | undefined;
 }) {
   if (logoUrl) {
     return (
       <img
         src={logoUrl}
         alt=""
-        className={cn("object-contain", className)}
-        style={style}
+        className={cn("max-h-full max-w-full object-contain", className)}
         crossOrigin="anonymous"
       />
     );
@@ -131,7 +104,7 @@ function Logo({
   return (
     <span
       className={cn("block text-center font-extrabold uppercase leading-[1.05]", className)}
-      style={{ color, fontSize, ...style }}
+      style={{ color, fontSize }}
     >
       {company}
     </span>
@@ -143,22 +116,19 @@ function CardFront({
   link,
   logoUrl,
   company,
-  primary,
-  accent,
   className,
 }: {
   card: StaffCard;
   link: string;
   logoUrl?: string | undefined;
   company: string;
-  primary: string;
-  accent: string;
   className?: string | undefined;
 }) {
   const phones = card.phone
     .split("/")
     .map((line) => line.trim())
     .filter(Boolean);
+  const nameSize = cardNameFontSize(card.displayName);
 
   return (
     <CardBody className={className}>
@@ -173,7 +143,7 @@ function CardFront({
           width: 118,
           height: 26,
           borderRadius: 13,
-          backgroundColor: primary,
+          backgroundColor: ID_CARD_GREEN,
           transform: "rotate(-35deg)",
         }}
       />
@@ -186,7 +156,7 @@ function CardFront({
           width: 210,
           height: 34,
           borderRadius: 17,
-          backgroundColor: primary,
+          backgroundColor: ID_CARD_GREEN,
           transform: "rotate(-35deg)",
         }}
       />
@@ -199,7 +169,7 @@ function CardFront({
           width: 150,
           height: 22,
           borderRadius: 11,
-          backgroundColor: accent,
+          backgroundColor: ID_CARD_GOLD,
           transform: "rotate(-35deg)",
         }}
       />
@@ -212,7 +182,7 @@ function CardFront({
           top: 18,
           width: 130,
           height: 142,
-          border: `2px solid ${primary}`,
+          border: `2px solid ${ID_CARD_GREEN}`,
         }}
       >
         {card.photoUrl ? (
@@ -229,16 +199,17 @@ function CardFront({
         )}
       </div>
 
-      {/* Name and role: name in the company colour, role in black. */}
+      {/* Name and role: name in the company colour, role in black. A long name
+          steps down in size rather than being cut off. */}
       <div className="absolute inset-x-0 px-2 text-center" style={{ top: 181 }}>
         <p
           className="truncate uppercase"
           style={{
-            fontSize: 25,
-            lineHeight: "29px",
+            fontSize: nameSize,
+            lineHeight: `${Math.round(nameSize * 1.16)}px`,
             fontWeight: 800,
             letterSpacing: "-0.3px",
-            color: primary,
+            color: ID_CARD_GREEN,
           }}
         >
           {card.displayName}
@@ -294,13 +265,7 @@ function CardFront({
         className="absolute flex items-center justify-center overflow-hidden"
         style={{ left: 196, top: 248, width: 120, height: 46 }}
       >
-        <Logo
-          logoUrl={logoUrl}
-          company={company}
-          color={primary}
-          fontSize={13}
-          className="max-h-full max-w-full"
-        />
+        <Logo logoUrl={logoUrl} company={company} color={ID_CARD_GREEN} fontSize={13} />
       </div>
 
       {/* Front QR: bottom right, 150 px square, 18 px from the edge. */}
@@ -320,16 +285,12 @@ function CardBack({
   link,
   logoUrl,
   company,
-  primary,
-  accent,
   className,
 }: {
   card: StaffCard;
   link: string;
   logoUrl?: string | undefined;
   company: string;
-  primary: string;
-  accent: string;
   className?: string | undefined;
 }) {
   const address = card.branchAddress || card.companyAddress;
@@ -341,7 +302,8 @@ function CardBack({
 
   return (
     <CardBody className={className}>
-      {/* Company header: green field with a curve sweeping down to the left. */}
+      {/* Company header: green field with a curve sweeping down to the left, and
+          the thin white swoosh that runs inside its lower edge on the right. */}
       <svg
         aria-hidden
         className="absolute left-0 top-0"
@@ -350,20 +312,21 @@ function CardBack({
         viewBox={`0 0 ${CARD_PX_WIDTH} 212`}
         preserveAspectRatio="none"
       >
-        <path d="M0 0 H340 V107 C 262 110 128 156 0 210 Z" fill={primary} />
+        <path d="M0 0 H340 V107 C 262 110 128 156 0 210 Z" fill={ID_CARD_GREEN} />
+        <path
+          d="M340 90 C 300 94 258 110 226 128"
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth={6}
+          strokeLinecap="round"
+        />
       </svg>
 
       <div
         className="absolute flex items-center justify-center"
         style={{ left: 58, top: 38, width: 224, height: 80 }}
       >
-        <Logo
-          logoUrl={logoUrl}
-          company={company}
-          color="#ffffff"
-          fontSize={24}
-          className="max-h-full max-w-full"
-        />
+        <Logo logoUrl={logoUrl} company={company} color="#ffffff" fontSize={24} />
       </div>
 
       {/* What to do if the card is found, then the office contacts. */}
@@ -408,7 +371,7 @@ function CardBack({
           width: 205,
           height: 28,
           borderRadius: 14,
-          backgroundColor: accent,
+          backgroundColor: ID_CARD_GOLD,
           transform: "rotate(-35deg)",
         }}
       />
@@ -421,7 +384,7 @@ function CardBack({
           width: 230,
           height: 34,
           borderRadius: 17,
-          backgroundColor: primary,
+          backgroundColor: ID_CARD_GREEN,
           transform: "rotate(-35deg)",
         }}
       />
