@@ -30,6 +30,11 @@ export interface ReportLine {
   amount: string | number;
 }
 
+/** A line with the date of its entry, so it can be placed in a month. */
+export interface DatedReportLine extends ReportLine {
+  date: string;
+}
+
 export interface ProfitAndLossRow {
   code: string;
   name: string;
@@ -155,6 +160,68 @@ export function previousPeriod(range: DateRange): DateRange | null {
     from: isoFromDay(previousEnd - (days - 1) * DAY_MS),
     to: isoFromDay(previousEnd),
   };
+}
+
+function monthIndexFromIso(value: string): number | null {
+  const day = dayFromIso(value);
+  if (day === null) return null;
+  const date = new Date(day);
+  return date.getUTCFullYear() * 12 + date.getUTCMonth();
+}
+
+/** `YYYY-MM` for a month index counted from January of year 0. */
+function monthKey(index: number): string {
+  const year = Math.floor(index / 12);
+  const month = index % 12;
+  return `${String(year).padStart(4, "0")}-${String(month + 1).padStart(2, "0")}`;
+}
+
+export interface MonthlyPoint {
+  /** Month key, `YYYY-MM`. */
+  month: string;
+  income: Money;
+  expenses: Money;
+  net: Money;
+}
+
+/**
+ * Income and expenses per month for every month in `range`, including months
+ * with no postings. A reversal (a debit against an income account, or a credit
+ * against an expense account) reduces that month rather than being dropped, so
+ * the bars always reconcile with the income statement for the same dates.
+ */
+export function buildMonthlyTrend(
+  accounts: readonly ReportAccount[],
+  lines: readonly DatedReportLine[],
+  range: DateRange,
+): MonthlyPoint[] {
+  const start = monthIndexFromIso(range.from);
+  const end = monthIndexFromIso(range.to);
+  if (start === null || end === null || end < start) return [];
+
+  const typeById = new Map(accounts.map((account) => [account.accountId, account.type]));
+  const buckets = new Map<string, { income: bigint; expenses: bigint }>();
+  for (let index = start; index <= end; index += 1) {
+    buckets.set(monthKey(index), { income: 0n, expenses: 0n });
+  }
+
+  for (const line of lines) {
+    const type = typeById.get(line.accountId);
+    if (type !== "income" && type !== "expense") continue;
+    const bucket = buckets.get(line.date.slice(0, 7));
+    if (!bucket) continue;
+    const amount = numericToMinor(line.amount);
+    const increase = line.side === (type === "income" ? "credit" : "debit");
+    if (type === "income") bucket.income += increase ? amount : -amount;
+    else bucket.expenses += increase ? amount : -amount;
+  }
+
+  return [...buckets.entries()].map(([month, totals]) => ({
+    month,
+    income: money(totals.income, BASE_CURRENCY),
+    expenses: money(totals.expenses, BASE_CURRENCY),
+    net: money(totals.income - totals.expenses, BASE_CURRENCY),
+  }));
 }
 
 export type ChangeDirection = "up" | "down" | "flat";

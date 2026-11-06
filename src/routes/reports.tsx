@@ -2,21 +2,31 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Printer } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { can } from "@/domain/access";
-import { BASE_CURRENCY } from "@/domain/currency";
+import { BASE_CURRENCY, getCurrency } from "@/domain/currency";
 import { todayUtcDate } from "@/domain/date";
 import { t } from "@/domain/i18n";
 import { ACCOUNT_TYPE_LABELS, signedBalance } from "@/domain/ledger";
 import { formatMoney, money, type Money } from "@/domain/money";
 import {
   buildBranchPerformance,
+  buildMonthlyTrend,
   buildPeriodReport,
   buildTellerPerformance,
   changeVsPrevious,
@@ -28,6 +38,7 @@ import {
   type ProfitAndLossRow,
   type TellerPerformance,
 } from "@/domain/reports";
+import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { expensesRangeQuery } from "@/services/expenses.service";
 import { fxRangeQuery } from "@/services/forex.service";
@@ -53,8 +64,31 @@ export const Route = createFileRoute("/reports")({
 });
 
 const DAY_MS = 86_400_000;
+const TREND_MONTHS = 12;
+/** Minor units per major unit, so chart values keep the ledger's precision. */
+const MINOR_PER_UNIT = 10 ** getCurrency(BASE_CURRENCY).decimals;
 
 const isoDay = (value: number) => new Date(value).toISOString().slice(0, 10);
+
+/** Chart bars and axis ticks need numbers, not bigints. */
+const toChartValue = (amount: Money) => Number(amount.minor) / MINOR_PER_UNIT;
+
+const compactNumber = new Intl.NumberFormat("en-GB", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/**
+ * The twelve months ending with the month of `endIso`. The chart follows the end
+ * of the reporting period, so a closed month can be read in context.
+ */
+function trailingMonths(endIso: string, months: number): { from: string; to: string } | null {
+  const parsed = Date.parse(`${endIso}T00:00:00Z`);
+  if (!Number.isFinite(parsed)) return null;
+  const end = new Date(parsed);
+  const start = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - (months - 1), 1));
+  return { from: start.toISOString().slice(0, 10), to: endIso };
+}
 
 /**
  * Shortcuts a shop actually asks for: today's till, the week, this month, the
@@ -90,6 +124,7 @@ function downloadCsv(name: string, csv: string) {
 
 function Reports() {
   const { viewer } = useSession();
+  const { locale } = useLanguage();
   const allowed = Boolean(viewer && can(viewer.roles, "reports.view"));
   const presets = useMemo(rangePresets, []);
   const [range, setRange] = useState(() => {
@@ -103,6 +138,12 @@ function Reports() {
   const prior = useQuery({
     ...reportQuery(priorRange ?? range),
     enabled: allowed && !invalidRange && priorRange !== null,
+  });
+
+  const trendRange = useMemo(() => trailingMonths(range.to, TREND_MONTHS), [range.to]);
+  const trendLedger = useQuery({
+    ...reportQuery(trendRange ?? range),
+    enabled: allowed && trendRange !== null,
   });
 
   const forex = useQuery({ ...fxRangeQuery(range), enabled: allowed && !invalidRange });
@@ -121,6 +162,44 @@ function Reports() {
     () => (prior.data ? buildPeriodReport(prior.data.accounts, prior.data.lines) : null),
     [prior.data],
   );
+
+  const trend = useMemo(
+    () =>
+      trendLedger.data && trendRange
+        ? buildMonthlyTrend(trendLedger.data.accounts, trendLedger.data.lines, trendRange)
+        : [],
+    [trendLedger.data, trendRange],
+  );
+  const trendData = useMemo(() => {
+    const shortMonth = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
+    const longMonth = new Intl.DateTimeFormat(locale, {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+    return trend.map((point, index) => {
+      const date = new Date(`${point.month}-01T00:00:00Z`);
+      const short = shortMonth.format(date);
+      // The year is spelled out where the axis starts and every January, so a
+      // window that crosses a new year stays readable.
+      const label =
+        index === 0 || point.month.endsWith("-01") ? `${short} ${date.getUTCFullYear()}` : short;
+      return {
+        month: point.month,
+        label,
+        title: longMonth.format(date),
+        income: toChartValue(point.income),
+        expenses: toChartValue(point.expenses),
+      };
+    });
+  }, [trend, locale]);
+  const trendIsEmpty =
+    trend.length === 0 ||
+    trend.every((point) => point.income.minor === 0n && point.expenses.minor === 0n);
+  const trendConfig = {
+    income: { label: t("Income"), color: "var(--chart-1)" },
+    expenses: { label: t("Expenses"), color: "var(--chart-3)" },
+  } satisfies ChartConfig;
 
   const trades = useMemo(() => forex.data ?? [], [forex.data]);
   const momoRows = useMemo(() => momo.data ?? [], [momo.data]);
@@ -357,6 +436,94 @@ function Reports() {
               value={String(report.postedLines)}
               hint={`${ledger.data?.entries ?? 0} entries`}
             />
+          </div>
+
+          <div className="mt-6">
+            <SectionCard
+              title={t("Income versus expenses by month")}
+              action={
+                trendRange && (
+                  <span className="text-xs text-muted-foreground">
+                    {t("Last {months} months to {date}", {
+                      months: TREND_MONTHS,
+                      date: range.to,
+                    })}
+                  </span>
+                )
+              }
+            >
+              {trendLedger.isPending ? (
+                <p className="px-5 pb-6 text-sm text-muted-foreground">{t("Loading the trend…")}</p>
+              ) : trendLedger.isError ? (
+                <p className="px-5 pb-6 text-sm text-muted-foreground">
+                  {t("The monthly trend could not be loaded.")}
+                </p>
+              ) : trendIsEmpty ? (
+                <p className="px-5 pb-6 text-sm text-muted-foreground">
+                  {t("No income or expenses were posted in these months.")}
+                </p>
+              ) : (
+                <div className="px-2 pb-4 sm:px-4">
+                  <ChartContainer config={trendConfig} className="aspect-auto h-64 w-full">
+                    <BarChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        fontSize={11}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        width={52}
+                        fontSize={11}
+                        tickFormatter={(value: number) => compactNumber.format(value)}
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={
+                          <ChartTooltipContent
+                            labelFormatter={(_label, payload) =>
+                              (payload?.[0]?.payload as { title?: string } | undefined)?.title ?? ""
+                            }
+                            formatter={(value, name) => {
+                              const isIncome = String(name) === "income";
+                              const minor = BigInt(Math.round(Number(value) * MINOR_PER_UNIT));
+                              return (
+                                <div className="flex w-full items-center justify-between gap-4">
+                                  <span className="text-muted-foreground">
+                                    {isIncome ? t("Income") : t("Expenses")}
+                                  </span>
+                                  <span className="tabular font-medium">
+                                    {formatMoney(money(minor, BASE_CURRENCY))}
+                                  </span>
+                                </div>
+                              );
+                            }}
+                          />
+                        }
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Bar
+                        dataKey="income"
+                        fill="var(--color-income)"
+                        radius={[3, 3, 0, 0]}
+                        maxBarSize={26}
+                      />
+                      <Bar
+                        dataKey="expenses"
+                        fill="var(--color-expenses)"
+                        radius={[3, 3, 0, 0]}
+                        maxBarSize={26}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              )}
+            </SectionCard>
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">

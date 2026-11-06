@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { money } from "./money";
 import {
   buildBranchPerformance,
+  buildMonthlyTrend,
   buildPeriodReport,
   buildTellerPerformance,
   changeVsPrevious,
@@ -116,6 +117,38 @@ describe("previous period", () => {
       to: "2026-11-05",
     });
     expect(previousPeriod({ from: "2026-11-06", to: "2026-11-01" })).toBeNull();
+  });
+});
+
+describe("monthly trend", () => {
+  const dated = [
+    { accountId: "a2", side: "credit" as const, amount: "300000.00", date: "2026-09-12" },
+    { accountId: "a3", side: "debit" as const, amount: "80000.00", date: "2026-09-30" },
+    { accountId: "a2", side: "credit" as const, amount: "500000.00", date: "2026-11-02" },
+    { accountId: "a3", side: "debit" as const, amount: "120000.00", date: "2026-11-03" },
+    // A reversal reduces the month it reverses.
+    { accountId: "a2", side: "debit" as const, amount: "20000.00", date: "2026-11-04" },
+    // Cash movement is neither income nor an expense.
+    { accountId: "a1", side: "debit" as const, amount: "999000.00", date: "2026-11-04" },
+  ];
+
+  it("groups income and expenses by month and fills empty months with zero", () => {
+    const points = buildMonthlyTrend(accounts, dated, { from: "2026-09-01", to: "2026-11-30" });
+
+    expect(points.map((point) => point.month)).toEqual(["2026-09", "2026-10", "2026-11"]);
+    expect(points[0]?.income.minor).toBe(300_000n);
+    expect(points[0]?.expenses.minor).toBe(80_000n);
+    expect(points[1]?.income.minor).toBe(0n);
+    expect(points[1]?.net.minor).toBe(0n);
+    expect(points[2]?.income.minor).toBe(480_000n);
+    expect(points[2]?.expenses.minor).toBe(120_000n);
+    expect(points[2]?.net.minor).toBe(360_000n);
+  });
+
+  it("crosses a year boundary in order and rejects a backwards range", () => {
+    const points = buildMonthlyTrend(accounts, [], { from: "2026-12-15", to: "2027-02-02" });
+    expect(points.map((point) => point.month)).toEqual(["2026-12", "2027-01", "2027-02"]);
+    expect(buildMonthlyTrend(accounts, [], { from: "2026-12-31", to: "2026-01-01" })).toEqual([]);
   });
 });
 

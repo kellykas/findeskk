@@ -251,8 +251,8 @@ export const FRENCH: Record<string, string> = {
     "Vue en lecture seule du plan comptable, de la balance générale et des écritures comptabilisées.",
   "Ledger-reconciled operational and financial reports.":
     "Rapports opérationnels et financiers rapprochés avec le grand livre.",
-  "Financial figures come from posted journal lines. Forex and mobile money totals cover the latest 200 records in the period.":
-    "Les chiffres financiers proviennent des lignes comptabilisées. Les totaux de change et de mobile money portent sur les 200 derniers enregistrements de la période.",
+  "Financial figures come from posted journal lines; operations cover every record in the period.":
+    "Les chiffres financiers proviennent des lignes comptabilisées ; les opérations couvrent tous les enregistrements de la période.",
   "Record expenses and income and read the ledgers.":
     "Enregistrez les dépenses et les produits et consultez les grands livres.",
   "Every expense and income posts a balanced journal entry against the chart of accounts.":
@@ -314,6 +314,12 @@ export const FRENCH: Record<string, string> = {
   "Financial report": "Rapport financier",
   "Export trial balance (CSV)": "Exporter la balance (CSV)",
   "Export activity (CSV)": "Exporter l'activité (CSV)",
+  "Income versus expenses by month": "Produits et charges par mois",
+  "Last {months} months to {date}": "{months} derniers mois jusqu'au {date}",
+  "Loading the trend…": "Chargement de la tendance…",
+  "The monthly trend could not be loaded.": "Impossible de charger la tendance mensuelle.",
+  "No income or expenses were posted in these months.":
+    "Aucun produit ni charge comptabilisé sur ces mois.",
   "Settings unavailable": "Paramètres indisponibles",
   "Receipts and reporting": "Reçus et rapports",
   "Currencies & rates": "Devises et taux",
