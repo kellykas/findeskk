@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { Eye, EyeOff } from "lucide-react";
 
 import { BrandMark } from "@/components/auth/BrandMark";
@@ -27,6 +27,9 @@ export const Route = createFileRoute("/login")({
         property: "og:description",
         content: "Sign in to FinDesk to manage forex and mobile money operations.",
       },
+      // The staff portal is for staff. Keep it out of search results so a
+      // customer looking up the company never finds a login form first.
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: Login,
@@ -235,13 +238,6 @@ function Login() {
                 {t(
                   "Staff accounts are issued by your company administrator. Roles and branch access are granted after your first sign-in.",
                 )}
-              </p>
-
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                {t("Need something from the branch?")}{" "}
-                <Link to="/request" className="font-semibold text-primary hover:underline">
-                  {t("Request a service")}
-                </Link>
               </p>
             </div>
           </div>

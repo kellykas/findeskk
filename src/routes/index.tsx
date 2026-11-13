@@ -70,9 +70,10 @@ function compactAxis(value: number): string {
 function Dashboard() {
   const { status } = useSession();
 
-  // AppShell renders the loading state or the sign-in gate; querying the ledger
-  // only makes sense once a real session exists.
-  if (status !== "signed_in") return <AppShell>{null}</AppShell>;
+  // AppShell renders the loading state or the public gate; querying the ledger
+  // only makes sense once a real session exists. A visitor who is not staff
+  // lands on the customer request page, never on the staff sign-in.
+  if (status !== "signed_in") return <AppShell signedOutTo="/request">{null}</AppShell>;
 
   return <DashboardContent />;
 }

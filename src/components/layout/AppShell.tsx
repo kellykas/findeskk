@@ -11,9 +11,15 @@ import { AppTopBar } from "./AppTopBar";
 
 export interface AppShellProps {
   children?: ReactNode;
+  /**
+   * Where a signed-out visitor is sent. The dashboard points at the public
+   * customer page so the domain's front door never shows the staff sign-in;
+   * every other protected page still goes to /login.
+   */
+  signedOutTo?: "/login" | "/request";
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, signedOutTo = "/login" }: AppShellProps) {
   const [open, setOpen] = useState(false);
   const { status } = useSession();
   const { t } = useLanguage();
@@ -26,7 +32,7 @@ export function AppShell({ children }: AppShellProps) {
   // Without a session there is nothing to show, so go to the sign-in page. This
   // covers signing out as well as opening a protected page while signed out, and
   // it replaces the history entry so Back does not return to a signed-out shell.
-  if (status === "signed_out") return <Navigate to="/login" replace />;
+  if (status === "signed_out") return <Navigate to={signedOutTo} replace />;
 
   const body: ReactNode =
     status === "loading" || status === "loading_viewer" ? (
