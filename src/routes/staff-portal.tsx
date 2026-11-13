@@ -238,12 +238,6 @@ function StaffPortal() {
                   </button>
                 )}
               </form>
-
-              <p className="mt-5 text-center text-[11px] leading-relaxed text-muted-foreground">
-                {t(
-                  "Staff accounts are issued by your company administrator. Roles and branch access are granted after your first sign-in.",
-                )}
-              </p>
             </div>
           </div>
 

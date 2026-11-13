@@ -98,8 +98,6 @@ export const FRENCH: Record<string, string> = {
   "Forex Bureau and Mobile Money agency operations, on one ledger.":
     "Les opérations de bureau de change et d'agence mobile money, sur un seul grand livre.",
   "Kampala · Uganda": "Kampala · Ouganda",
-  "Staff accounts are issued by your company administrator. Roles and branch access are granted after your first sign-in.":
-    "Les comptes du personnel sont créés par l'administrateur de votre entreprise. Les rôles et l'accès aux agences sont attribués après votre première connexion.",
   "Check your details and try again.": "Vérifiez vos informations et réessayez.",
   "Sign-in failed. Try again.": "Échec de la connexion. Réessayez.",
   "Forgot your password?": "Mot de passe oublié ?",
