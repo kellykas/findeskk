@@ -221,3 +221,38 @@ export function publicRequestQuery(token: string) {
     staleTime: 2_000,
   });
 }
+
+/**
+ * Live delivery.
+ *
+ * The database pings these topics from a trigger the moment a message is
+ * inserted or a status changes (migration 20261113130000). The ping contains no
+ * personal data, so it only tells the client to refetch through the authorised
+ * functions. Both helpers also fire once on subscribe, which is what recovers a
+ * dropped socket without waiting for the fallback poll.
+ */
+export const STAFF_REQUESTS_TOPIC = "service-requests:staff";
+
+export function subscribeToStaffRequests(onChange: () => void): () => void {
+  const channel = supabase
+    .channel(STAFF_REQUESTS_TOPIC)
+    .on("broadcast", { event: "changed" }, () => onChange())
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") onChange();
+    });
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+export function subscribeToRequestThread(token: string, onChange: () => void): () => void {
+  const channel = supabase
+    .channel(`service-request:${token}`)
+    .on("broadcast", { event: "changed" }, () => onChange())
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") onChange();
+    });
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}

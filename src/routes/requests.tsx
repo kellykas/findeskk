@@ -39,8 +39,13 @@ export const Route = createFileRoute("/requests")({
   component: RequestsPage,
 });
 
-const LIST_POLL_MS = 10_000;
-const THREAD_POLL_MS = 5_000;
+/**
+ * Updates arrive through the realtime channel the app shell subscribes to, which
+ * invalidates every `service-requests` query. These polls only cover a dropped
+ * socket.
+ */
+const LIST_POLL_MS = 30_000;
+const THREAD_POLL_MS = 30_000;
 
 const STATUS_TONE: Record<RequestStatus, string> = {
   waiting: "bg-amber-500/15 text-amber-700 dark:text-amber-300",

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, RefreshCw, Send } from "lucide-react";
@@ -15,7 +15,11 @@ import {
   type RequestStatus,
 } from "@/domain/serviceRequests";
 import { useLanguage } from "@/hooks/use-language";
-import { publicRequestQuery, sendCustomerMessage } from "@/services/service-requests.service";
+import {
+  publicRequestQuery,
+  sendCustomerMessage,
+  subscribeToRequestThread,
+} from "@/services/service-requests.service";
 
 export const Route = createFileRoute("/request/$token")({
   head: () => ({
@@ -33,7 +37,8 @@ const STATUS_TONE: Record<RequestStatus, string> = {
   closed: "bg-muted text-muted-foreground",
 };
 
-const POLL_MS = 5_000;
+/** Realtime pings arrive in well under a second; this is only a socket fallback. */
+const POLL_MS = 20_000;
 
 function RequestThreadPage() {
   const { token } = Route.useParams();
@@ -47,6 +52,15 @@ function RequestThreadPage() {
     ...publicRequestQuery(token),
     refetchInterval: POLL_MS,
   });
+
+  // The branch's reply lands here as soon as it is written, without a refresh.
+  useEffect(
+    () =>
+      subscribeToRequestThread(token, () => {
+        void queryClient.invalidateQueries({ queryKey: ["service-requests", "public", token] });
+      }),
+    [token, queryClient],
+  );
 
   const send = useMutation({
     mutationFn: (body: string) => sendCustomerMessage(token, body),
