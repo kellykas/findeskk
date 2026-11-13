@@ -366,4 +366,97 @@ export const FRENCH: Record<string, string> = {
   "This receipt could not be found.": "Ce reçu est introuvable.",
   "This receipt could not be loaded.": "Ce reçu n'a pas pu être chargé.",
   "Loading receipt…": "Chargement du reçu…",
+
+  // Customer service requests -------------------------------------------------
+  "Customer service": "Service clientèle",
+  "Request a service": "Demander un service",
+  "Need something from the branch?": "Besoin de quelque chose à l'agence ?",
+  "Customer requests": "Demandes des clients",
+  "Customer Requests": "Demandes des clients",
+  "Service requests from the public form, answered in one thread.":
+    "Demandes envoyées depuis le formulaire public, traitées dans un même fil.",
+  "Service requests from the public request page.":
+    "Demandes envoyées depuis la page publique de demande.",
+  "Tell us what you need and the branch team will answer here. You will get a private link to follow the conversation — no account needed.":
+    "Dites-nous ce dont vous avez besoin et l'équipe de l'agence vous répondra ici. Vous recevrez un lien privé pour suivre la conversation — aucun compte requis.",
+  "Your name": "Votre nom",
+  "e.g. Sarah Nakato": "ex. Sarah Nakato",
+  "Phone number": "Numéro de téléphone",
+  "Email (optional)": "E-mail (facultatif)",
+  "What do you need?": "De quoi avez-vous besoin ?",
+  Message: "Message",
+  "Tell us what you need, and any amount or reference involved.":
+    "Expliquez votre besoin, avec le montant ou la référence concernée.",
+  "Send request": "Envoyer la demande",
+  "We use your phone number only to answer this request.":
+    "Votre numéro sert uniquement à répondre à cette demande.",
+  "How it works": "Comment ça marche",
+  "Your request reaches the branch team immediately.":
+    "Votre demande parvient immédiatement à l'équipe de l'agence.",
+  "Replies appear in this thread, so you can come back any time.":
+    "Les réponses apparaissent dans ce fil, vous pouvez revenir à tout moment.",
+  "Only you and the branch team can read this conversation.":
+    "Seuls vous et l'équipe de l'agence pouvez lire cette conversation.",
+  "Replies come from the branch team during working hours.":
+    "Les réponses viennent de l'équipe de l'agence pendant les heures d'ouverture.",
+  "Foreign exchange": "Change de devises",
+  "Mobile money": "Mobile money",
+  "Cash transfer": "Transfert d'espèces",
+  "Account & documents": "Compte et documents",
+  "Something else": "Autre chose",
+  "Buy or sell currency": "Acheter ou vendre des devises",
+  "MTN or Airtel deposits and withdrawals": "Dépôts et retraits MTN ou Airtel",
+  "Send or receive money": "Envoyer ou recevoir de l'argent",
+  "Statements, ID cards or KYC": "Relevés, cartes d'identité ou KYC",
+  "Anything not listed here": "Tout ce qui n'est pas listé ici",
+  "Waiting for us": "En attente de notre réponse",
+  Answered: "Répondu",
+  Closed: "Clôturé",
+  "Your request — FinDesk": "Votre demande — FinDesk",
+  "Opening your request…": "Ouverture de votre demande…",
+  "We could not open this request": "Impossible d'ouvrir cette demande",
+  "That link does not match a request": "Ce lien ne correspond à aucune demande",
+  "Check the link, or start a new request and we will answer it here.":
+    "Vérifiez le lien, ou lancez une nouvelle demande et nous y répondrons ici.",
+  "Start a new request": "Lancer une nouvelle demande",
+  "This request is closed.": "Cette demande est clôturée.",
+  "Write a message…": "Écrivez un message…",
+  "Save this link": "Enregistrer ce lien",
+  Copied: "Copié",
+  Send: "Envoyer",
+  "Link copied. Keep it to return to this conversation.":
+    "Lien copié. Conservez-le pour revenir à cette conversation.",
+  "Bookmark this page. It is the only way back to this conversation, and it is private to you.":
+    "Ajoutez cette page à vos favoris. C'est le seul moyen de revenir à cette conversation, et elle reste privée.",
+  "No messages yet.": "Aucun message pour le moment.",
+  "Branch team": "Équipe de l'agence",
+  Customer: "Client",
+  You: "Vous",
+  "Customer requests are restricted": "Les demandes clients sont restreintes",
+  "Customer-facing roles answer service requests. Ask a super admin or the company owner to review your roles.":
+    "Les rôles en contact avec la clientèle traitent les demandes. Demandez à un super administrateur ou au propriétaire de vérifier vos rôles.",
+  "Requests sent from the public form. Answer here and the customer sees it in their thread.":
+    "Demandes envoyées depuis le formulaire public. Répondez ici et le client le verra dans son fil.",
+  "Public form": "Formulaire public",
+  "Total requests": "Total des demandes",
+  Inbox: "Boîte de réception",
+  "Loading requests…": "Chargement des demandes…",
+  "No requests yet": "Aucune demande pour le moment",
+  "Requests sent from the public form appear here.":
+    "Les demandes envoyées depuis le formulaire public apparaissent ici.",
+  Conversation: "Conversation",
+  "Choose a request to read the conversation.": "Choisissez une demande pour lire la conversation.",
+  "Loading conversation…": "Chargement de la conversation…",
+  Reopen: "Réouvrir",
+  "Close request": "Clôturer la demande",
+  "Request closed.": "Demande clôturée.",
+  "Request reopened for the customer.": "Demande réouverte pour le client.",
+  "Reopen the request to reply to this customer.": "Réouvrez la demande pour répondre à ce client.",
+  "Write a reply the customer will see in their thread…":
+    "Écrivez une réponse que le client verra dans son fil…",
+  Reply: "Réponse",
+  "Send reply": "Envoyer la réponse",
+  messages: "messages",
+  "New service request from {name}": "Nouvelle demande de {name}",
+  "{count} new service requests": "{count} nouvelles demandes",
 };

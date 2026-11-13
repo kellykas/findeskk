@@ -10,6 +10,7 @@ import {
   Smartphone,
   Wallet,
   Users,
+  MessagesSquare,
   IdCard,
   Building2,
   Receipt,
@@ -26,6 +27,7 @@ export interface AppModule {
     | "/mobile-money"
     | "/cash"
     | "/customers"
+    | "/requests"
     | "/employees"
     | "/ledger"
     | "/expenses"
@@ -98,6 +100,16 @@ export const MODULES: AppModule[] = [
     permission: "customers.view",
     phase: 4,
     plannedFeatures: ["Transaction history"],
+  },
+  {
+    path: "/requests",
+    title: "Customer Requests",
+    description: "Service requests from the public form, answered in one thread.",
+    icon: MessagesSquare,
+    group: "Operations",
+    permission: "requests.manage",
+    phase: 8,
+    plannedFeatures: [],
   },
   {
     path: "/employees",

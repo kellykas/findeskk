@@ -8,6 +8,7 @@ import { useBranding } from "@/hooks/use-branding";
 import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { BrandMark } from "@/components/auth/BrandMark";
+import { useRequestAlerts } from "@/hooks/use-request-alerts";
 import { LanguageToggle } from "./LanguageToggle";
 import {
   LayoutDashboard,
@@ -21,6 +22,7 @@ import {
   FileBarChart,
   ShieldCheck,
   Settings,
+  MessagesSquare,
   LogOut,
 } from "lucide-react";
 
@@ -76,6 +78,13 @@ const NAV_ITEMS: NavItem[] = [
     permission: "customers.view",
   },
   {
+    path: "/requests",
+    title: "Customer Requests",
+    icon: MessagesSquare,
+    group: "Operations",
+    permission: "requests.manage",
+  },
+  {
     path: "/employees",
     title: "Employees",
     icon: IdCard,
@@ -120,6 +129,8 @@ export function AppSidebar() {
   const { viewer, signOut } = useSession();
   const { t } = useLanguage();
   const { appName } = useBranding();
+  // Same query as the alert watcher, so the badge adds no extra poll.
+  const { waiting: waitingRequests } = useRequestAlerts({ announce: false });
 
   const visibleModules = NAV_ITEMS.filter((item) =>
     viewer ? can(viewer.roles, item.permission) : false,
@@ -146,7 +157,11 @@ export function AppSidebar() {
               {visibleModules
                 .filter((item) => item.group === group)
                 .map((item) => (
-                  <SidebarLink key={item.path} item={item} />
+                  <SidebarLink
+                    key={item.path}
+                    item={item}
+                    badge={item.path === "/requests" ? waitingRequests : 0}
+                  />
                 ))}
             </div>
           </div>
@@ -190,7 +205,7 @@ export function AppSidebar() {
   );
 }
 
-function SidebarLink({ item }: { item: NavItem }) {
+function SidebarLink({ item, badge = 0 }: { item: NavItem; badge?: number }) {
   const { t } = useLanguage();
   return (
     <Link
@@ -207,6 +222,11 @@ function SidebarLink({ item }: { item: NavItem }) {
     >
       <item.icon className="h-[18px] w-[18px] shrink-0" />
       <span className="truncate">{t(item.title)}</span>
+      {badge > 0 && (
+        <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }

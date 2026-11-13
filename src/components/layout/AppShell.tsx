@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
+import { useRequestAlerts } from "@/hooks/use-request-alerts";
 import { AppSidebar } from "./AppSidebar";
 import { AppTopBar } from "./AppTopBar";
 
@@ -16,6 +17,9 @@ export function AppShell({ children }: AppShellProps) {
   const [open, setOpen] = useState(false);
   const { status } = useSession();
   const { t } = useLanguage();
+  // Watches the customer inbox from every page, so a new request is announced
+  // wherever staff happen to be working.
+  useRequestAlerts();
   const pathname = useLocation({ select: (l) => l.pathname });
   useEffect(() => setOpen(false), [pathname]);
 

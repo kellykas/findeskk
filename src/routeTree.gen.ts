@@ -20,9 +20,13 @@ import { Route as LedgerRouteImport } from './routes/ledger'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MobileMoneyRouteImport } from './routes/mobile-money'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as RequestRouteImport } from './routes/request'
+import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IdTokenRouteImport } from './routes/id.$token'
+import { Route as RequestIndexRouteImport } from './routes/request.index'
+import { Route as RequestTokenRouteImport } from './routes/request.$token'
 import { Route as ReceiptKindIdRouteImport } from './routes/receipt.$kind.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -80,6 +84,16 @@ const ReportsRoute = ReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RequestRoute = RequestRouteImport.update({
+  id: '/request',
+  path: '/request',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestsRoute = RequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -94,6 +108,16 @@ const IdTokenRoute = IdTokenRouteImport.update({
   id: '/id/$token',
   path: '/id/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const RequestIndexRoute = RequestIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => RequestRoute,
+} as any)
+const RequestTokenRoute = RequestTokenRouteImport.update({
+  id: '/$token',
+  path: '/$token',
+  getParentRoute: () => RequestRoute,
 } as any)
 const ReceiptKindIdRoute = ReceiptKindIdRouteImport.update({
   id: '/receipt/$kind/$id',
@@ -113,9 +137,13 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/mobile-money': typeof MobileMoneyRoute
   '/reports': typeof ReportsRoute
+  '/request': typeof RequestRouteWithChildren
+  '/requests': typeof RequestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/id/$token': typeof IdTokenRoute
+  '/request/$token': typeof RequestTokenRoute
+  '/request/': typeof RequestIndexRoute
   '/receipt/$kind/$id': typeof ReceiptKindIdRoute
 }
 export interface FileRoutesByTo {
@@ -130,9 +158,12 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/mobile-money': typeof MobileMoneyRoute
   '/reports': typeof ReportsRoute
+  '/requests': typeof RequestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/id/$token': typeof IdTokenRoute
+  '/request/$token': typeof RequestTokenRoute
+  '/request': typeof RequestIndexRoute
   '/receipt/$kind/$id': typeof ReceiptKindIdRoute
 }
 export interface FileRoutesById {
@@ -148,9 +179,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/mobile-money': typeof MobileMoneyRoute
   '/reports': typeof ReportsRoute
+  '/request': typeof RequestRouteWithChildren
+  '/requests': typeof RequestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/id/$token': typeof IdTokenRoute
+  '/request/$token': typeof RequestTokenRoute
+  '/request/': typeof RequestIndexRoute
   '/receipt/$kind/$id': typeof ReceiptKindIdRoute
 }
 export interface FileRouteTypes {
@@ -167,9 +202,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/mobile-money'
     | '/reports'
+    | '/request'
+    | '/requests'
     | '/reset-password'
     | '/settings'
     | '/id/$token'
+    | '/request/$token'
+    | '/request/'
     | '/receipt/$kind/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -184,9 +223,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/mobile-money'
     | '/reports'
+    | '/requests'
     | '/reset-password'
     | '/settings'
     | '/id/$token'
+    | '/request/$token'
+    | '/request'
     | '/receipt/$kind/$id'
   id:
     | '__root__'
@@ -201,9 +243,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/mobile-money'
     | '/reports'
+    | '/request'
+    | '/requests'
     | '/reset-password'
     | '/settings'
     | '/id/$token'
+    | '/request/$token'
+    | '/request/'
     | '/receipt/$kind/$id'
   fileRoutesById: FileRoutesById
 }
@@ -219,6 +265,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MobileMoneyRoute: typeof MobileMoneyRoute
   ReportsRoute: typeof ReportsRoute
+  RequestRoute: typeof RequestRouteWithChildren
+  RequestsRoute: typeof RequestsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   IdTokenRoute: typeof IdTokenRoute
@@ -304,6 +352,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/request': {
+      id: '/request'
+      path: '/request'
+      fullPath: '/request'
+      preLoaderRoute: typeof RequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/requests': {
+      id: '/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof RequestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -325,6 +387,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IdTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/request/': {
+      id: '/request/'
+      path: '/'
+      fullPath: '/request/'
+      preLoaderRoute: typeof RequestIndexRouteImport
+      parentRoute: typeof RequestRoute
+    }
+    '/request/$token': {
+      id: '/request/$token'
+      path: '/$token'
+      fullPath: '/request/$token'
+      preLoaderRoute: typeof RequestTokenRouteImport
+      parentRoute: typeof RequestRoute
+    }
     '/receipt/$kind/$id': {
       id: '/receipt/$kind/$id'
       path: '/receipt/$kind/$id'
@@ -334,6 +410,19 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface RequestRouteChildren {
+  RequestTokenRoute: typeof RequestTokenRoute
+  RequestIndexRoute: typeof RequestIndexRoute
+}
+
+const RequestRouteChildren: RequestRouteChildren = {
+  RequestTokenRoute: RequestTokenRoute,
+  RequestIndexRoute: RequestIndexRoute,
+}
+
+const RequestRouteWithChildren =
+  RequestRoute._addFileChildren(RequestRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -347,6 +436,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MobileMoneyRoute: MobileMoneyRoute,
   ReportsRoute: ReportsRoute,
+  RequestRoute: RequestRouteWithChildren,
+  RequestsRoute: RequestsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   IdTokenRoute: IdTokenRoute,
