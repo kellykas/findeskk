@@ -124,7 +124,10 @@ function StaffPortal() {
             <LanguageToggle />
           </div>
 
-          <div className="flex flex-1 flex-col justify-center py-10">
+          {/* More room below than above: the header row already carries the top
+              air, so even padding makes the form sit low with the last button
+              crowding the footer. */}
+          <div className="flex flex-1 flex-col justify-center pb-12 pt-10">
             <div className="mx-auto w-full max-w-[360px]">
               <h1 className="text-center text-2xl font-semibold tracking-tight sm:text-[26px]">
                 {resetting ? t("Reset your password") : t("Sign in to {app}", { app: appName })}
