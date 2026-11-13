@@ -12,3 +12,7 @@ Allow: /
 
 User-agent: *
 Allow: /
+# The staff portal is for staff. Keep it, and the address that used to serve it,
+# out of search results.
+Disallow: /staff-portal
+Disallow: /login

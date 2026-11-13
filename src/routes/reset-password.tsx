@@ -111,7 +111,7 @@ function ResetPassword() {
                 {t("Request a new one from the sign-in screen.")}
               </p>
               <Button asChild className="h-11 w-full rounded-xl text-sm font-semibold">
-                <Link to="/login">{t("Request a new link")}</Link>
+                <Link to="/staff-portal">{t("Request a new link")}</Link>
               </Button>
             </div>
           )}
@@ -185,7 +185,7 @@ function ResetPassword() {
               </Button>
 
               <Link
-                to="/login"
+                to="/staff-portal"
                 className="block text-center text-xs font-medium text-muted-foreground hover:text-foreground"
               >
                 {t("Back to sign in")}

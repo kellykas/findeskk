@@ -191,7 +191,7 @@ export function AppSidebar() {
           </>
         ) : (
           <Link
-            to="/login"
+            to="/staff-portal"
             className="flex w-full items-center justify-center rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
           >
             {t("Sign in")}

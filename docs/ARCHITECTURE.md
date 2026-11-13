@@ -32,7 +32,7 @@ Components only receive typed domain objects. The dashboard now reads ledger bal
 ## Authentication and staff access (Phase 2)
 
 ```text
-/login -> auth.service (Supabase Auth) -> SessionProvider -> viewer (profile + roles + branches)
+/staff-portal -> auth.service (Supabase Auth) -> SessionProvider -> viewer (profile + roles + branches)
       -> AppShell (requires session, filters navigation by permission)
       -> /employees (staff admins only; enforced by RLS and service-role server functions)
 ```

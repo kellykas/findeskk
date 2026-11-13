@@ -24,6 +24,7 @@ import { Route as RequestRouteImport } from './routes/request'
 import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StaffPortalRouteImport } from './routes/staff-portal'
 import { Route as IdTokenRouteImport } from './routes/id.$token'
 import { Route as RequestIndexRouteImport } from './routes/request.index'
 import { Route as RequestTokenRouteImport } from './routes/request.$token'
@@ -104,6 +105,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaffPortalRoute = StaffPortalRouteImport.update({
+  id: '/staff-portal',
+  path: '/staff-portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IdTokenRoute = IdTokenRouteImport.update({
   id: '/id/$token',
   path: '/id/$token',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/requests': typeof RequestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/staff-portal': typeof StaffPortalRoute
   '/id/$token': typeof IdTokenRoute
   '/request/$token': typeof RequestTokenRoute
   '/request/': typeof RequestIndexRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/requests': typeof RequestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/staff-portal': typeof StaffPortalRoute
   '/id/$token': typeof IdTokenRoute
   '/request/$token': typeof RequestTokenRoute
   '/request': typeof RequestIndexRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/requests': typeof RequestsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
+  '/staff-portal': typeof StaffPortalRoute
   '/id/$token': typeof IdTokenRoute
   '/request/$token': typeof RequestTokenRoute
   '/request/': typeof RequestIndexRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/requests'
     | '/reset-password'
     | '/settings'
+    | '/staff-portal'
     | '/id/$token'
     | '/request/$token'
     | '/request/'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/requests'
     | '/reset-password'
     | '/settings'
+    | '/staff-portal'
     | '/id/$token'
     | '/request/$token'
     | '/request'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/requests'
     | '/reset-password'
     | '/settings'
+    | '/staff-portal'
     | '/id/$token'
     | '/request/$token'
     | '/request/'
@@ -269,6 +281,7 @@ export interface RootRouteChildren {
   RequestsRoute: typeof RequestsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
+  StaffPortalRoute: typeof StaffPortalRoute
   IdTokenRoute: typeof IdTokenRoute
   ReceiptKindIdRoute: typeof ReceiptKindIdRoute
 }
@@ -380,6 +393,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staff-portal': {
+      id: '/staff-portal'
+      path: '/staff-portal'
+      fullPath: '/staff-portal'
+      preLoaderRoute: typeof StaffPortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/id/$token': {
       id: '/id/$token'
       path: '/id/$token'
@@ -440,6 +460,7 @@ const rootRouteChildren: RootRouteChildren = {
   RequestsRoute: RequestsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
+  StaffPortalRoute: StaffPortalRoute,
   IdTokenRoute: IdTokenRoute,
   ReceiptKindIdRoute: ReceiptKindIdRoute,
 }

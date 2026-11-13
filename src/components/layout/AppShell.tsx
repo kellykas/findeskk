@@ -14,12 +14,12 @@ export interface AppShellProps {
   /**
    * Where a signed-out visitor is sent. The dashboard points at the public
    * customer page so the domain's front door never shows the staff sign-in;
-   * every other protected page still goes to /login.
+   * every other protected page goes to the staff portal.
    */
-  signedOutTo?: "/login" | "/request";
+  signedOutTo?: "/staff-portal" | "/request";
 }
 
-export function AppShell({ children, signedOutTo = "/login" }: AppShellProps) {
+export function AppShell({ children, signedOutTo = "/staff-portal" }: AppShellProps) {
   const [open, setOpen] = useState(false);
   const { status } = useSession();
   const { t } = useLanguage();

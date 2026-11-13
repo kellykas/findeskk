@@ -15,7 +15,7 @@
 
 ## Delivered in Phase 2
 
-- **Authentication** — `/login` signs in with Supabase Auth (email + password). `SessionProvider`
+- **Authentication** — `/staff-portal` signs in with Supabase Auth (email + password). `SessionProvider`
   holds the session, `/` and every module page require it, and sign-out ends the session.
 - **Staff profiles** — created by a database trigger for every auth user; email, display name and
   active flag live in `public.profiles`.
