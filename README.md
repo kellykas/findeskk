@@ -28,7 +28,7 @@ Do not attempt to implement every financial module at once. Establish the initia
 
 This project was built with [Lovable](https://lovable.dev).
 
-**Live app**: https://findeskk.lovable.app
+**Live app**: https://twinzpremium.com
 
 ## Build with Lovable
 
