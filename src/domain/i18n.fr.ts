@@ -459,4 +459,16 @@ export const FRENCH: Record<string, string> = {
   messages: "messages",
   "New service request from {name}": "Nouvelle demande de {name}",
   "{count} new service requests": "{count} nouvelles demandes",
+  "{count} customers are waiting for an answer.": "{count} clients attendent une réponse.",
+  "Sound on": "Son activé",
+  "Sound off": "Son coupé",
+  "Enable desktop alerts": "Activer les alertes bureau",
+  "Desktop alerts on": "Alertes bureau activées",
+  "Desktop alerts are on.": "Les alertes bureau sont activées.",
+  "Desktop alerts are blocked in this browser. Sound still works.":
+    "Les alertes bureau sont bloquées dans ce navigateur. Le son fonctionne toujours.",
+  "This browser cannot show desktop alerts.":
+    "Ce navigateur ne peut pas afficher d'alertes bureau.",
+  "Play a chime when a request arrives while this tab is in the background.":
+    "Jouer un son lorsqu'une demande arrive pendant que cet onglet est en arrière-plan.",
 };

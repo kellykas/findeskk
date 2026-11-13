@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { ChatThread } from "@/components/service-requests/ChatThread";
+import { RequestAlertsToggle } from "@/components/service-requests/RequestAlertsToggle";
 import { AccessDenied, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { can } from "@/domain/access";
@@ -160,6 +161,7 @@ function RequestsPage() {
         )}
         actions={
           <>
+            <RequestAlertsToggle />
             <Button variant="outline" size="sm" asChild>
               <Link to="/request" target="_blank" rel="noreferrer">
                 <ExternalLink className="mr-1.5 h-3.5 w-3.5" />

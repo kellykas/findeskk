@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { can } from "@/domain/roles";
 import { serviceLabel } from "@/domain/serviceRequests";
+import { playAlertChime, readAlertSound, showDesktopNotification } from "@/lib/desktop-alerts";
 import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { staffRequestsQuery, subscribeToStaffRequests } from "@/services/service-requests.service";
@@ -55,14 +56,29 @@ export function useRequestAlerts({ announce = true }: { announce?: boolean } = {
       seen.current = ids;
       if (announce && fresh.length > 0) {
         const first = fresh[0];
+        const name = first?.customerName ?? "";
         toast.info(
           fresh.length === 1
-            ? t("New service request from {name}", { name: first?.customerName ?? "" })
+            ? t("New service request from {name}", { name })
             : t("{count} new service requests", { count: fresh.length }),
           {
             description: fresh.length === 1 ? t(serviceLabel(first?.service ?? "")) : undefined,
           },
         );
+
+        // A hidden tab is exactly the case the sound and system notification
+        // exist for: the toast is not on screen to be seen.
+        if (document.visibilityState === "hidden") {
+          if (readAlertSound(window.localStorage)) playAlertChime();
+          showDesktopNotification(
+            fresh.length === 1
+              ? t("New service request from {name}", { name })
+              : t("{count} new service requests", { count: fresh.length }),
+            fresh.length === 1
+              ? `${t(serviceLabel(first?.service ?? ""))} · ${first?.ticketNo ?? ""}`
+              : t("{count} customers are waiting for an answer.", { count: fresh.length }),
+          );
+        }
       }
     }
     setWaiting(rows.filter((row) => row.status === "waiting").length);
