@@ -38,6 +38,10 @@ const NONE = "__none";
 export interface MomoFormValues {
   network: string;
   type: "deposit" | "withdrawal";
+  /** Currency the customer paid in; the ledger amount is always UGX. */
+  currency: string;
+  /** The amount in `currency`, or null for UGX. */
+  foreignAmount: string | null;
   amount: Money;
   commission: Money;
   branchId: string;
@@ -167,6 +171,8 @@ export function MomoDialog({
     const parsed = momoSchema.safeParse({
       network,
       type,
+      currency: amountUnit === "foreign" ? foreignCode : BASE_CURRENCY,
+      foreignAmount: amountUnit === "foreign" ? amount.trim() : "",
       amount: parsedAmount ? toDecimalString(parsedAmount) : amount,
       commission: parsedCommission ? toDecimalString(parsedCommission) : "0",
       branchId,
@@ -190,6 +196,8 @@ export function MomoDialog({
     onSave({
       network: parsed.data.network,
       type: parsed.data.type,
+      currency: parsed.data.currency,
+      foreignAmount: parsed.data.currency === BASE_CURRENCY ? null : parsed.data.foreignAmount,
       amount: parsedAmountValue,
       commission: parsedCommissionValue,
       branchId: parsed.data.branchId,

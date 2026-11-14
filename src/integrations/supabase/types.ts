@@ -796,6 +796,27 @@ export type Database = {
           },
         ];
       };
+      momo_currency_floats: {
+        Row: {
+          created_at: string;
+          currency: string;
+          float_account_code: string;
+          network: string;
+        };
+        Insert: {
+          created_at?: string;
+          currency: string;
+          float_account_code: string;
+          network: string;
+        };
+        Update: {
+          created_at?: string;
+          currency?: string;
+          float_account_code?: string;
+          network?: string;
+        };
+        Relationships: [];
+      };
       momo_transactions: {
         Row: {
           amount: number;
@@ -803,15 +824,18 @@ export type Database = {
           commission: number;
           created_at: string;
           created_by: string | null;
+          currency: string;
           customer_id: string | null;
           customer_ref: string;
           entry_date: string;
+          foreign_amount: number | null;
           id: string;
           idempotency_key: string | null;
           journal_entry_id: string | null;
           network: string;
           network_ref: string;
           notes: string;
+          rate: number | null;
           type: string;
         };
         Insert: {
@@ -820,15 +844,18 @@ export type Database = {
           commission?: number;
           created_at?: string;
           created_by?: string | null;
+          currency?: string;
           customer_id?: string | null;
           customer_ref?: string;
           entry_date?: string;
+          foreign_amount?: number | null;
           id?: string;
           idempotency_key?: string | null;
           journal_entry_id?: string | null;
           network: string;
           network_ref?: string;
           notes?: string;
+          rate?: number | null;
           type: string;
         };
         Update: {
@@ -1042,9 +1069,11 @@ export type Database = {
           _amount: number;
           _branch_id: string;
           _commission: number;
+          _currency?: string;
           _customer_id?: string;
           _customer_ref?: string;
           _entry_date?: string;
+          _foreign_amount?: number;
           _idempotency_key?: string;
           _network: string;
           _network_ref?: string;

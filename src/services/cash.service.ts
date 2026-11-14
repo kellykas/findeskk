@@ -209,12 +209,30 @@ export function buildCashSnapshot(input: CashInput): CashSnapshot {
   return { hasData, positions: sortedPositions, totals, branches: sortedBranches, recent };
 }
 
+/** Float accounts for every network, UGX and any foreign-currency floats. */
+export async function loadFloatAccountCodes(): Promise<{ codes: string[]; failed: boolean }> {
+  const [networks, currencyFloats] = await Promise.all([
+    supabase.from("momo_networks").select("float_account_code"),
+    supabase.from("momo_currency_floats").select("float_account_code"),
+  ]);
+  const failed = Boolean(networks.error);
+  const codes = resolveFloatAccountCodes(
+    [
+      ...(networks.data ?? []),
+      // A deployment without the currency-float migration reads only the UGX floats.
+      ...(currencyFloats.error ? [] : (currencyFloats.data ?? [])),
+    ],
+    failed,
+  );
+  return { codes, failed };
+}
+
 export async function getCashSnapshot(): Promise<CashSnapshot> {
-  const [balances, entries, branchResult, networkResult] = await Promise.all([
+  const [balances, entries, branchResult, floats] = await Promise.all([
     listAccountBalances(),
     listRecentEntries(100),
     supabase.from("branches").select("id, name").order("name"),
-    supabase.from("momo_networks").select("float_account_code"),
+    loadFloatAccountCodes(),
   ]);
   if (branchResult.error) throw new Error(branchResult.error.message);
 
@@ -222,7 +240,7 @@ export async function getCashSnapshot(): Promise<CashSnapshot> {
     balances,
     entries,
     branches: branchResult.data ?? [],
-    floatAccountCodes: resolveFloatAccountCodes(networkResult.data, Boolean(networkResult.error)),
+    floatAccountCodes: floats.codes,
   });
 }
 

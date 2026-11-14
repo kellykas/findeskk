@@ -17,7 +17,7 @@ import {
   type JournalEntry,
   type LedgerAccountBalance,
 } from "./ledger.service";
-import { resolveFloatAccountCodes } from "./cash.service";
+import { loadFloatAccountCodes } from "./cash.service";
 
 export interface DashboardTotal {
   label: string;
@@ -239,13 +239,13 @@ async function loadFlow(months: readonly string[]): Promise<MonthlyFlowPoint[]> 
 export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
   const months = recentMonthKeys(6);
 
-  const [balances, entries, branchResult, countResult, flow, networkResult] = await Promise.all([
+  const [balances, entries, branchResult, countResult, flow, floats] = await Promise.all([
     listAccountBalances(),
     listRecentEntries(10),
     supabase.from("branches").select("id, name").order("name"),
     supabase.from("journal_entries").select("id", { count: "exact", head: true }),
     loadFlow(months),
-    supabase.from("momo_networks").select("float_account_code"),
+    loadFloatAccountCodes(),
   ]);
 
   if (branchResult.error) throw new Error(branchResult.error.message);
@@ -259,7 +259,7 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
       entries,
       branches: branchResult.data ?? [],
       totalPostings: countResult.count ?? 0,
-      floatAccountCodes: resolveFloatAccountCodes(networkResult.data, Boolean(networkResult.error)),
+      floatAccountCodes: floats.codes,
     }),
   };
 }

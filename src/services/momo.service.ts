@@ -28,6 +28,12 @@ export interface MomoRecord {
   network: MomoNetwork;
   type: MomoType;
   amount: Money;
+  /** The currency paid in (UGX unless a foreign deposit). */
+  currency: string;
+  /** The amount in `currency`, or null for UGX. */
+  foreignAmount: string | null;
+  /** The buy rate that valued the foreign amount in UGX, or null for UGX. */
+  rate: string | null;
   commission: Money;
   branchId: string;
   customerId: string | null;
@@ -47,6 +53,9 @@ export interface MomoRow {
   network: string;
   type: string;
   amount: string | number;
+  currency: string;
+  foreign_amount: string | number | null;
+  rate: string | number | null;
   commission: string | number;
   branch_id: string;
   customer_id: string | null;
@@ -80,6 +89,9 @@ export function mapMomoRow(row: MomoRow, reversal: MomoReversalRow | null = null
     network: row.network,
     type: row.type as MomoType,
     amount: toMoney(row.amount),
+    currency: row.currency,
+    foreignAmount: row.foreign_amount === null ? null : String(row.foreign_amount),
+    rate: row.rate === null ? null : String(row.rate),
     commission: toMoney(row.commission),
     branchId: row.branch_id,
     customerId: row.customer_id,
@@ -131,6 +143,10 @@ export async function listMomo(limit = 100): Promise<MomoRecord[]> {
 export interface RecordMomoInput {
   network: MomoNetwork;
   type: MomoType;
+  /** Currency the customer paid in; the amount is valued in UGX for the ledger. */
+  currency: string;
+  /** The amount in `currency` (null for UGX). */
+  foreignAmount: string | null;
   amount: Money;
   commission: Money;
   branchId: string;
@@ -155,6 +171,8 @@ export async function recordMomo(input: RecordMomoInput): Promise<string> {
     _notes: input.notes,
     _entry_date: input.entryDate,
     _idempotency_key: input.idempotencyKey,
+    _currency: input.currency,
+    _foreign_amount: input.foreignAmount,
   } as never);
   if (error) throw new Error(momoErrorMessage(error.message));
   return data as string;
@@ -189,6 +207,10 @@ export function momoErrorMessage(message: string): string {
     return "That network is switched off. Ask a manager to enable it, or choose another.";
   if (text.includes("unknown mobile money network")) return "Choose a mobile money network.";
   if (text.includes("unknown transaction type")) return "Choose a deposit or withdrawal.";
+  if (text.includes("no published rate for"))
+    return "There is no published rate for that currency yet. Ask a manager to publish one.";
+  if (text.includes("no float account for"))
+    return "That network has no float account for this currency. Ask a manager to set one up.";
   if (text.includes("invalid or inactive branch")) return "Select an active branch.";
   if (text.includes("unknown customer")) return "That customer no longer exists.";
   if (text.includes("staff profile not found")) return "Your staff profile is inactive.";

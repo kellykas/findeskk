@@ -40,6 +40,7 @@ export const MOMO_TYPE_LABELS: Record<MomoType, string> = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** A UGX amount for the ledger. A foreign deposit's UGX value is its buy-rate equivalent. */
 function amountField(message: string, allowZero: boolean) {
   return z
     .string()
@@ -51,8 +52,17 @@ function amountField(message: string, allowZero: boolean) {
     }, message);
 }
 
+/** Foreign amount typed in a published currency, e.g. USD 100 (any 2-decimal amount above zero). */
+export const MOMO_FOREIGN_AMOUNT = /^\d{1,12}(\.\d{1,2})?$/;
+
 export const momoSchema = z
   .object({
+    currency: z
+      .string()
+      .trim()
+      .regex(/^[A-Z]{3}$/, "Choose a currency")
+      .default(BASE_CURRENCY),
+    foreignAmount: z.string().trim().default(""),
     network: z
       .string()
       .trim()
@@ -73,6 +83,12 @@ export const momoSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date")
       .refine((value) => value <= todayUtcDate(), "Entry date cannot be in the future"),
   })
+  .refine(
+    (data) =>
+      data.currency === BASE_CURRENCY ||
+      (MOMO_FOREIGN_AMOUNT.test(data.foreignAmount) && Number(data.foreignAmount) > 0),
+    { message: "Enter a foreign amount greater than zero", path: ["foreignAmount"] },
+  )
   .refine(
     (data) =>
       data.type !== "withdrawal" ||
