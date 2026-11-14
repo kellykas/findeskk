@@ -105,7 +105,9 @@ export function MomoDialog({
   const [commission, setCommission] = useState("");
   // The amount can be typed in UGX or in a published foreign currency (USD by
   // default); the commission is always a percentage of the UGX amount.
-  const [amountUnit, setAmountUnit] = useState<"ugx" | "foreign">("ugx");
+  const [amountUnit, setAmountUnit] = useState<"ugx" | "foreign">(
+    foreignRates.length > 0 ? "foreign" : "ugx",
+  );
   const [foreignCode, setForeignCode] = useState(
     foreignRates.find((option) => option.code === "USD")?.code ?? foreignRates[0]?.code ?? "",
   );
@@ -266,22 +268,22 @@ export function MomoDialog({
                     <Button
                       type="button"
                       size="sm"
-                      variant={amountUnit === "ugx" ? "default" : "outline"}
-                      aria-pressed={amountUnit === "ugx"}
-                      onClick={() => {
-                        setAmountUnit("ugx");
-                        setAmount("");
-                      }}
-                    >
-                      {BASE_CURRENCY}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
                       variant={amountUnit === "foreign" ? "default" : "outline"}
                       aria-pressed={amountUnit === "foreign"}
                       onClick={() => {
                         setAmountUnit("foreign");
+                        setAmount("");
+                      }}
+                    >
+                      {foreignRate?.code ?? "USD"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={amountUnit === "ugx" ? "default" : "outline"}
+                      aria-pressed={amountUnit === "ugx"}
+                      onClick={() => {
+                        setAmountUnit("ugx");
                         setAmount("");
                       }}
                     >
