@@ -160,6 +160,17 @@ export function ugxValueOfForeign(foreignAmount: string, rate: string): Money | 
 }
 
 /**
+ * The currency amount a UGX value represents at one published rate, rounded
+ * half-up to the currency's minor unit. The inverse of ugxValueOfForeign(), so
+ * a ledger amount can be shown in the currency the customer actually paid.
+ */
+export function foreignValueOfUgx(ugx: Money, rate: string, currency: string): Money | null {
+  const micros = rateMicros(rate);
+  if (micros === null) return null;
+  return money(roundDivide(ugx.minor * 100_000_000n, micros), currency);
+}
+
+/**
  * The published rate that prices this side of a trade: a buy pays UGX at the
  * buy rate, a sell receives UGX at the sell rate. record_fx_transaction()
  * rejects a trade priced off the other side, so this is the rate to send.

@@ -19,6 +19,7 @@ import {
   momoNetworkLabel,
   MOMO_TYPE_LABELS,
   momoCashMovement,
+  momoForeignAmounts,
   type MomoNetwork,
   type MomoType,
 } from "@/domain/momo";
@@ -57,6 +58,18 @@ export function ReceiptSheet({
   className?: string;
 }) {
   const cash = momoCashMovement(receipt.type, receipt.amount, receipt.commission);
+  // A transaction paid in a foreign currency prints in that currency: the UGX
+  // figure is the ledger's valuation, not what the customer handed over.
+  const foreign =
+    receipt.currency && receipt.currency !== "UGX" && receipt.rate
+      ? momoForeignAmounts({
+          type: receipt.type,
+          amount: receipt.amount,
+          commission: receipt.commission,
+          currency: receipt.currency,
+          rate: receipt.rate,
+        })
+      : null;
   const documentNo = `MM-${receipt.id.slice(0, 8).toUpperCase()}`;
 
   return (
@@ -92,11 +105,11 @@ export function ReceiptSheet({
         label="Network"
         value={`${networkName ?? momoNetworkLabel(receipt.network)} · ${MOMO_TYPE_LABELS[receipt.type]}`}
       />
-      <Row label="Amount" value={formatMoney(receipt.amount)} />
-      <Row label="Commission" value={formatMoney(receipt.commission)} />
+      <Row label="Amount" value={formatMoney(foreign?.amount ?? receipt.amount)} />
+      <Row label="Commission" value={formatMoney(foreign?.commission ?? receipt.commission)} />
       <Row
         label={receipt.type === "deposit" ? "Cash received" : "Cash paid out"}
-        value={formatMoney(cash)}
+        value={formatMoney(foreign?.cash ?? cash)}
         strong
       />
       <Row label="Customer" value={receipt.customer || "Walk-in"} />

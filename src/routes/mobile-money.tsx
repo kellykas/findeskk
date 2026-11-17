@@ -21,9 +21,14 @@ import {
 } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatMoney, money } from "@/domain/money";
+import { formatMoney, money, type Money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
-import { MOMO_TYPE_LABELS, momoCashMovement, momoNetworkLabel } from "@/domain/momo";
+import {
+  MOMO_TYPE_LABELS,
+  momoCashMovement,
+  momoForeignAmounts,
+  momoNetworkLabel,
+} from "@/domain/momo";
 import { isSetupMissing } from "@/domain/referenceDataMessages";
 import {
   activeCurrencies,
@@ -78,6 +83,28 @@ const FALLBACK_NETWORKS = [
   { code: "mtn", name: "MTN Mobile Money" },
   { code: "airtel", name: "Airtel Money" },
 ];
+
+/** The row's amounts in the currency the customer paid, or null for UGX. */
+function foreignAmountsFor(row: MomoRecord) {
+  if (row.currency === BASE_CURRENCY || !row.rate) return null;
+  return momoForeignAmounts({
+    type: row.type,
+    amount: row.amount,
+    commission: row.commission,
+    currency: row.currency,
+    rate: row.rate,
+  });
+}
+
+/** The customer's currency first; the UGX ledger value stays visible beside it. */
+function AmountCell({ ugx, foreign }: { ugx: Money; foreign?: Money | null | undefined }) {
+  return (
+    <span className="tabular">
+      {formatMoney(foreign ?? ugx)}
+      {foreign && <span className="ml-1 text-xs text-muted-foreground">{formatMoney(ugx)}</span>}
+    </span>
+  );
+}
 
 function MobileMoney() {
   const { viewer } = useSession();
@@ -177,6 +204,8 @@ function MobileMoney() {
         type: values.type,
         amount: values.amount,
         commission: values.commission,
+        currency: values.currency,
+        rate: values.rate,
         entryDate: values.entryDate,
         customer:
           (values.customerId ? customerNames.get(values.customerId) : values.customerRef) ||
@@ -245,6 +274,8 @@ function MobileMoney() {
       type: row.type,
       amount: row.amount,
       commission: row.commission,
+      currency: row.currency,
+      rate: row.rate,
       entryDate: row.entryDate,
       customer: (row.customerId ? customerNames.get(row.customerId) : row.customerRef) || "Walk-in",
       networkRef: row.networkRef,
@@ -374,12 +405,29 @@ function MobileMoney() {
                   </span>
                 ),
               },
-              { header: "Amount", align: "right", cell: (row) => formatMoney(row.amount) },
-              { header: "Commission", align: "right", cell: (row) => formatMoney(row.commission) },
+              {
+                header: "Amount",
+                align: "right",
+                cell: (row) => (
+                  <AmountCell ugx={row.amount} foreign={foreignAmountsFor(row)?.amount} />
+                ),
+              },
+              {
+                header: "Commission",
+                align: "right",
+                cell: (row) => (
+                  <AmountCell ugx={row.commission} foreign={foreignAmountsFor(row)?.commission} />
+                ),
+              },
               {
                 header: "Cash movement",
                 align: "right",
-                cell: (row) => formatMoney(momoCashMovement(row.type, row.amount, row.commission)),
+                cell: (row) => (
+                  <AmountCell
+                    ugx={momoCashMovement(row.type, row.amount, row.commission)}
+                    foreign={foreignAmountsFor(row)?.cash}
+                  />
+                ),
               },
               {
                 header: "Customer",

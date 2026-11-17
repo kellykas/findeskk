@@ -12,6 +12,7 @@
 import { z } from "zod";
 import { BASE_CURRENCY } from "./currency";
 import { todayUtcDate } from "./date";
+import { foreignValueOfUgx } from "./forex";
 import { parseLedgerAmount } from "./ledger";
 import { add, money, subtract, type Money } from "./money";
 
@@ -118,6 +119,36 @@ export type MomoReversalInput = z.infer<typeof momoReversalSchema>;
  */
 export function momoCashMovement(type: MomoType, amount: Money, commission: Money): Money {
   return type === "deposit" ? add(amount, commission) : subtract(amount, commission);
+}
+
+/** A transaction's amounts in the currency the customer actually paid. */
+export interface MomoForeignAmounts {
+  amount: Money;
+  commission: Money;
+  cash: Money;
+}
+
+/**
+ * The same deposit or withdrawal in a foreign currency, restored from the UGX
+ * ledger values at the transaction's rate. Screens and receipts show these so a
+ * USD deposit is never presented as if the customer paid shillings.
+ */
+export function momoForeignAmounts(input: {
+  type: MomoType;
+  amount: Money;
+  commission: Money;
+  currency: string;
+  rate: string;
+}): MomoForeignAmounts | null {
+  const amount = foreignValueOfUgx(input.amount, input.rate, input.currency);
+  const commission = foreignValueOfUgx(input.commission, input.rate, input.currency);
+  const cash = foreignValueOfUgx(
+    momoCashMovement(input.type, input.amount, input.commission),
+    input.rate,
+    input.currency,
+  );
+  if (!amount || !commission || !cash) return null;
+  return { amount, commission, cash };
 }
 
 /**

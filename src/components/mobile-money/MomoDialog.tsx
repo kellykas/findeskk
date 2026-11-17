@@ -25,6 +25,7 @@ import {
   MOMO_TYPE_LABELS,
   commissionForPercent,
   momoCashMovement,
+  momoForeignAmounts,
   momoSchema,
 } from "@/domain/momo";
 import { parseLedgerAmount } from "@/domain/ledger";
@@ -42,6 +43,8 @@ export interface MomoFormValues {
   currency: string;
   /** The amount in `currency`, or null for UGX. */
   foreignAmount: string | null;
+  /** The published rate that valued the foreign amount, or null for UGX. */
+  rate: string | null;
   amount: Money;
   commission: Money;
   branchId: string;
@@ -157,6 +160,18 @@ export function MomoDialog({
     parsedCommission.minor >= 0n &&
     (type !== "withdrawal" || parsedCommission.minor < parsedAmount.minor);
   const cashMovement = showPreview ? momoCashMovement(type, parsedAmount, parsedCommission) : null;
+  // A foreign amount is shown back in the currency the customer paid, so the
+  // preview and the receipt never present a USD deposit as shillings.
+  const foreignAmounts =
+    amountUnit === "foreign" && foreignRate && parsedAmount && parsedCommission
+      ? momoForeignAmounts({
+          type,
+          amount: parsedAmount,
+          commission: parsedCommission,
+          currency: foreignCode,
+          rate: foreignRate.buyRate,
+        })
+      : null;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -198,6 +213,7 @@ export function MomoDialog({
       type: parsed.data.type,
       currency: parsed.data.currency,
       foreignAmount: parsed.data.currency === BASE_CURRENCY ? null : parsed.data.foreignAmount,
+      rate: parsed.data.currency === BASE_CURRENCY ? null : (foreignRate?.buyRate ?? null),
       amount: parsedAmountValue,
       commission: parsedCommissionValue,
       branchId: parsed.data.branchId,
@@ -340,7 +356,9 @@ export function MomoDialog({
               />
               <p id="momo-commission-hint" className="text-xs text-muted-foreground">
                 {percentCommission && parsedAmount
-                  ? `${commissionPercentLabel}% = ${formatMoney(percentCommission)} taken from ${formatMoney(parsedAmount)}`
+                  ? foreignAmounts
+                    ? `${commissionPercentLabel}% = ${formatMoney(foreignAmounts.commission)} (${formatMoney(percentCommission)}) taken from ${formatMoney(foreignAmounts.amount)}`
+                    : `${commissionPercentLabel}% = ${formatMoney(percentCommission)} taken from ${formatMoney(parsedAmount)}`
                   : "Type the rate, e.g. 3 for 3% of the amount. Leave blank for none."}
               </p>
             </div>
@@ -437,20 +455,26 @@ export function MomoDialog({
                 <span className="text-muted-foreground">
                   {type === "deposit" ? "Cash received" : "Give the customer"}
                 </span>
-                <span className="tabular font-semibold">{formatMoney(cashMovement)}</span>
+                <span className="tabular font-semibold">
+                  {formatMoney(foreignAmounts?.cash ?? cashMovement)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">
                   Float {type === "deposit" ? "pays out" : "receives"}
                 </span>
-                <span className="tabular font-medium">{formatMoney(parsedAmount)}</span>
+                <span className="tabular font-medium">
+                  {formatMoney(foreignAmounts?.amount ?? parsedAmount)}
+                </span>
               </div>
               {(parsedCommission?.minor ?? 0n) > 0n && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">
                     Commission income{commissionPercentLabel ? ` (${commissionPercentLabel}%)` : ""}
                   </span>
-                  <span className="tabular font-medium">{formatMoney(parsedCommission)}</span>
+                  <span className="tabular font-medium">
+                    {formatMoney(foreignAmounts?.commission ?? parsedCommission)}
+                  </span>
                 </div>
               )}
             </div>

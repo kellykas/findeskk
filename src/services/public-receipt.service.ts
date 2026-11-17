@@ -14,6 +14,10 @@ export interface MomoReceiptData {
   type: MomoType;
   amount: Money;
   commission: Money;
+  /** The currency the customer paid; UGX unless a foreign deposit. */
+  currency?: string;
+  /** The buy rate that valued the foreign amount, or null for UGX. */
+  rate?: string | null;
   entryDate: string;
   customer: string;
   networkRef: string;
@@ -101,6 +105,10 @@ function fxFromRow(row: Row): FxRecord {
 }
 
 function momoFromRow(row: Row): MomoReceiptData {
+  // A database without the currency columns yet returns nothing here, so the
+  // receipt falls back to its UGX figures instead of failing to load.
+  const currency = str(row["currency"]);
+  const rate = row["rate"] === null || row["rate"] === undefined ? null : String(row["rate"]);
   return {
     id: str(row["id"]),
     branchId: "",
@@ -108,6 +116,8 @@ function momoFromRow(row: Row): MomoReceiptData {
     type: str(row["type"]) as MomoType,
     amount: toMoney(String(row["amount"])),
     commission: toMoney(String(row["commission"])),
+    ...(/^[A-Z]{3}$/.test(currency) ? { currency } : {}),
+    rate,
     entryDate: str(row["entryDate"]),
     customer: str(row["customer"]),
     networkRef: str(row["networkRef"]),
