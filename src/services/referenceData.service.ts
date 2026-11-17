@@ -40,6 +40,19 @@ export interface FloatAccountOption {
   name: string;
 }
 
+/** One wallet float: the currency it holds and the asset account it posts to. */
+export interface MomoCurrencyFloat {
+  network: string;
+  currency: string;
+  floatAccountCode: string;
+}
+
+interface MomoCurrencyFloatRow {
+  network: string;
+  currency: string;
+  float_account_code: string;
+}
+
 export function mapMomoNetwork(row: MomoNetworkRow): MomoNetworkRecord {
   return {
     code: row.code,
@@ -98,6 +111,25 @@ export async function listFloatAccounts(): Promise<FloatAccountOption[]> {
   );
 }
 
+/**
+ * The per-currency floats each network holds, so the page can show what is left
+ * in every wallet rather than only the UGX account.
+ */
+export async function listMomoCurrencyFloats(): Promise<MomoCurrencyFloat[]> {
+  const { data, error } = await supabase
+    .from("momo_currency_floats")
+    .select("network, currency, float_account_code")
+    .order("currency");
+  // A deployment without the per-currency float migration reads only the
+  // network's own UGX float; the page must keep working until it is run.
+  if (error) return [];
+  return ((data ?? []) as MomoCurrencyFloatRow[]).map((row) => ({
+    network: row.network,
+    currency: row.currency,
+    floatAccountCode: row.float_account_code,
+  }));
+}
+
 export async function saveMomoNetwork(input: MomoNetworkForm): Promise<void> {
   const { error } = await supabase.rpc("save_momo_network", {
     _code: input.code,
@@ -146,4 +178,10 @@ export const floatAccountsQuery = queryOptions({
   queryKey: ["reference", "float-accounts"],
   queryFn: listFloatAccounts,
   staleTime: 300_000,
+});
+
+export const momoCurrencyFloatsQuery = queryOptions({
+  queryKey: ["reference", "momo-currency-floats"],
+  queryFn: listMomoCurrencyFloats,
+  staleTime: 60_000,
 });

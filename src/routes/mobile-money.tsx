@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney, money, type Money } from "@/domain/money";
 import { BASE_CURRENCY } from "@/domain/currency";
+import { foreignValueOfUgx } from "@/domain/forex";
 import {
   MOMO_TYPE_LABELS,
   momoCashMovement,
@@ -52,7 +53,8 @@ import {
   saveMomoNetwork,
 } from "@/services/referenceData.service";
 import { fxRatesQuery, latestRates } from "@/services/forex.service";
-import { fxCurrenciesQuery } from "@/services/referenceData.service";
+import { fxCurrenciesQuery, momoCurrencyFloatsQuery } from "@/services/referenceData.service";
+import { accountBalancesQuery } from "@/services/ledger.service";
 import { branchesQuery } from "@/services/staff.service";
 import { customersQuery } from "@/services/customers.service";
 import { settingsQuery } from "@/services/settings.service";
@@ -96,6 +98,16 @@ function foreignAmountsFor(row: MomoRecord) {
   });
 }
 
+/** One wallet float's balance, in its own currency and in the UGX ledger. */
+interface FloatBalanceRow {
+  accountCode: string;
+  currency: string;
+  /** The balance in the float's own currency. */
+  amount: Money;
+  /** The ledger's UGX value, when `amount` is a foreign currency. */
+  ledger: Money | null;
+}
+
 /** The customer's currency first; the UGX ledger value stays visible beside it. */
 function AmountCell({ ugx, foreign }: { ugx: Money; foreign?: Money | null | undefined }) {
   return (
@@ -119,6 +131,8 @@ function MobileMoney() {
   const settings = useQuery({ ...settingsQuery, enabled: allowed });
   const fxRates = useQuery({ ...fxRatesQuery, enabled: allowed });
   const fxCurrencies = useQuery({ ...fxCurrenciesQuery, enabled: allowed });
+  const currencyFloats = useQuery({ ...momoCurrencyFloatsQuery, enabled: canManageNetworks });
+  const balances = useQuery({ ...accountBalancesQuery, enabled: canManageNetworks });
   const queryClient = useQueryClient();
   const [recordForm, setRecordForm] = useState(false);
   const [reversing, setReversing] = useState<MomoRecord | null>(null);
@@ -187,6 +201,52 @@ function MobileMoney() {
       ),
     [floatAccounts.data],
   );
+
+  // A network holds one float per currency. The ledger values every float in
+  // UGX, so a foreign float is shown back in its own currency at today's buy
+  // rate, with the UGX ledger value kept beside it.
+  const buyRateByCurrency = useMemo(() => {
+    const rates = new Map<string, string>();
+    for (const rate of latestRates(fxRates.data ?? [])) rates.set(rate.currency, rate.buyRate);
+    return rates;
+  }, [fxRates.data]);
+
+  const floatBalances = useMemo(() => {
+    const balancesByCode = new Map(
+      (balances.data ?? []).map((account) => [account.code, account.balance]),
+    );
+    const byNetwork = new Map<string, FloatBalanceRow[]>();
+    const add = (network: string, accountCode: string, currency: string) => {
+      const ledger = balancesByCode.get(accountCode);
+      if (!ledger) return;
+      const rate = buyRateByCurrency.get(currency);
+      const foreign =
+        currency === BASE_CURRENCY || !rate ? null : foreignValueOfUgx(ledger, rate, currency);
+      const rows = byNetwork.get(network) ?? [];
+      rows.push({
+        accountCode,
+        currency,
+        amount: foreign ?? ledger,
+        ledger: foreign ? ledger : null,
+      });
+      byNetwork.set(network, rows);
+    };
+    for (const network of networks.data ?? []) {
+      add(network.code, network.floatAccountCode, BASE_CURRENCY);
+    }
+    for (const float of currencyFloats.data ?? []) {
+      add(float.network, float.floatAccountCode, float.currency);
+    }
+    // UGX first, then the foreign wallets in code order.
+    for (const rows of byNetwork.values()) {
+      rows.sort((a, b) => {
+        if (a.currency === BASE_CURRENCY) return -1;
+        if (b.currency === BASE_CURRENCY) return 1;
+        return a.currency.localeCompare(b.currency);
+      });
+    }
+    return byNetwork;
+  }, [balances.data, networks.data, currencyFloats.data, buyRateByCurrency]);
 
   const saveMomo = useMutation({
     mutationFn: (values: MomoFormValues) =>
@@ -518,8 +578,8 @@ function MobileMoney() {
           >
             <p className="px-5 pb-3 text-sm text-muted-foreground">
               Add the wallets you work with: each one gets its own float account, so its balance
-              stays separate. A network that already has transactions can be switched off, but not
-              deleted.
+              stays separate, and a separate account per currency it holds. A network that already
+              has transactions can be switched off, but not deleted.
             </p>
             {networks.isPending && (
               <p className="px-5 py-6 text-sm text-muted-foreground">Loading networks…</p>
@@ -568,6 +628,44 @@ function MobileMoney() {
                       accountNames.get(network.floatAccountCode) ?? network.floatAccountCode,
                   },
                   {
+                    header: "Float balances",
+                    cell: (network) => {
+                      const rows = floatBalances.get(network.code) ?? [];
+                      if (balances.isError) {
+                        return (
+                          <span className="text-xs text-muted-foreground">Balance unavailable</span>
+                        );
+                      }
+                      if (rows.length === 0) {
+                        return (
+                          <span className="text-xs text-muted-foreground">
+                            {balances.isPending || currencyFloats.isPending ? "Loading…" : "—"}
+                          </span>
+                        );
+                      }
+                      return (
+                        <div className="space-y-0.5">
+                          {rows.map((row) => (
+                            <div key={row.accountCode} className="tabular text-sm">
+                              <span className="font-medium">{formatMoney(row.amount)}</span>
+                              {row.ledger && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  {formatMoney(row.ledger)}
+                                </span>
+                              )}
+                              <span
+                                className="ml-2 text-xs text-muted-foreground"
+                                title={`Account ${row.accountCode}`}
+                              >
+                                {row.accountCode}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    },
+                  },
+                  {
                     header: "Status",
                     cell: (network) =>
                       network.active ? (
@@ -614,6 +712,11 @@ function MobileMoney() {
                 ]}
               />
             )}
+            <p className="px-5 pb-4 text-xs text-muted-foreground">
+              Every float is posted in the ledger at its UGX value, so a USD (or other foreign)
+              float is shown back in its own currency at today&apos;s published buy rate, with the
+              UGX value beside it.
+            </p>
           </SectionCard>
         </div>
       )}
