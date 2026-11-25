@@ -761,6 +761,7 @@ export type Database = {
           journal_entry_id: string;
           momo_id: string;
           reason: string;
+          replacement_id: string | null;
           reversed_by: string;
         };
         Insert: {
@@ -769,6 +770,7 @@ export type Database = {
           journal_entry_id: string;
           momo_id: string;
           reason: string;
+          replacement_id?: string | null;
           reversed_by?: string;
         };
         Update: {
@@ -777,6 +779,7 @@ export type Database = {
           journal_entry_id?: string;
           momo_id?: string;
           reason?: string;
+          replacement_id?: string | null;
           reversed_by?: string;
         };
         Relationships: [
@@ -790,6 +793,13 @@ export type Database = {
           {
             foreignKeyName: "momo_reversals_momo_id_fkey";
             columns: ["momo_id"];
+            isOneToOne: true;
+            referencedRelation: "momo_transactions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "momo_reversals_replacement_id_fkey";
+            columns: ["replacement_id"];
             isOneToOne: true;
             referencedRelation: "momo_transactions";
             referencedColumns: ["id"];

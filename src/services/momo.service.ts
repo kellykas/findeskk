@@ -73,6 +73,7 @@ export interface MomoReversalRow {
   momo_id: string;
   reason: string;
   journal_entry_id: string;
+  replacement_id: string | null;
   reversed_by: string;
   created_at: string;
 }
