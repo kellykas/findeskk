@@ -10,6 +10,7 @@ import {
   type MomoReceiptData,
 } from "@/components/mobile-money/MomoReceiptDialog";
 import { MomoNetworkDialog } from "@/components/mobile-money/MomoNetworkDialog";
+import { StaffFloatDialog } from "@/components/mobile-money/StaffFloatDialog";
 import { ReverseMomoDialog } from "@/components/mobile-money/ReverseMomoDialog";
 import {
   AccessDenied,
@@ -40,6 +41,7 @@ import {
 import { can } from "@/domain/access";
 import { useSession } from "@/hooks/use-session";
 import {
+  correctMomo,
   momoErrorMessage,
   momoQuery,
   recordMomo,
@@ -55,7 +57,9 @@ import {
 import { fxRatesQuery, latestRates } from "@/services/forex.service";
 import { fxCurrenciesQuery, momoCurrencyFloatsQuery } from "@/services/referenceData.service";
 import { accountBalancesQuery } from "@/services/ledger.service";
-import { branchesQuery } from "@/services/staff.service";
+import { allocateStaffFloat, staffFloatPositionsQuery } from "@/services/momoFloat.service";
+import { usedFloat } from "@/domain/momoFloat";
+import { branchesQuery, staffQuery } from "@/services/staff.service";
 import { customersQuery } from "@/services/customers.service";
 import { settingsQuery } from "@/services/settings.service";
 
@@ -108,6 +112,25 @@ interface FloatBalanceRow {
   ledger: Money | null;
 }
 
+/** A recorded transaction's values, used to open it for correction. */
+function formValuesFor(row: MomoRecord): MomoFormValues {
+  return {
+    network: row.network,
+    type: row.type,
+    currency: row.currency,
+    foreignAmount: row.foreignAmount,
+    rate: row.rate,
+    amount: row.amount,
+    commission: row.commission,
+    branchId: row.branchId,
+    customerId: row.customerId,
+    customerRef: row.customerRef,
+    networkRef: row.networkRef,
+    notes: row.notes,
+    entryDate: row.entryDate,
+  };
+}
+
 /** The customer's currency first; the UGX ledger value stays visible beside it. */
 function AmountCell({ ugx, foreign }: { ugx: Money; foreign?: Money | null | undefined }) {
   return (
@@ -122,7 +145,12 @@ function MobileMoney() {
   const { viewer } = useSession();
   const allowed = Boolean(viewer && can(viewer.roles, "momo.transact"));
   const canReverse = Boolean(viewer && can(viewer.roles, "transactions.reverse"));
+  // Corrections reverse the original and repost it, so they are narrower than
+  // reversing alone: only a super admin or company owner holds this permission.
+  const canCorrect = Boolean(viewer && can(viewer.roles, "transactions.correct"));
   const canManageNetworks = Boolean(viewer && can(viewer.roles, "reference.manage"));
+  // Giving float is an owner decision, like correcting a posted transaction.
+  const canAllocate = Boolean(viewer && can(viewer.roles, "floats.allocate"));
   const transactions = useQuery({ ...momoQuery(100), enabled: allowed });
   const networks = useQuery({ ...momoNetworksQuery, enabled: allowed });
   const floatAccounts = useQuery({ ...floatAccountsQuery, enabled: canManageNetworks });
@@ -133,9 +161,14 @@ function MobileMoney() {
   const fxCurrencies = useQuery({ ...fxCurrenciesQuery, enabled: allowed });
   const currencyFloats = useQuery({ ...momoCurrencyFloatsQuery, enabled: canManageNetworks });
   const balances = useQuery({ ...accountBalancesQuery, enabled: canManageNetworks });
+  // Everyone sees their own float; an administrator sees every employee's.
+  const floatPositions = useQuery({ ...staffFloatPositionsQuery, enabled: allowed });
+  const staff = useQuery({ ...staffQuery, enabled: canAllocate });
   const queryClient = useQueryClient();
   const [recordForm, setRecordForm] = useState(false);
   const [reversing, setReversing] = useState<MomoRecord | null>(null);
+  const [correcting, setCorrecting] = useState<MomoRecord | null>(null);
+  const [floatForm, setFloatForm] = useState(false);
   const [networkForm, setNetworkForm] = useState<{ network: MomoNetworkRecord | null } | null>(
     null,
   );
@@ -164,6 +197,59 @@ function MobileMoney() {
     () => new Map(customerOptions.map((c) => [c.id, c.name])),
     [customerOptions],
   );
+
+  const staffOptions = useMemo(
+    () =>
+      (staff.data ?? [])
+        .filter((member) => member.active)
+        .map((member) => ({ id: member.id, name: member.displayName })),
+    [staff.data],
+  );
+  const staffNames = useMemo(
+    () => new Map(staffOptions.map((member) => [member.id, member.name])),
+    [staffOptions],
+  );
+  const floatCurrencies = useMemo(
+    () => [
+      { code: BASE_CURRENCY, name: "Ugandan Shilling" },
+      ...activeCurrencies(fxCurrencies.data ?? []).map((currency) => ({
+        code: currency.code,
+        name: currency.name,
+      })),
+    ],
+    [fxCurrencies.data],
+  );
+  const myFloats = useMemo(
+    () => (floatPositions.data ?? []).filter((position) => position.userId === viewer?.userId),
+    [floatPositions.data, viewer?.userId],
+  );
+  const floatRows = useMemo(
+    () =>
+      [...(floatPositions.data ?? [])].sort(
+        (a, b) =>
+          (staffNames.get(a.userId) ?? "").localeCompare(staffNames.get(b.userId) ?? "") ||
+          a.network.localeCompare(b.network) ||
+          a.currency.localeCompare(b.currency),
+      ),
+    [floatPositions.data, staffNames],
+  );
+
+  /** The receipt for a just-saved transaction, whether recorded or corrected. */
+  const receiptFrom = (id: string, values: MomoFormValues): MomoReceiptData => ({
+    id,
+    branchId: values.branchId,
+    network: values.network,
+    type: values.type,
+    amount: values.amount,
+    commission: values.commission,
+    currency: values.currency,
+    rate: values.rate,
+    entryDate: values.entryDate,
+    customer:
+      (values.customerId ? customerNames.get(values.customerId) : values.customerRef) || "Walk-in",
+    networkRef: values.networkRef,
+    notes: values.notes,
+  });
 
   // Networks are company-managed rows, so names come from the table; the built-in
   // MTN/Airtel labels are only a fallback for a row that is not loaded.
@@ -257,22 +343,44 @@ function MobileMoney() {
       void queryClient.invalidateQueries({ queryKey: ["ledger"] });
       setRecordForm(false);
       // Receipts are optional: offer one, and the teller can close it.
-      setReceipt({
-        id,
-        branchId: values.branchId,
-        network: values.network,
-        type: values.type,
-        amount: values.amount,
-        commission: values.commission,
-        currency: values.currency,
-        rate: values.rate,
-        entryDate: values.entryDate,
-        customer:
-          (values.customerId ? customerNames.get(values.customerId) : values.customerRef) ||
-          "Walk-in",
-        networkRef: values.networkRef,
-        notes: values.notes,
-      });
+      setReceipt(receiptFrom(id, values));
+    },
+    onError: (error: Error) => toast.error(momoErrorMessage(error.message)),
+  });
+
+  const allocateFloat = useMutation({
+    mutationFn: (values: {
+      userId: string;
+      network: string;
+      currency: string;
+      amount: string;
+      note: string;
+    }) => allocateStaffFloat(values),
+    onSuccess: () => {
+      toast.success("Float allocated. That employee's deposits are checked against it.");
+      void queryClient.invalidateQueries({ queryKey: ["momo"] });
+      setFloatForm(false);
+    },
+    // The service already turns database errors into readable sentences.
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const correct = useMutation({
+    mutationFn: (input: { momoId: string; values: MomoFormValues; reason: string }) =>
+      correctMomo({
+        ...input.values,
+        momoId: input.momoId,
+        reason: input.reason,
+        idempotencyKey: crypto.randomUUID(),
+      }),
+    onSuccess: (id, input) => {
+      toast.success(
+        "Correction posted. The original was reversed and the corrected entry recorded.",
+      );
+      void queryClient.invalidateQueries({ queryKey: ["momo"] });
+      void queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      setCorrecting(null);
+      setReceipt(receiptFrom(id, input.values));
     },
     onError: (error: Error) => toast.error(momoErrorMessage(error.message)),
   });
@@ -532,6 +640,29 @@ function MobileMoney() {
                   </Button>
                 ),
               },
+              ...(canCorrect
+                ? [
+                    {
+                      header: "",
+                      align: "right" as const,
+                      cell: (row: MomoRecord) => (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={Boolean(row.reversal) || correct.isPending}
+                          title={
+                            row.reversal
+                              ? `Already reversed: ${row.reversal.reason}`
+                              : "Correct this transaction: the original is reversed and a corrected entry is posted"
+                          }
+                          onClick={() => setCorrecting(row)}
+                        >
+                          Edit
+                        </Button>
+                      ),
+                    },
+                  ]
+                : []),
               ...(canReverse
                 ? [
                     {
@@ -559,6 +690,128 @@ function MobileMoney() {
           />
         )}
       </SectionCard>
+
+      {myFloats.length > 0 && (
+        <div className="mt-6">
+          <SectionCard title="Your float">
+            <p className="px-5 pb-3 text-sm text-muted-foreground">
+              What you can still pay out on each wallet. Deposits reduce it; withdrawals add back.
+            </p>
+            <DataTable
+              rows={myFloats}
+              rowKey={(position) => `${position.userId}|${position.network}|${position.currency}`}
+              columns={[
+                {
+                  header: "Network",
+                  cell: (position) =>
+                    networkNames.get(position.network) ?? momoNetworkLabel(position.network),
+                },
+                { header: "Currency", cell: (position) => position.currency },
+                {
+                  header: "Given",
+                  align: "right",
+                  cell: (position) => formatMoney(position.allocated),
+                },
+                {
+                  header: "Used",
+                  align: "right",
+                  cell: (position) => formatMoney(usedFloat(position)),
+                },
+                {
+                  header: "Remaining",
+                  align: "right",
+                  cell: (position) => (
+                    <span className="font-semibold">{formatMoney(position.remaining)}</span>
+                  ),
+                },
+              ]}
+            />
+          </SectionCard>
+        </div>
+      )}
+
+      {canAllocate && (
+        <div className="mt-6">
+          <SectionCard
+            title="Employee floats"
+            action={
+              <Button variant="outline" size="sm" onClick={() => setFloatForm(true)}>
+                Give float
+              </Button>
+            }
+          >
+            <p className="px-5 pb-3 text-sm text-muted-foreground">
+              Give a teller part of a network&apos;s float. Their deposits are checked against what
+              is left; the money stays in the network&apos;s own float account.
+            </p>
+            {floatPositions.isPending && (
+              <p className="px-5 py-6 text-sm text-muted-foreground">Loading floats…</p>
+            )}
+            {floatPositions.isError &&
+              (isSetupMissing(floatPositions.error.message) ? (
+                <SetupNotice file="supabase/migrations/20261117140000_momo_staff_floats.sql">
+                  <p className="text-muted-foreground">
+                    Employee floats are not enabled in the database yet. Recording keeps working
+                    until then.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => void floatPositions.refetch()}>
+                    Try again
+                  </Button>
+                </SetupNotice>
+              ) : (
+                <div className="space-y-2 px-5 py-6 text-sm">
+                  <p className="text-destructive">
+                    Could not load employee floats: {floatPositions.error.message}
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => void floatPositions.refetch()}>
+                    Try again
+                  </Button>
+                </div>
+              ))}
+            {!floatPositions.isPending && !floatPositions.isError && floatRows.length === 0 && (
+              <p className="px-5 py-6 text-sm text-muted-foreground">
+                No float has been given yet. Until one is given, an employee can record against the
+                whole network float.
+              </p>
+            )}
+            {floatRows.length > 0 && (
+              <DataTable
+                rows={floatRows}
+                rowKey={(position) => `${position.userId}|${position.network}|${position.currency}`}
+                columns={[
+                  {
+                    header: "Employee",
+                    cell: (position) => staffNames.get(position.userId) ?? "Unknown staff",
+                  },
+                  {
+                    header: "Network",
+                    cell: (position) =>
+                      networkNames.get(position.network) ?? momoNetworkLabel(position.network),
+                  },
+                  { header: "Currency", cell: (position) => position.currency },
+                  {
+                    header: "Given",
+                    align: "right",
+                    cell: (position) => formatMoney(position.allocated),
+                  },
+                  {
+                    header: "Used",
+                    align: "right",
+                    cell: (position) => formatMoney(usedFloat(position)),
+                  },
+                  {
+                    header: "Remaining",
+                    align: "right",
+                    cell: (position) => (
+                      <span className="font-semibold">{formatMoney(position.remaining)}</span>
+                    ),
+                  },
+                ]}
+              />
+            )}
+          </SectionCard>
+        </div>
+      )}
 
       {canManageNetworks && (
         <div className="mt-6">
@@ -734,10 +987,32 @@ function MobileMoney() {
           customers={customerOptions}
           networks={networkOptions}
           foreignRates={foreignRateOptions}
+          floatPositions={myFloats}
           open
           saving={saveMomo.isPending}
           onOpenChange={setRecordForm}
           onSave={(values) => saveMomo.mutate(values)}
+        />
+      )}
+
+      {/* Correction keeps the original: it is reversed, and the edit is reposted. */}
+      {correcting && (
+        <MomoDialog
+          branches={branchOptions}
+          customers={customerOptions}
+          networks={networkOptions}
+          foreignRates={foreignRateOptions}
+          initial={formValuesFor(correcting)}
+          correcting
+          floatPositions={myFloats}
+          open
+          saving={correct.isPending}
+          onOpenChange={(next) => {
+            if (!next) setCorrecting(null);
+          }}
+          onSave={(values, reason) =>
+            correct.mutate({ momoId: correcting.id, values, reason: reason ?? "" })
+          }
         />
       )}
 
@@ -763,6 +1038,19 @@ function MobileMoney() {
             if (!next) setNetworkForm(null);
           }}
           onSave={(values) => saveNetwork.mutate(values)}
+        />
+      )}
+
+      {floatForm && (
+        <StaffFloatDialog
+          employees={staffOptions}
+          networks={networkOptions}
+          currencies={floatCurrencies}
+          positions={floatPositions.data ?? []}
+          open
+          saving={allocateFloat.isPending}
+          onOpenChange={setFloatForm}
+          onSave={(values) => allocateFloat.mutate(values)}
         />
       )}
 

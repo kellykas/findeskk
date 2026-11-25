@@ -817,6 +817,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      momo_staff_floats: {
+        Row: {
+          amount: number;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          id: string;
+          network: string;
+          note: string;
+          user_id: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          created_by?: string;
+          currency: string;
+          id?: string;
+          network: string;
+          note?: string;
+          user_id: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          id?: string;
+          network?: string;
+          note?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       momo_transactions: {
         Row: {
           amount: number;
@@ -981,8 +1014,29 @@ export type Database = {
         };
         Relationships: [];
       };
+      momo_staff_float_positions: {
+        Row: {
+          allocated: number | null;
+          currency: string | null;
+          movement: number | null;
+          network: string | null;
+          remaining: number | null;
+          user_id: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
+      allocate_momo_staff_float: {
+        Args: {
+          _amount: number;
+          _currency: string;
+          _network: string;
+          _note?: string;
+          _user_id: string;
+        };
+        Returns: string;
+      };
       claim_initial_admin: { Args: never; Returns: boolean };
       delete_fx_currency: { Args: { _code: string }; Returns: undefined };
       delete_momo_network: { Args: { _code: string }; Returns: undefined };

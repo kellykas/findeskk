@@ -152,6 +152,21 @@ export function momoForeignAmounts(input: {
 }
 
 /**
+ * The percentage a recorded commission represents of its amount, so a correction
+ * opens with the same terms rather than a blank fee. The rate is rounded to the
+ * three decimals the form accepts; the preview then shows the money it produces,
+ * so nothing changes unseen. Returns null when the amount cannot carry a rate.
+ */
+export function commissionPercentOf(amount: Money, commission: Money): string | null {
+  if (amount.minor <= 0n) return null;
+  const thousandths = (commission.minor * 100_000n + amount.minor / 2n) / amount.minor;
+  if (thousandths < 0n || thousandths > 100_000n) return null;
+  const whole = thousandths / 1000n;
+  const fraction = (thousandths % 1000n).toString().padStart(3, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : `${whole}`;
+}
+
+/**
  * Commission taken as a percentage of the amount, rounded to the nearest minor
  * unit (half up). Networks such as MPESA and Airtel Money in the DRC deduct a
  * rate — 3 % is usual — so the teller types the rate and the deduction follows.

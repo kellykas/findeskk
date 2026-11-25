@@ -158,8 +158,9 @@ export interface RecordMomoInput {
   idempotencyKey: string;
 }
 
-export async function recordMomo(input: RecordMomoInput): Promise<string> {
-  const { data, error } = await supabase.rpc("record_momo_transaction", {
+/** The RPC arguments shared by recording and correcting a transaction. */
+function momoRpcArgs(input: RecordMomoInput) {
+  return {
     _network: input.network,
     _type: input.type,
     _amount: toDecimalString(input.amount),
@@ -173,9 +174,55 @@ export async function recordMomo(input: RecordMomoInput): Promise<string> {
     _idempotency_key: input.idempotencyKey,
     _currency: input.currency,
     _foreign_amount: input.foreignAmount,
-  } as never);
+  };
+}
+
+export async function recordMomo(input: RecordMomoInput): Promise<string> {
+  const { data, error } = await supabase.rpc(
+    "record_momo_transaction",
+    momoRpcArgs(input) as never,
+  );
   if (error) throw new Error(momoErrorMessage(error.message));
   return data as string;
+}
+
+export interface CorrectMomoInput extends RecordMomoInput {
+  /** The transaction being corrected; it is reversed, never edited. */
+  momoId: string;
+  /** Why it is being corrected; stored with the reversal for audit. */
+  reason: string;
+}
+
+/** The generated Database types predate this function, so the call is typed locally. */
+type RpcClient = {
+  rpc: (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
+/** Reverses the recorded transaction and posts the corrected one in one step. */
+export async function correctMomo(input: CorrectMomoInput): Promise<string> {
+  const client = supabase as unknown as RpcClient;
+  const { data, error } = await client.rpc("correct_momo_transaction", {
+    ...momoRpcArgs(input),
+    _momo_id: input.momoId,
+    _reason: input.reason,
+  });
+  if (error) throw new Error(correctionErrorMessage(error.message));
+  return data as string;
+}
+
+function correctionErrorMessage(message: string): string {
+  const text = message.toLowerCase();
+  if (
+    text.includes("could not find the function") ||
+    text.includes("schema cache") ||
+    text.includes("does not exist")
+  ) {
+    return "Corrections need a one-time database setup before they can be used. Ask your administrator to run supabase/migrations/20261117120000_momo_corrections.sql in Supabase.";
+  }
+  return momoErrorMessage(message);
 }
 
 export async function reverseMomo(input: { momoId: string; reason: string }): Promise<string> {
@@ -193,6 +240,8 @@ export function momoErrorMessage(message: string): string {
     return "Your roles cannot record mobile money transactions.";
   if (text.includes("cannot reverse transactions"))
     return "Only a super admin, company owner or general manager can reverse a transaction.";
+  if (text.includes("only a super admin can correct"))
+    return "Only a super admin or company owner can correct a transaction.";
   if (text.includes("already been reversed")) return "That transaction was already reversed.";
   if (text.includes("reason of at least")) return "Give a reason of at least 4 characters.";
   if (text.includes("no journal entry to reverse"))

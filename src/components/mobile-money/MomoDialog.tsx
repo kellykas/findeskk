@@ -24,14 +24,17 @@ import {
   MOMO_TYPES,
   MOMO_TYPE_LABELS,
   commissionForPercent,
+  commissionPercentOf,
   momoCashMovement,
   momoForeignAmounts,
+  momoReversalSchema,
   momoSchema,
 } from "@/domain/momo";
 import { parseLedgerAmount } from "@/domain/ledger";
 import { formatRate, ugxValueOfForeign } from "@/domain/forex";
 import { BASE_CURRENCY } from "@/domain/currency";
 import { todayUtcDate } from "@/domain/date";
+import type { StaffFloatPosition } from "@/domain/momoFloat";
 import type { Money } from "@/domain/money";
 
 const NONE = "__none";
@@ -86,10 +89,16 @@ interface Props {
   networks: NetworkOption[];
   /** Currencies with a published rate; empty means only UGX and % are offered. */
   foreignRates: ForeignRateOption[];
+  /** The transaction being corrected; a fresh entry starts blank. */
+  initial?: MomoFormValues;
+  /** Correcting a recorded transaction: a reason is required and shown. */
+  correcting?: boolean;
+  /** The reader's own float, so the form can show what is left on this wallet. */
+  floatPositions?: StaffFloatPosition[];
   open: boolean;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (values: MomoFormValues) => void;
+  onSave: (values: MomoFormValues, reason?: string) => void;
 }
 
 /** Records one manual agency transaction, with a live preview. */
@@ -98,32 +107,51 @@ export function MomoDialog({
   customers,
   networks,
   foreignRates,
+  initial,
+  correcting = false,
+  floatPositions,
   open,
   saving,
   onOpenChange,
   onSave,
 }: Props) {
-  const [network, setNetwork] = useState(networks[0]?.code ?? "");
-  const [type, setType] = useState<(typeof MOMO_TYPES)[number]>("deposit");
-  const [amount, setAmount] = useState("");
+  // A correction opens on the recorded values, so only what was wrong changes;
+  // a fresh entry still starts blank. The amount is shown in the unit it was
+  // paid in, which is the currency the record keeps.
+  const initialUnit: "ugx" | "foreign" =
+    initial && initial.currency !== BASE_CURRENCY && initial.foreignAmount ? "foreign" : "ugx";
+  const [network, setNetwork] = useState(initial?.network ?? networks[0]?.code ?? "");
+  const [type, setType] = useState<(typeof MOMO_TYPES)[number]>(initial?.type ?? "deposit");
+  const [amount, setAmount] = useState(
+    initial
+      ? initialUnit === "foreign"
+        ? (initial.foreignAmount ?? "")
+        : toDecimalString(initial.amount)
+      : "",
+  );
   // Commission is normally a rate of the amount (3 % on MPESA and Airtel Money
   // withdrawals), so the field opens in percentage mode; a flat fee is one click
   // away, and either way the recorded commission is always the money itself.
-  const [commission, setCommission] = useState("");
+  const [commission, setCommission] = useState(
+    initial ? (commissionPercentOf(initial.amount, initial.commission) ?? "") : "",
+  );
   // The amount can be typed in UGX or in a published foreign currency (USD by
   // default); the commission is always a percentage of the UGX amount.
   const [amountUnit, setAmountUnit] = useState<"ugx" | "foreign">(
-    foreignRates.length > 0 ? "foreign" : "ugx",
+    initial ? initialUnit : foreignRates.length > 0 ? "foreign" : "ugx",
   );
   const [foreignCode, setForeignCode] = useState(
-    foreignRates.find((option) => option.code === "USD")?.code ?? foreignRates[0]?.code ?? "",
+    initial && initial.currency !== BASE_CURRENCY
+      ? initial.currency
+      : (foreignRates.find((option) => option.code === "USD")?.code ?? foreignRates[0]?.code ?? ""),
   );
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
-  const [customerId, setCustomerId] = useState(NONE);
-  const [customerRef, setCustomerRef] = useState("");
-  const [networkRef, setNetworkRef] = useState("");
-  const [notes, setNotes] = useState("");
-  const [entryDate, setEntryDate] = useState(todayUtcDate());
+  const [branchId, setBranchId] = useState(initial?.branchId ?? branches[0]?.id ?? "");
+  const [customerId, setCustomerId] = useState(initial?.customerId ?? NONE);
+  const [customerRef, setCustomerRef] = useState(initial?.customerRef ?? "");
+  const [networkRef, setNetworkRef] = useState(initial?.networkRef ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [entryDate, setEntryDate] = useState(initial?.entryDate ?? todayUtcDate());
+  const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // The branch list loads after this dialog mounts; adopt the only branch then.
@@ -133,12 +161,20 @@ export function MomoDialog({
   }, [branches, branchId]);
 
   // Networks load asynchronously too, and an inactive one may have been removed
-  // from the list since this form opened.
+  // from the list since this form opened. A correction keeps the recorded
+  // network instead of silently swapping in another: the database reports it if
+  // that network is switched off.
   useEffect(() => {
+    if (correcting) return;
     if (!networks.some((option) => option.code === network)) setNetwork(networks[0]?.code ?? "");
-  }, [networks, network]);
+  }, [networks, network, correcting]);
 
   const foreignRate = foreignRates.find((option) => option.code === foreignCode);
+  const floatLeft = floatPositions?.find(
+    (position) =>
+      position.network === network &&
+      position.currency === (amountUnit === "foreign" ? foreignCode : BASE_CURRENCY),
+  );
   // A foreign amount is converted once, at the published buy rate, so the
   // preview, the validation and the saved UGX amount all agree.
   const parsedAmount =
@@ -175,6 +211,15 @@ export function MomoDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (correcting) {
+      const parsedReason = momoReversalSchema.safeParse({ reason });
+      if (!parsedReason.success) {
+        setError(
+          parsedReason.error.issues[0]?.message ?? "Give a short reason for the correction.",
+        );
+        return;
+      }
+    }
     if (amountUnit === "foreign" && !parsedAmount) {
       setError(`Enter a ${foreignCode || "foreign"} amount, for example 100.`);
       return;
@@ -208,21 +253,24 @@ export function MomoDialog({
       return;
     }
     setError(null);
-    onSave({
-      network: parsed.data.network,
-      type: parsed.data.type,
-      currency: parsed.data.currency,
-      foreignAmount: parsed.data.currency === BASE_CURRENCY ? null : parsed.data.foreignAmount,
-      rate: parsed.data.currency === BASE_CURRENCY ? null : (foreignRate?.buyRate ?? null),
-      amount: parsedAmountValue,
-      commission: parsedCommissionValue,
-      branchId: parsed.data.branchId,
-      customerId: parsed.data.customerId === "" ? null : parsed.data.customerId,
-      customerRef: parsed.data.customerRef,
-      networkRef: parsed.data.networkRef,
-      notes: parsed.data.notes,
-      entryDate: parsed.data.entryDate,
-    });
+    onSave(
+      {
+        network: parsed.data.network,
+        type: parsed.data.type,
+        currency: parsed.data.currency,
+        foreignAmount: parsed.data.currency === BASE_CURRENCY ? null : parsed.data.foreignAmount,
+        rate: parsed.data.currency === BASE_CURRENCY ? null : (foreignRate?.buyRate ?? null),
+        amount: parsedAmountValue,
+        commission: parsedCommissionValue,
+        branchId: parsed.data.branchId,
+        customerId: parsed.data.customerId === "" ? null : parsed.data.customerId,
+        customerRef: parsed.data.customerRef,
+        networkRef: parsed.data.networkRef,
+        notes: parsed.data.notes,
+        entryDate: parsed.data.entryDate,
+      },
+      correcting ? reason.trim() : undefined,
+    );
   }
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
@@ -232,9 +280,13 @@ export function MomoDialog({
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>Record mobile money transaction</DialogTitle>
+            <DialogTitle>
+              {correcting ? "Correct mobile money transaction" : "Record mobile money transaction"}
+            </DialogTitle>
             <DialogDescription>
-              Deposits take in cash against float; withdrawals pay out cash against float.
+              {correcting
+                ? "The original is reversed and this corrected entry is posted in its place. Nothing is deleted, so the ledger keeps both."
+                : "Deposits take in cash against float; withdrawals pay out cash against float."}
             </DialogDescription>
           </DialogHeader>
 
@@ -449,6 +501,25 @@ export function MomoDialog({
             />
           </div>
 
+          {correcting && (
+            <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+              <Label htmlFor="momo-correction-reason">Reason for the correction</Label>
+              <Textarea
+                id="momo-correction-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                maxLength={300}
+                rows={2}
+                placeholder="Wrong amount entered"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                At least 4 characters. Stored with the cancelling entry so auditors can see why the
+                original was replaced.
+              </p>
+            </div>
+          )}
+
           {showPreview && cashMovement && (
             <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
               <div className="flex justify-between">
@@ -477,6 +548,12 @@ export function MomoDialog({
                   </span>
                 </div>
               )}
+              {floatLeft && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Your float left on this wallet</span>
+                  <span className="tabular font-medium">{formatMoney(floatLeft.remaining)}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -485,7 +562,13 @@ export function MomoDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={saving || !network}>
-              {saving ? "Recording…" : "Record transaction"}
+              {correcting
+                ? saving
+                  ? "Saving correction…"
+                  : "Save correction"
+                : saving
+                  ? "Recording…"
+                  : "Record transaction"}
             </Button>
           </DialogFooter>
         </form>
