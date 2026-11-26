@@ -2,12 +2,13 @@
 --
 -- fx_transactions rows and their journal entries are immutable, so "editing" a
 -- trade cannot change history. amend_fx_transaction() therefore records a
--- correction twice, permanently, in one transaction:
+-- correction in one transaction:
 --   1. a mirror-image journal entry that cancels the original posting, linked by
 --      journal_entries.reverses_entry_id (UNIQUE, so an entry reverses once);
---   2. the corrected trade as a new fx_transactions row, posted through
---      record_fx_transaction() so it is priced from the published rate for its
---      date, exactly like a trade recorded from scratch;
+--   2. the corrected trade as a new fx_transactions row, posted here at the
+--      rates the caller supplies — a correction may fix a rate that was struck
+--      differently from the published one, so the published rate is not
+--      re-imposed;
 --   3. an audit row in fx_amendments naming the original, the replacement, who
 --      corrected it, when and why.
 -- Only a super admin or company owner may correct, matching the
@@ -54,6 +55,13 @@ DECLARE
   _lines jsonb;
   _reversal_entry_id uuid;
   _replacement_id uuid;
+  _entry_id uuid;
+  _settlement_code text;
+  _ugx numeric(20,2);
+  _cost numeric(20,2);
+  _margin numeric(20,2);
+  _description text;
+  _new_lines jsonb;
 BEGIN
   IF _uid IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -89,6 +97,35 @@ BEGIN
   END IF;
   IF length(_reason_text) > 300 THEN
     RAISE EXCEPTION 'Reason can have at most 300 characters';
+  END IF;
+
+  -- The corrected trade is validated as if it were a new one, except that the
+  -- rates are whatever the caller enters.
+  IF _type IS NULL OR _type NOT IN ('buy','sell') THEN
+    RAISE EXCEPTION 'Unknown forex transaction type';
+  END IF;
+  IF _currency IS NULL OR _currency !~ '^[A-Z]{3}$' OR _currency = 'UGX' THEN
+    RAISE EXCEPTION 'Unknown currency';
+  END IF;
+  IF _foreign_amount IS NULL OR _foreign_amount <= 0 THEN
+    RAISE EXCEPTION 'Foreign amount must be greater than zero';
+  END IF;
+  IF _rate IS NULL OR _rate <= 0 OR _cost_rate IS NULL OR _cost_rate <= 0 THEN
+    RAISE EXCEPTION 'Rates must be greater than zero';
+  END IF;
+  IF _settlement IS NULL OR _settlement NOT IN ('cash','bank') THEN
+    RAISE EXCEPTION 'Settlement must be cash or bank';
+  END IF;
+  IF _date > current_date THEN
+    RAISE EXCEPTION 'Entry date cannot be in the future';
+  END IF;
+  IF length(coalesce(_customer_ref,'')) > 80
+     OR length(coalesce(_receipt_no,'')) > 40
+     OR length(coalesce(_notes,'')) > 300 THEN
+    RAISE EXCEPTION 'One of the text fields is too long';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.branches b WHERE b.id = _branch_id AND b.active) THEN
+    RAISE EXCEPTION 'Invalid or inactive branch';
   END IF;
 
   -- Nothing to correct: refuse rather than reverse and re-post an identical
@@ -132,13 +169,62 @@ BEGIN
       _original.currency, _reason_text),
     'fx_reversal', _original.branch_id, _lines, NULL, _original.journal_entry_id);
 
-  -- Post the corrected trade through the normal path, so the rate is re-read
-  -- from the published history and the journal entry is built the same way.
+  -- Authoritative money math: NUMERIC only, rounded to whole shillings, exactly
+  -- as record_fx_transaction() does it.
+  _ugx := round(_foreign_amount * _rate, 0);
+  _cost := round(_foreign_amount * _cost_rate, 0);
+  _margin := _ugx - _cost;
+  IF _ugx <= 0 OR _cost <= 0 THEN
+    RAISE EXCEPTION 'The trade value rounds to zero; increase the amount';
+  END IF;
+
+  _settlement_code := CASE _settlement WHEN 'bank' THEN '1100' ELSE '1000' END;
+  _description := format('Forex %s %s %s at %s UGX (corrected)',
+    _type, to_char(_foreign_amount, 'FM999,999,999,990.00'), _currency, _rate);
+
+  IF _type = 'buy' THEN
+    -- We buy foreign currency and pay out UGX: inventory up, cash/bank down.
+    _new_lines := jsonb_build_array(
+      jsonb_build_object('account_code','1010','side','debit',
+        'amount', to_char(_cost, 'FM999999999999990.00'), 'memo','Foreign currency bought'),
+      jsonb_build_object('account_code',_settlement_code,'side','credit',
+        'amount', to_char(_ugx, 'FM999999999999990.00'), 'memo','UGX paid out')
+    );
+  ELSE
+    -- We sell foreign currency and receive UGX: cash/bank up, inventory down
+    -- at cost, margin to income (a negative margin debits income).
+    _new_lines := jsonb_build_array(
+      jsonb_build_object('account_code',_settlement_code,'side','debit',
+        'amount', to_char(_ugx, 'FM999999999999990.00'), 'memo','UGX received'),
+      jsonb_build_object('account_code','1010','side','credit',
+        'amount', to_char(_cost, 'FM999999999999990.00'), 'memo','Foreign currency sold at cost')
+    );
+    IF _margin > 0 THEN
+      _new_lines := _new_lines || jsonb_build_array(
+        jsonb_build_object('account_code','4000','side','credit',
+          'amount', to_char(_margin, 'FM999999999999990.00'), 'memo','Forex margin'));
+    ELSIF _margin < 0 THEN
+      _new_lines := _new_lines || jsonb_build_array(
+        jsonb_build_object('account_code','4000','side','debit',
+          'amount', to_char(-_margin, 'FM999999999999990.00'), 'memo','Forex margin (loss)'));
+    END IF;
+  END IF;
+
+  _entry_id := private.post_journal_entry_core(
+    _date, _description, 'forex_' || _type, _branch_id, _new_lines,
+    'fx-amend-entry:' || _fx_id::text, NULL);
+
   -- The idempotency key makes a second correction of the same trade impossible
   -- even if the audit row is lost.
-  _replacement_id := public.record_fx_transaction(
-    _type, _currency, _foreign_amount, _rate, _cost_rate, _settlement, _branch_id,
-    _customer_ref, _receipt_no, _notes, _date, 'fx-amend:' || _fx_id::text);
+  INSERT INTO public.fx_transactions
+    (type, currency, foreign_amount, rate, cost_rate, ugx_amount, cost_amount, margin,
+     settlement, branch_id, customer_ref, receipt_no, notes, entry_date,
+     journal_entry_id, idempotency_key, created_by)
+  VALUES
+    (_type, _currency, _foreign_amount, _rate, _cost_rate, _ugx, _cost, _margin,
+     _settlement, _branch_id, trim(coalesce(_customer_ref,'')), trim(coalesce(_receipt_no,'')),
+     trim(coalesce(_notes,'')), _date, _entry_id, 'fx-amend:' || _fx_id::text, _uid)
+  RETURNING id INTO _replacement_id;
 
   INSERT INTO public.fx_amendments (fx_id, replacement_id, reason, reversal_entry_id, amended_by)
   VALUES (_fx_id, _replacement_id, _reason_text, _reversal_entry_id, _uid);

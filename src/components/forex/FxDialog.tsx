@@ -106,11 +106,25 @@ export function FxDialog({
   const [entryDate, setEntryDate] = useState(trade?.entryDate ?? todayUtcDate());
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // A correction keeps the rate the trade was actually struck at, and lets it
+  // be changed; the published rate is only the starting point.
+  const publishedAtOpen = trade
+    ? rateEffectiveOn(rates, trade.currency, trade.entryDate)
+    : undefined;
+  const [buyRate, setBuyRate] = useState(trade ? formatRate(trade.costRate) : "");
+  const [sellRate, setSellRate] = useState(
+    trade
+      ? formatRate(trade.type === "sell" ? trade.rate : (publishedAtOpen?.sellRate ?? trade.rate))
+      : "",
+  );
 
   // A trade is priced from the published rate in force on its own date, so the
   // preview follows the date field rather than always using today's rate.
   const rateForDate = (code: string, date: string) => rateEffectiveOn(rates, code, date);
-  const tradeable = currencies.filter((option) => rateForDate(option.code, entryDate));
+  // A correction carries its own rate, so every active currency stays available.
+  const tradeable = editing
+    ? currencies
+    : currencies.filter((option) => rateForDate(option.code, entryDate));
 
   // Rates and branches both load asynchronously; adopt the only branch once known.
   useEffect(() => {
@@ -124,18 +138,23 @@ export function FxDialog({
   }, [tradeable, currency]);
 
   const chosenRate = rateForDate(currency, entryDate);
-  const preview = chosenRate
-    ? previewTrade({
-        type,
-        foreignAmount,
-        buyRate: chosenRate.buyRate,
-        sellRate: chosenRate.sellRate,
-      })
-    : null;
+  // In a correction the typed rates drive the preview and the posting; a new
+  // trade is priced from the published rate.
+  const previewBuyRate = editing ? buyRate : chosenRate?.buyRate;
+  const previewSellRate = editing ? sellRate : chosenRate?.sellRate;
+  const preview =
+    previewBuyRate && previewSellRate
+      ? previewTrade({
+          type,
+          foreignAmount,
+          buyRate: previewBuyRate,
+          sellRate: previewSellRate,
+        })
+      : null;
 
   function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!chosenRate) {
+    if (!editing && !chosenRate) {
       setError(`No rate has been published for ${currency} on or before ${entryDate}.`);
       return;
     }
@@ -151,17 +170,18 @@ export function FxDialog({
       entryDate,
     };
     if (editing) {
-      const parsed = fxAmendmentSchema.safeParse({ ...fields, reason });
+      const parsed = fxAmendmentSchema.safeParse({
+        ...fields,
+        rate: type === "buy" ? buyRate : sellRate,
+        costRate: buyRate,
+        reason,
+      });
       if (!parsed.success) {
         setError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
         return;
       }
       setError(null);
-      onAmend?.({
-        ...parsed.data,
-        rate: tradeRateFor(type, chosenRate),
-        costRate: chosenRate.buyRate,
-      });
+      onAmend?.(parsed.data);
       return;
     }
     const parsed = fxSchema.safeParse(fields);
@@ -172,8 +192,8 @@ export function FxDialog({
     setError(null);
     onSave({
       ...parsed.data,
-      rate: tradeRateFor(type, chosenRate),
-      costRate: chosenRate.buyRate,
+      rate: tradeRateFor(type, chosenRate!),
+      costRate: chosenRate!.buyRate,
     });
   }
 
@@ -279,16 +299,51 @@ export function FxDialog({
             </Select>
           </div>
 
-          <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Buy rate</span>
-              <span className="tabular font-medium">{formatRate(chosenRate?.buyRate ?? "—")}</span>
+          {editing ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="fx-buy-rate">Buy rate</Label>
+                  <Input
+                    id="fx-buy-rate"
+                    value={buyRate}
+                    onChange={(event) => setBuyRate(event.target.value.replace(/,/g, ""))}
+                    inputMode="decimal"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fx-sell-rate">Sell rate</Label>
+                  <Input
+                    id="fx-sell-rate"
+                    value={sellRate}
+                    onChange={(event) => setSellRate(event.target.value.replace(/,/g, ""))}
+                    inputMode="decimal"
+                    required
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A buy posts at the buy rate; a sell posts at the sell rate and its cost at the buy
+                rate. Prefilled from the trade, so change it to the rate the trade was struck at.
+              </p>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Sell rate</span>
-              <span className="tabular font-medium">{formatRate(chosenRate?.sellRate ?? "—")}</span>
+          ) : (
+            <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Buy rate</span>
+                <span className="tabular font-medium">
+                  {formatRate(chosenRate?.buyRate ?? "—")}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Sell rate</span>
+                <span className="tabular font-medium">
+                  {formatRate(chosenRate?.sellRate ?? "—")}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
@@ -380,6 +435,10 @@ export function FxDialog({
                   </span>
                 </div>
               </>
+            ) : editing ? (
+              <p className="text-muted-foreground">
+                Enter valid rates and an amount to preview the UGX value.
+              </p>
             ) : chosenRate ? (
               <p className="text-muted-foreground">
                 Enter an amount to preview the UGX value at the published rate.
@@ -396,7 +455,7 @@ export function FxDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !chosenRate || !preview}>
+            <Button type="submit" disabled={saving || !preview}>
               {saving
                 ? editing
                   ? "Correcting…"

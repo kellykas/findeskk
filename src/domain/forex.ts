@@ -223,8 +223,14 @@ export function rateEffectiveOn(
   return best;
 }
 
-/** A correction needs the same trade fields plus a reason for the audit trail. */
+/**
+ * A correction carries its own rates, because the trade may have been struck at
+ * a rate different from the one published for its date, plus a reason for the
+ * audit trail.
+ */
 export const fxAmendmentSchema = fxSchema.extend({
+  rate: z.string().trim().refine(isValidRate, "Enter a rate greater than zero"),
+  costRate: z.string().trim().refine(isValidRate, "Enter a buy rate greater than zero"),
   reason: z
     .string()
     .trim()
