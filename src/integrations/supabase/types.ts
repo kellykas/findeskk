@@ -395,6 +395,36 @@ export type Database = {
           },
         ];
       };
+      fx_amendments: {
+        Row: {
+          amended_by: string | null;
+          created_at: string;
+          fx_id: string;
+          id: string;
+          reason: string;
+          replacement_id: string;
+          reversal_entry_id: string;
+        };
+        Insert: {
+          amended_by?: string | null;
+          created_at?: string;
+          fx_id: string;
+          id?: string;
+          reason: string;
+          replacement_id: string;
+          reversal_entry_id: string;
+        };
+        Update: {
+          amended_by?: string | null;
+          created_at?: string;
+          fx_id?: string;
+          id?: string;
+          reason?: string;
+          replacement_id?: string;
+          reversal_entry_id?: string;
+        };
+        Relationships: [];
+      };
       fx_currencies: {
         Row: {
           active: boolean;
@@ -1044,6 +1074,24 @@ export type Database = {
           _network: string;
           _note?: string;
           _user_id: string;
+        };
+        Returns: string;
+      };
+      amend_fx_transaction: {
+        Args: {
+          _branch_id: string;
+          _cost_rate: number;
+          _currency: string;
+          _customer_ref: string;
+          _entry_date: string;
+          _foreign_amount: number;
+          _fx_id: string;
+          _notes: string;
+          _rate: number;
+          _reason: string;
+          _receipt_no: string;
+          _settlement: string;
+          _type: string;
         };
         Returns: string;
       };

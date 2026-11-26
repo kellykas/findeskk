@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { t } from "@/domain/i18n";
-import { FxDialog, type FxTradeValues } from "@/components/forex/FxDialog";
+import { FxDialog, type FxAmendmentValues, type FxTradeValues } from "@/components/forex/FxDialog";
 import { FxReceiptDialog } from "@/components/forex/FxReceiptDialog";
 import { FxCurrencyDialog } from "@/components/forex/FxCurrencyDialog";
 import { RateDialog } from "@/components/forex/RateDialog";
@@ -39,6 +39,8 @@ import { can } from "@/domain/access";
 import { isSetupMissing } from "@/domain/referenceDataMessages";
 import { useSession } from "@/hooks/use-session";
 import {
+  amendFxTransaction,
+  fxAmendmentsQuery,
   fxQuery,
   fxRatesQuery,
   latestRates,
@@ -83,11 +85,14 @@ function Forex() {
   const { viewer } = useSession();
   const allowed = Boolean(viewer && can(viewer.roles, "forex.transact"));
   const canTransfer = Boolean(viewer && can(viewer.roles, "forex.transfer"));
+  const canCorrect = Boolean(viewer && can(viewer.roles, "transactions.correct"));
   // Currencies and their rates are every staff member's job: a teller cannot wait
   // for a manager to be around. Adding a network stays a manager decision.
   const canManageCurrencies = Boolean(viewer && can(viewer.roles, "currencies.manage"));
   const [search, setSearch] = useState("");
   const [recordTrade, setRecordTrade] = useState(false);
+  // Null when closed; a trade opens the dialog in correction mode.
+  const [editTrade, setEditTrade] = useState<FxRecord | null>(null);
   // Null when closed; an empty object opens on the first currency, and a code
   // opens it preselected from that currency's row.
   const [publishRate, setPublishRate] = useState<{ currency?: string } | null>(null);
@@ -100,6 +105,7 @@ function Forex() {
   const rates = useQuery({ ...fxRatesQuery, enabled: allowed });
   const currencies = useQuery({ ...fxCurrenciesQuery, enabled: allowed });
   const trades = useQuery({ ...fxQuery(100), enabled: allowed });
+  const amendments = useQuery({ ...fxAmendmentsQuery, enabled: allowed });
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
   const transfers = useQuery({ ...transfersQuery(100), enabled: allowed });
   const settings = useQuery(settingsQuery);
@@ -151,6 +157,32 @@ function Forex() {
       void queryClient.invalidateQueries({ queryKey: ["forex"] });
       void queryClient.invalidateQueries({ queryKey: ["ledger"] });
       setRecordTrade(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const amendTrade = useMutation({
+    mutationFn: (values: FxAmendmentValues) =>
+      amendFxTransaction({
+        id: editTrade?.id ?? "",
+        type: values.type,
+        currency: values.currency,
+        foreignAmount: money(parseForeignAmount(values.foreignAmount) ?? 0n, values.currency),
+        rate: values.rate,
+        costRate: values.costRate,
+        settlement: values.settlement,
+        branchId: values.branchId,
+        customerRef: values.customerRef,
+        receiptNo: values.receiptNo,
+        notes: values.notes,
+        entryDate: values.entryDate,
+        reason: values.reason,
+      }),
+    onSuccess: () => {
+      toast.success("Correction posted. The original entry stays in the ledger as reversed.");
+      void queryClient.invalidateQueries({ queryKey: ["forex"] });
+      void queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      setEditTrade(null);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -208,7 +240,20 @@ function Forex() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const rows = useMemo(() => trades.data ?? [], [trades.data]);
+  // A corrected trade is superseded by its replacement: showing both would
+  // double-count the turnover and margin on screen.
+  const supersededIds = useMemo(
+    () => new Set((amendments.data ?? []).map((amendment) => amendment.fxId)),
+    [amendments.data],
+  );
+  const correctedIds = useMemo(
+    () => new Set((amendments.data ?? []).map((amendment) => amendment.replacementId)),
+    [amendments.data],
+  );
+  const rows = useMemo(
+    () => (trades.data ?? []).filter((trade) => !supersededIds.has(trade.id)),
+    [trades.data, supersededIds],
+  );
 
   // Net holding per currency from the trades on screen: buys add to inventory,
   // sells take from it.
@@ -525,8 +570,17 @@ function Forex() {
             <TradesTable
               rows={visibleRows}
               branchNames={branchNames}
+              correctedIds={correctedIds}
+              canEdit={canCorrect}
+              onEdit={(trade) => setEditTrade(trade)}
               onReceipt={(trade) => setReceipt(trade)}
             />
+          )}
+          {canCorrect && visibleRows.length > 0 && (
+            <p className="px-5 py-3 text-xs text-muted-foreground">
+              Correcting a trade reverses its ledger entry and posts the corrected trade in its
+              place. The original stays in the ledger for audit.
+            </p>
           )}
         </SectionCard>
       </div>
@@ -574,13 +628,28 @@ function Forex() {
       {/* Mounted only while open: reopening starts a blank form rather than the last one. */}
       {recordTrade && (
         <FxDialog
-          latestRates={currentRates}
+          rates={rates.data ?? []}
           currencies={currencyOptions}
           branches={branchOptions}
           open
           saving={saveTrade.isPending}
           onOpenChange={setRecordTrade}
           onSave={(values) => saveTrade.mutate(values)}
+        />
+      )}
+      {editTrade && (
+        <FxDialog
+          rates={rates.data ?? []}
+          currencies={currencyOptions}
+          branches={branchOptions}
+          trade={editTrade}
+          open
+          saving={amendTrade.isPending}
+          onOpenChange={(next) => {
+            if (!next) setEditTrade(null);
+          }}
+          onSave={() => undefined}
+          onAmend={(values) => amendTrade.mutate(values)}
         />
       )}
       {publishRate && (
@@ -669,10 +738,16 @@ function TransfersTable({
 function TradesTable({
   rows,
   branchNames,
+  correctedIds,
+  canEdit,
+  onEdit,
   onReceipt,
 }: {
   rows: FxRecord[];
   branchNames: Map<string, string>;
+  correctedIds: Set<string>;
+  canEdit: boolean;
+  onEdit: (trade: FxRecord) => void;
   onReceipt: (trade: FxRecord) => void;
 }) {
   return (
@@ -680,46 +755,81 @@ function TradesTable({
       rows={rows}
       rowKey={(trade) => trade.id}
       columns={[
-        { header: "Date", cell: (trade) => day(trade.entryDate) },
         {
-          header: "Trade",
+          header: "Date",
           cell: (trade) => (
-            <span className="font-medium">
-              {labelForType(trade.type)} {trade.currency}
-            </span>
+            <div>
+              <span>{day(trade.entryDate)}</span>
+              <span
+                className="block max-w-[180px] truncate text-xs text-muted-foreground"
+                title={branchNames.get(trade.branchId) ?? ""}
+              >
+                {branchNames.get(trade.branchId) ?? "—"}
+              </span>
+            </div>
           ),
         },
         {
-          header: "Foreign amount",
+          header: "Trade",
+          cell: (trade) => (
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">
+                  {labelForType(trade.type)} {trade.currency}
+                </span>
+                {correctedIds.has(trade.id) && (
+                  <Badge variant="secondary" className="font-normal">
+                    Corrected
+                  </Badge>
+                )}
+              </div>
+              <span className="block max-w-[220px] truncate text-xs text-muted-foreground">
+                {[FX_SETTLEMENT_LABELS[trade.settlement], trade.customerRef, trade.receiptNo]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </div>
+          ),
+        },
+        {
+          header: "Amount",
           align: "right",
           cell: (trade) => formatForeignAmount(trade),
         },
         { header: "Rate", align: "right", cell: (trade) => formatRate(trade.rate) },
-        { header: "UGX", align: "right", cell: (trade) => formatMoney(trade.ugxAmount) },
         {
-          header: "Margin",
+          header: "UGX",
           align: "right",
           cell: (trade) => (
-            <span className={trade.margin.minor < 0n ? "text-destructive" : undefined}>
-              {formatMoney(trade.margin)}
-            </span>
+            <div>
+              <span>{formatMoney(trade.ugxAmount)}</span>
+              {trade.margin.minor !== 0n && (
+                <span
+                  className={
+                    trade.margin.minor < 0n
+                      ? "block text-xs text-destructive"
+                      : "block text-xs text-muted-foreground"
+                  }
+                >
+                  margin {formatMoney(trade.margin)}
+                </span>
+              )}
+            </div>
           ),
-        },
-        { header: "Settlement", cell: (trade) => FX_SETTLEMENT_LABELS[trade.settlement] },
-        {
-          header: "Customer / receipt",
-          cell: (trade) => trade.customerRef || trade.receiptNo || "—",
-        },
-        {
-          header: "Branch",
-          cell: (trade) => branchNames.get(trade.branchId) ?? "—",
         },
         {
           header: "",
           cell: (trade) => (
-            <Button variant="ghost" size="sm" onClick={() => onReceipt(trade)}>
-              Receipt
-            </Button>
+            <div className="flex justify-end gap-1">
+              {canEdit && (
+                <Button variant="ghost" size="sm" onClick={() => onEdit(trade)}>
+                  Edit
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => onReceipt(trade)}>
+                Receipt
+              </Button>
+            </div>
           ),
         },
       ]}

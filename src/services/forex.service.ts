@@ -4,7 +4,8 @@
  * Rates are append-only history (managers insert, nobody edits). Trades are
  * branch-scoped by RLS and written only through record_fx_transaction(), which
  * re-checks the published rate and posts the balanced journal entry in the
- * same transaction.
+ * same transaction. A posted trade is never changed: amend_fx_transaction()
+ * reverses its entry and posts the corrected trade as a new row.
  */
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -199,6 +200,80 @@ export async function recordFxTransaction(input: RecordFxInput): Promise<string>
   return data as string;
 }
 
+export interface AmendFxInput extends Omit<RecordFxInput, "idempotencyKey"> {
+  id: string;
+  reason: string;
+}
+
+/**
+ * Correct a posted trade. The server reverses the original journal entry and
+ * records the corrected trade, so the response is the replacement's id.
+ */
+export async function amendFxTransaction(input: AmendFxInput): Promise<string> {
+  const { data, error } = await supabase.rpc("amend_fx_transaction", {
+    _fx_id: input.id,
+    _type: input.type,
+    _currency: input.currency,
+    _foreign_amount: toDecimalString(input.foreignAmount),
+    _rate: input.rate,
+    _cost_rate: input.costRate,
+    _settlement: input.settlement,
+    _branch_id: input.branchId,
+    _customer_ref: input.customerRef,
+    _receipt_no: input.receiptNo,
+    _notes: input.notes,
+    _entry_date: input.entryDate,
+    _reason: input.reason,
+  } as never);
+  if (error) throw new Error(fxErrorMessage(error.message));
+  return data as string;
+}
+
+/** A correction on record: which trade it replaced, why, and who posted it. */
+export interface FxAmendment {
+  id: string;
+  fxId: string;
+  replacementId: string;
+  reason: string;
+  amendedBy: string | null;
+  createdAt: string;
+}
+
+export interface FxAmendmentRow {
+  id: string;
+  fx_id: string;
+  replacement_id: string;
+  reason: string;
+  amended_by: string | null;
+  created_at: string;
+}
+
+function mapFxAmendment(row: FxAmendmentRow): FxAmendment {
+  return {
+    id: row.id,
+    fxId: row.fx_id,
+    replacementId: row.replacement_id,
+    reason: row.reason,
+    amendedBy: row.amended_by ?? null,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listFxAmendments(limit = 200): Promise<FxAmendment[]> {
+  const { data, error } = await supabase
+    .from("fx_amendments")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as FxAmendmentRow[]).map(mapFxAmendment);
+}
+
+export const fxAmendmentsQuery = queryOptions({
+  queryKey: ["forex", "amendments"],
+  queryFn: () => listFxAmendments(),
+});
+
 export interface SetFxRateInput {
   currency: FxCurrency;
   buyRate: string;
@@ -224,6 +299,20 @@ export function fxErrorMessage(message: string): string {
   if (text.includes("refresh the rates"))
     return "The published rate changed. Refresh and try again.";
   if (text.includes("cannot record forex")) return "Your roles cannot record forex transactions.";
+  if (text.includes("could not find the function") || text.includes("schema cache"))
+    return "Trade corrections need the latest database migration. Apply it, then try again.";
+  if (text.includes("only a super admin can correct"))
+    return "Only a super admin or the company owner can correct a posted trade.";
+  if (text.includes("already been corrected"))
+    return "That trade was already corrected. Refresh and edit the current version.";
+  if (text.includes("already been reversed")) return "That trade has already been reversed.";
+  if (text.includes("nothing has changed")) return "Change something before saving the correction.";
+  if (text.includes("no journal entry to correct"))
+    return "That trade has no ledger entry to correct.";
+  if (text.includes("unknown forex transaction")) return "That trade could not be found.";
+  if (text.includes("give a reason")) return "Give a reason of at least 4 characters.";
+  if (text.includes("reason can have at most"))
+    return "The reason can have at most 300 characters.";
   if (text.includes("not assigned to this branch")) return "You are not assigned to that branch.";
   if (text.includes("entry date cannot be in the future"))
     return "Entry date cannot be in the future.";

@@ -199,6 +199,41 @@ export const fxSchema = z.object({
 
 export type FxTradeInput = z.infer<typeof fxSchema>;
 
+/**
+ * The real rate for a trade: the newest published rate effective on or before
+ * the trade date. record_fx_transaction() prices a trade the same way, so the
+ * preview stays honest when an older trade is corrected.
+ */
+export function rateEffectiveOn(
+  rates: readonly FxRate[],
+  currency: string,
+  date: string,
+): FxRate | undefined {
+  let best: FxRate | undefined;
+  for (const rate of rates) {
+    if (rate.currency !== currency || rate.effectiveFrom > date) continue;
+    if (
+      !best ||
+      rate.effectiveFrom > best.effectiveFrom ||
+      (rate.effectiveFrom === best.effectiveFrom && rate.createdAt > best.createdAt)
+    ) {
+      best = rate;
+    }
+  }
+  return best;
+}
+
+/** A correction needs the same trade fields plus a reason for the audit trail. */
+export const fxAmendmentSchema = fxSchema.extend({
+  reason: z
+    .string()
+    .trim()
+    .min(4, "Give a reason of at least 4 characters")
+    .max(300, "Reason can have at most 300 characters"),
+});
+
+export type FxAmendmentInput = z.infer<typeof fxAmendmentSchema>;
+
 export const fxRateSchema = z
   .object({
     currency: currencyCodeField,

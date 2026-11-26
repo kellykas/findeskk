@@ -117,7 +117,7 @@ describe("recording a forex trade", () => {
     const onSave = vi.fn<(values: FxTradeValues) => void>();
     render(
       <FxDialog
-        latestRates={rates}
+        rates={rates}
         currencies={[{ code: "USD", name: "US Dollar" }]}
         branches={branches}
         open
@@ -142,7 +142,7 @@ describe("recording a forex trade", () => {
   it("shows no margin on a buy, because a buy is priced at cost", () => {
     render(
       <FxDialog
-        latestRates={rates}
+        rates={rates}
         currencies={[{ code: "USD", name: "US Dollar" }]}
         branches={branches}
         open

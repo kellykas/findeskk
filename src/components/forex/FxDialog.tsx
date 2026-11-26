@@ -26,8 +26,10 @@ import {
   FX_TYPES,
   FX_TYPE_LABELS,
   formatRate,
+  fxAmendmentSchema,
   fxSchema,
   previewTrade,
+  rateEffectiveOn,
   tradeRateFor,
   type FxCurrency,
   type FxRate,
@@ -37,6 +39,7 @@ import {
 } from "@/domain/forex";
 import { todayUtcDate } from "@/domain/date";
 import { cn } from "@/lib/utils";
+import type { FxRecord } from "@/services/forex.service";
 
 export interface BranchOption {
   id: string;
@@ -47,44 +50,67 @@ export interface BranchOption {
 /** What the service needs: the form values plus the rate published for the trade. */
 export type FxTradeValues = FxTradeInput & { rate: string; costRate: string };
 
+/** A correction also carries the reason that goes into the audit trail. */
+export type FxAmendmentValues = FxTradeValues & { reason: string };
+
 /** Active currencies, in the order the company set. */
 export interface FxCurrencyOption {
   code: string;
   name: string;
 }
 
+/** Two-decimal form text for an existing trade amount. */
+function amountInput(minor: bigint): string {
+  const whole = (minor / 100n).toString();
+  const fraction = (minor % 100n).toString().padStart(2, "0");
+  return `${whole}.${fraction}`;
+}
+
+/**
+ * Records a trade, or corrects a posted one. A correction is not an in-place
+ * edit: the server reverses the original journal entry and posts the corrected
+ * trade, so the form explains that and asks for a reason.
+ */
 export function FxDialog({
-  latestRates,
+  rates,
   currencies,
   branches,
+  trade,
   open,
   saving,
   onOpenChange,
   onSave,
+  onAmend,
 }: {
-  latestRates: FxRate[];
+  rates: FxRate[];
   currencies: FxCurrencyOption[];
   branches: BranchOption[];
+  trade?: FxRecord | null;
   open: boolean;
   saving: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (input: FxTradeValues) => void;
+  onAmend?: (input: FxAmendmentValues) => void;
 }) {
-  const [type, setType] = useState<FxType>("buy");
-  // Only currencies with a published rate can be traded, and the newest rate
-  // wins; a currency added since the rates loaded may not have one yet.
-  const tradeable = currencies.filter((option) =>
-    latestRates.some((rate) => rate.currency === option.code),
+  const editing = Boolean(trade);
+  const [type, setType] = useState<FxType>(trade?.type ?? "buy");
+  const [currency, setCurrency] = useState<FxCurrency>(trade?.currency ?? "");
+  const [foreignAmount, setForeignAmount] = useState(
+    trade ? amountInput(trade.foreignAmount.minor) : "1000",
   );
-  const [currency, setCurrency] = useState<FxCurrency>(tradeable[0]?.code ?? "");
-  const [foreignAmount, setForeignAmount] = useState("1000");
-  const [settlement, setSettlement] = useState<FxSettlement>("cash");
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
-  const [customerRef, setCustomerRef] = useState("");
-  const [receiptNo, setReceiptNo] = useState("");
-  const [notes, setNotes] = useState("");
-  const [entryDate, setEntryDate] = useState(todayUtcDate());
+  const [settlement, setSettlement] = useState<FxSettlement>(trade?.settlement ?? "cash");
+  const [branchId, setBranchId] = useState(trade?.branchId ?? branches[0]?.id ?? "");
+  const [customerRef, setCustomerRef] = useState(trade?.customerRef ?? "");
+  const [receiptNo, setReceiptNo] = useState(trade?.receiptNo ?? "");
+  const [notes, setNotes] = useState(trade?.notes ?? "");
+  const [entryDate, setEntryDate] = useState(trade?.entryDate ?? todayUtcDate());
+  const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // A trade is priced from the published rate in force on its own date, so the
+  // preview follows the date field rather than always using today's rate.
+  const rateForDate = (code: string, date: string) => rateEffectiveOn(rates, code, date);
+  const tradeable = currencies.filter((option) => rateForDate(option.code, entryDate));
 
   // Rates and branches both load asynchronously; adopt the only branch once known.
   useEffect(() => {
@@ -97,7 +123,7 @@ export function FxDialog({
       setCurrency(tradeable[0]?.code ?? "");
   }, [tradeable, currency]);
 
-  const chosenRate = latestRates.find((rate) => rate.currency === currency);
+  const chosenRate = rateForDate(currency, entryDate);
   const preview = chosenRate
     ? previewTrade({
         type,
@@ -110,10 +136,10 @@ export function FxDialog({
   function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!chosenRate) {
-      setError(`No rate has been published for ${currency} yet.`);
+      setError(`No rate has been published for ${currency} on or before ${entryDate}.`);
       return;
     }
-    const parsed = fxSchema.safeParse({
+    const fields = {
       type,
       currency,
       foreignAmount,
@@ -123,7 +149,22 @@ export function FxDialog({
       receiptNo,
       notes,
       entryDate,
-    });
+    };
+    if (editing) {
+      const parsed = fxAmendmentSchema.safeParse({ ...fields, reason });
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
+        return;
+      }
+      setError(null);
+      onAmend?.({
+        ...parsed.data,
+        rate: tradeRateFor(type, chosenRate),
+        costRate: chosenRate.buyRate,
+      });
+      return;
+    }
+    const parsed = fxSchema.safeParse(fields);
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check the form and try again.");
       return;
@@ -141,10 +182,11 @@ export function FxDialog({
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleFormSubmit} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>Record forex trade</DialogTitle>
+            <DialogTitle>{editing ? "Correct forex trade" : "Record forex trade"}</DialogTitle>
             <DialogDescription>
-              Trades post against the latest published rate for the currency. Rates are published by
-              managers and cannot be edited here.
+              {editing
+                ? "The original posting is reversed and the corrected trade is posted in its place. The original stays in the ledger for audit."
+                : "Trades post against the published rate for the trade date. Rates are published by managers and cannot be edited here."}
             </DialogDescription>
           </DialogHeader>
 
@@ -182,8 +224,8 @@ export function FxDialog({
               </Select>
               {tradeable.length === 0 && (
                 <p className="text-xs text-destructive">
-                  No currency has a published rate yet. A manager can add one under Currencies &amp;
-                  rates.
+                  No currency has a published rate on this date. A manager can add one under
+                  Currencies &amp; rates.
                 </p>
               )}
             </div>
@@ -295,6 +337,24 @@ export function FxDialog({
             />
           </div>
 
+          {editing && (
+            <div className="space-y-2">
+              <Label htmlFor="fx-reason">Reason for the correction</Label>
+              <Textarea
+                id="fx-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                maxLength={300}
+                rows={2}
+                placeholder="Wrong amount entered"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                At least 4 characters. Stored with the correction so auditors can see why.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-1 rounded-md border bg-muted/40 px-3 py-2 text-sm">
             {preview ? (
               <>
@@ -326,8 +386,8 @@ export function FxDialog({
               </p>
             ) : (
               <p className="text-muted-foreground">
-                No {currency} rate has been published yet. A rate manager must publish one before
-                this trade can be recorded.
+                No {currency} rate was published on or before {entryDate}. A rate manager must
+                publish one before this trade can be recorded.
               </p>
             )}
           </div>
@@ -337,7 +397,13 @@ export function FxDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={saving || !chosenRate || !preview}>
-              {saving ? "Recording…" : "Record trade"}
+              {saving
+                ? editing
+                  ? "Correcting…"
+                  : "Recording…"
+                : editing
+                  ? "Save correction"
+                  : "Record trade"}
             </Button>
           </DialogFooter>
         </form>
