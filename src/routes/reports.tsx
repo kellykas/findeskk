@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Printer } from "lucide-react";
+import { FileSpreadsheet, Printer } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { PrintableReport } from "@/components/reports/PrintableReport";
 import { AccessDenied, DataTable, PageHeader, SectionCard, StatCard } from "@/components/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,23 +26,27 @@ import { t } from "@/domain/i18n";
 import { ACCOUNT_TYPE_LABELS, signedBalance } from "@/domain/ledger";
 import { formatMoney, money, type Money } from "@/domain/money";
 import {
+  buildReportDocument,
+  summariseForexOperations,
+  summariseMomoOperations,
+} from "@/domain/reportDocument";
+import {
   buildBranchPerformance,
   buildMonthlyTrend,
   buildPeriodReport,
   buildTellerPerformance,
   changeVsPrevious,
-  performanceCsv,
   previousPeriod,
-  profitAndLossCsv,
-  trialBalanceCsv,
   type BranchPerformance,
   type ProfitAndLossRow,
   type TellerPerformance,
 } from "@/domain/reports";
+import { reportWorkbook, workbookFileName } from "@/domain/reportWorkbook";
+import { buildXlsx } from "@/lib/xlsx";
 import { useLanguage } from "@/hooks/use-language";
 import { useSession } from "@/hooks/use-session";
 import { expensesRangeQuery } from "@/services/expenses.service";
-import { fxRangeQuery } from "@/services/forex.service";
+import { fxAmendmentsQuery, fxDeletionsQuery, fxRangeQuery } from "@/services/forex.service";
 import { incomesRangeQuery } from "@/services/income.service";
 import { momoRangeQuery } from "@/services/momo.service";
 import { reportQuery } from "@/services/reports.service";
@@ -113,8 +118,10 @@ function rangePresets() {
   ];
 }
 
-function downloadCsv(name: string, csv: string) {
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+function downloadFile(name: string, type: string, bytes: Uint8Array) {
+  // The writer returns an exact-size buffer, so this is the whole file.
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = name;
@@ -147,6 +154,9 @@ function Reports() {
   });
 
   const forex = useQuery({ ...fxRangeQuery(range), enabled: allowed && !invalidRange });
+  // A corrected trade keeps its original row; the amendment says which id it replaced.
+  const amendments = useQuery({ ...fxAmendmentsQuery, enabled: allowed });
+  const deletions = useQuery({ ...fxDeletionsQuery, enabled: allowed });
   const momo = useQuery({ ...momoRangeQuery(range), enabled: allowed && !invalidRange });
   const expenses = useQuery({ ...expensesRangeQuery(range), enabled: allowed && !invalidRange });
   const incomes = useQuery({ ...incomesRangeQuery(range), enabled: allowed && !invalidRange });
@@ -206,6 +216,54 @@ function Reports() {
   const expenseRows = useMemo(() => expenses.data ?? [], [expenses.data]);
   const incomeRows = useMemo(() => incomes.data ?? [], [incomes.data]);
 
+  /**
+   * A corrected trade keeps its original row, and a reversed mobile money
+   * transaction keeps its own. Counting both would report every correction
+   * twice, so the superseded originals are dropped from every figure below.
+   */
+  const excludedForexIds = useMemo(
+    () =>
+      new Set([
+        ...(amendments.data ?? []).map((row) => row.fxId),
+        ...(deletions.data ?? []).map((row) => row.fxId),
+      ]),
+    [amendments.data, deletions.data],
+  );
+  const activeTrades = useMemo(
+    () => trades.filter((trade) => !excludedForexIds.has(trade.id)),
+    [trades, excludedForexIds],
+  );
+  const activeMomo = useMemo(() => momoRows.filter((row) => row.reversal === null), [momoRows]);
+
+  const forexSummary = useMemo(
+    () =>
+      summariseForexOperations(
+        trades.map((trade) => ({
+          id: trade.id,
+          type: trade.type,
+          currency: trade.currency,
+          foreignAmount: trade.foreignAmount,
+          ugxAmount: trade.ugxAmount,
+          margin: trade.margin,
+        })),
+        excludedForexIds,
+      ),
+    [trades, excludedForexIds],
+  );
+  const momoSummary = useMemo(
+    () =>
+      summariseMomoOperations(
+        momoRows.map((row) => ({
+          network: row.network,
+          type: row.type,
+          amount: row.amount,
+          commission: row.commission,
+          reversed: row.reversal !== null,
+        })),
+      ),
+    [momoRows],
+  );
+
   const performance = useMemo(() => {
     const sources = {
       branches: (branches.data ?? []).map((branch) => ({
@@ -217,8 +275,8 @@ function Reports() {
         id: member.id,
         displayName: member.displayName,
       })),
-      trades,
-      momo: momoRows,
+      trades: activeTrades,
+      momo: activeMomo,
       expenses: expenseRows,
       income: incomeRows,
     };
@@ -226,20 +284,61 @@ function Reports() {
       branches: buildBranchPerformance(sources),
       tellers: buildTellerPerformance(sources),
     };
-  }, [branches.data, staff.data, trades, momoRows, expenseRows, incomeRows]);
+  }, [branches.data, staff.data, activeTrades, activeMomo, expenseRows, incomeRows]);
 
-  const totals = useMemo(
-    () => ({
-      tradeTurnover: trades.reduce((total, trade) => total + trade.ugxAmount.minor, 0n),
-      tradeMargin: trades.reduce((total, trade) => total + trade.margin.minor, 0n),
-      momoCommission: momoRows.reduce((total, row) => total + row.commission.minor, 0n),
-    }),
-    [trades, momoRows],
-  );
-  const momoVolume = useMemo(
-    () => performance.branches.reduce((total, row) => total + row.momoVolume.minor, 0n),
-    [performance.branches],
-  );
+  const branchScope =
+    viewer && viewer.branches.length > 0
+      ? viewer.branches.map((branch) => `${branch.code} · ${branch.name}`).join(", ")
+      : "All branches";
+
+  /**
+   * One document for the printed page and the workbook, so the PDF and the
+   * spreadsheet cannot state different figures.
+   */
+  const reportDocument = useMemo(() => {
+    if (!report) return null;
+    return buildReportDocument({
+      company: {
+        name: company.data?.companyName ?? "FinDesk",
+        legalName: company.data?.legalName ?? "",
+        address: company.data?.address ?? "",
+        phone: company.data?.phone ?? "",
+        email: company.data?.email ?? "",
+        taxNumber: company.data?.taxNumber ?? "",
+      },
+      range,
+      locale,
+      generatedAt: new Date(),
+      preparedBy: viewer?.displayName || viewer?.email || "—",
+      branchScope,
+      report,
+      entries: ledger.data?.entries ?? 0,
+      prior: priorReport && priorRange ? { report: priorReport, range: priorRange } : null,
+      forex: forexSummary,
+      momo: momoSummary,
+      branchRows: performance.branches,
+      tellerRows: performance.tellers,
+      trend,
+      trendFrom: trendRange?.from ?? range.from,
+    });
+  }, [
+    branchScope,
+    company.data,
+    forexSummary,
+    ledger.data?.entries,
+    locale,
+    momoSummary,
+    performance.branches,
+    performance.tellers,
+    priorRange,
+    priorReport,
+    range,
+    report,
+    trend,
+    trendRange?.from,
+    viewer?.displayName,
+    viewer?.email,
+  ]);
 
   if (!allowed) {
     return (
@@ -266,8 +365,8 @@ function Reports() {
 
   const noActivity =
     (report?.postedLines ?? 0) === 0 &&
-    trades.length === 0 &&
-    momoRows.length === 0 &&
+    activeTrades.length === 0 &&
+    activeMomo.length === 0 &&
     expenseRows.length === 0 &&
     incomeRows.length === 0;
 
@@ -275,49 +374,47 @@ function Reports() {
 
   return (
     <AppShell>
-      <PageHeader
-        title={t("Reports")}
-        description={t(
-          "Financial figures come from posted journal lines; operations cover every record in the period.",
-        )}
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                report &&
-                downloadCsv(
-                  `findesk-profit-and-loss-${range.from}-to-${range.to}.csv`,
-                  profitAndLossCsv(report, range),
-                )
-              }
-              disabled={!report}
-            >
-              Export P&L (CSV)
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => window.print()}
-              title="Opens the print dialog, where you can save the report as a PDF"
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Print / Save PDF
-            </Button>
-          </>
-        }
-      />
-
-      {/* Printed copy: the screen chrome is hidden, this heading is not. */}
-      <div className="mb-4 hidden print:block">
-        <p className="text-lg font-semibold">{company.data?.companyName ?? "FinDesk"}</p>
-        <p className="text-sm">
-          {t("Financial report")} · {periodLabel}
-        </p>
-      </div>
+      {/* The printed sheet is built from the document below it, not from this layout. */}
+      {reportDocument && <PrintableReport document={reportDocument} />}
 
       <div className="no-print">
+        <PageHeader
+          title={t("Reports")}
+          description={t(
+            "Financial figures come from posted journal lines; operations cover every record in the period.",
+          )}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!reportDocument) return;
+                  downloadFile(
+                    workbookFileName(reportDocument),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    buildXlsx(reportWorkbook(reportDocument)),
+                  );
+                }}
+                disabled={!reportDocument}
+                title="Downloads every section of the report as one Excel workbook"
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export Excel
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => window.print()}
+                title="Opens the print dialog, where you can save the report as a PDF"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print / Save PDF
+              </Button>
+            </>
+          }
+        />
+
         <SectionCard title={t("Reporting period")}>
           <div className="flex flex-wrap items-end gap-3 px-4 py-4">
             <div className="space-y-2">
@@ -396,329 +493,312 @@ function Reports() {
             </Button>
           </div>
         )}
-      </div>
 
-      {report && (
-        <>
-          {noActivity && (
-            <p className="mt-4 rounded-md border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-              No postings or operations in this period. Pick another range or record a transaction.
-            </p>
-          )}
+        {report && (
+          <>
+            {noActivity && (
+              <p className="mt-4 rounded-md border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                No postings or operations in this period. Pick another range or record a
+                transaction.
+              </p>
+            )}
 
-          <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard
-              label="Income"
-              value={formatMoney(report.incomeTotal)}
-              hint={comparedHint ?? "Credits in period"}
-              delta={incomeChange?.delta}
-              tone={incomeChange?.direction === "down" ? "negative" : "positive"}
-            />
-            <StatCard
-              label="Expenses"
-              value={formatMoney(report.expenseTotal)}
-              hint={comparedHint ?? "Debits in period"}
-              delta={expenseChange?.delta}
-              tone={expenseChange?.direction === "up" ? "negative" : "positive"}
-            />
-            <StatCard
-              label="Net profit"
-              value={formatMoney(report.netProfit)}
-              hint={
-                comparedHint ??
-                (report.netProfit.minor < 0n ? "Loss in this period" : "Income less expenses")
-              }
-              delta={profitChange?.delta}
-              tone={profitChange?.direction === "down" ? "negative" : "positive"}
-            />
-            <StatCard
-              label="Journal lines"
-              value={String(report.postedLines)}
-              hint={`${ledger.data?.entries ?? 0} entries`}
-            />
-          </div>
-
-          <div className="mt-6">
-            <SectionCard
-              title={t("Income versus expenses by month")}
-              action={
-                trendRange && (
-                  <span className="text-xs text-muted-foreground">
-                    {t("Last {months} months to {date}", {
-                      months: TREND_MONTHS,
-                      date: range.to,
-                    })}
-                  </span>
-                )
-              }
-            >
-              {trendLedger.isPending ? (
-                <p className="px-5 pb-6 text-sm text-muted-foreground">{t("Loading the trend…")}</p>
-              ) : trendLedger.isError ? (
-                <p className="px-5 pb-6 text-sm text-muted-foreground">
-                  {t("The monthly trend could not be loaded.")}
-                </p>
-              ) : trendIsEmpty ? (
-                <p className="px-5 pb-6 text-sm text-muted-foreground">
-                  {t("No income or expenses were posted in these months.")}
-                </p>
-              ) : (
-                <div className="px-2 pb-4 sm:px-4">
-                  <ChartContainer config={trendConfig} className="aspect-auto h-64 w-full">
-                    <BarChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                        dataKey="label"
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={8}
-                        fontSize={11}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        width={52}
-                        fontSize={11}
-                        tickFormatter={(value: number) => compactNumber.format(value)}
-                      />
-                      <ChartTooltip
-                        cursor={false}
-                        content={
-                          <ChartTooltipContent
-                            labelFormatter={(_label, payload) =>
-                              (payload?.[0]?.payload as { title?: string } | undefined)?.title ?? ""
-                            }
-                            formatter={(value, name) => {
-                              const isIncome = String(name) === "income";
-                              const minor = BigInt(Math.round(Number(value) * MINOR_PER_UNIT));
-                              return (
-                                <div className="flex w-full items-center justify-between gap-4">
-                                  <span className="text-muted-foreground">
-                                    {isIncome ? t("Income") : t("Expenses")}
-                                  </span>
-                                  <span className="tabular font-medium">
-                                    {formatMoney(money(minor, BASE_CURRENCY))}
-                                  </span>
-                                </div>
-                              );
-                            }}
-                          />
-                        }
-                      />
-                      <ChartLegend content={<ChartLegendContent />} />
-                      <Bar
-                        dataKey="income"
-                        fill="var(--color-income)"
-                        radius={[3, 3, 0, 0]}
-                        maxBarSize={26}
-                      />
-                      <Bar
-                        dataKey="expenses"
-                        fill="var(--color-expenses)"
-                        radius={[3, 3, 0, 0]}
-                        maxBarSize={26}
-                      />
-                    </BarChart>
-                  </ChartContainer>
-                </div>
-              )}
-            </SectionCard>
-          </div>
-
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <SectionCard title={t("Income statement")}>
-              <StatementTable
-                rows={report.income}
-                emptyLabel="No income has been posted in this period."
-                totalLabel="Total income"
-                total={report.incomeTotal}
+            <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatCard
+                label="Income"
+                value={formatMoney(report.incomeTotal)}
+                hint={comparedHint ?? "Credits in period"}
+                delta={incomeChange?.delta}
+                tone={incomeChange?.direction === "down" ? "negative" : "positive"}
               />
-            </SectionCard>
-            <SectionCard title={t("Expenses")}>
-              <StatementTable
-                rows={report.expenses}
-                emptyLabel="No expenses have been posted in this period."
-                totalLabel="Total expenses"
-                total={report.expenseTotal}
+              <StatCard
+                label="Expenses"
+                value={formatMoney(report.expenseTotal)}
+                hint={comparedHint ?? "Debits in period"}
+                delta={expenseChange?.delta}
+                tone={expenseChange?.direction === "up" ? "negative" : "positive"}
               />
-            </SectionCard>
-          </div>
-
-          <div className="mt-6">
-            <SectionCard
-              title="Trial balance"
-              action={
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      downloadCsv(
-                        `findesk-trial-balance-${range.from}-to-${range.to}.csv`,
-                        trialBalanceCsv(report, range),
-                      )
-                    }
-                  >
-                    {t("Export trial balance (CSV)")}
-                  </Button>
-                  <Badge
-                    variant="outline"
-                    className={
-                      report.trial.balanced
-                        ? "font-normal"
-                        : "border-destructive font-normal text-destructive"
-                    }
-                  >
-                    {report.trial.balanced ? "Balanced" : "Out of balance"}
-                  </Badge>
-                </div>
-              }
-            >
-              <DataTable
-                rows={report.trial.rows.filter(
-                  (row) => row.debit.minor !== 0n || row.credit.minor !== 0n,
-                )}
-                rowKey={(row) => row.code}
-                columns={[
-                  {
-                    header: "Code",
-                    cell: (row) => <span className="tabular text-xs">{row.code}</span>,
-                  },
-                  { header: "Account", cell: (row) => row.name },
-                  { header: "Type", cell: (row) => ACCOUNT_TYPE_LABELS[row.type] },
-                  {
-                    header: "Debits",
-                    align: "right",
-                    cell: (row) => (
-                      <span className="tabular text-xs">
-                        {row.debit.minor === 0n ? "—" : formatMoney(row.debit)}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "Credits",
-                    align: "right",
-                    cell: (row) => (
-                      <span className="tabular text-xs">
-                        {row.credit.minor === 0n ? "—" : formatMoney(row.credit)}
-                      </span>
-                    ),
-                  },
-                ]}
-              />
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-xs text-muted-foreground">
-                <span>
-                  Debits {formatMoney(report.trial.debitTotal)} · Credits{" "}
-                  {formatMoney(report.trial.creditTotal)}
-                </span>
-                <span>{periodLabel}</span>
-              </div>
-            </SectionCard>
-          </div>
-
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <SectionCard title={t("Forex operations")}>
-              <div className="divide-y text-sm">
-                <SummaryLine label="Trades" value={String(trades.length)} />
-                <SummaryLine
-                  label="UGX turnover"
-                  value={formatMoney(money(totals.tradeTurnover, BASE_CURRENCY))}
-                />
-                <SummaryLine
-                  label="Margin earned"
-                  value={formatMoney(money(totals.tradeMargin, BASE_CURRENCY))}
-                />
-              </div>
-            </SectionCard>
-            <SectionCard title={t("Mobile money operations")}>
-              <div className="divide-y text-sm">
-                <SummaryLine label="Transactions" value={String(momoRows.length)} />
-                <SummaryLine
-                  label="Cash moved"
-                  value={formatMoney(money(momoVolume, BASE_CURRENCY))}
-                />
-                <SummaryLine
-                  label="Commission earned"
-                  value={formatMoney(money(totals.momoCommission, BASE_CURRENCY))}
-                />
-              </div>
-            </SectionCard>
-          </div>
-
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <SectionCard
-              title={t("Branch performance breakdown")}
-              action={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    downloadCsv(
-                      `findesk-branch-and-teller-${range.from}-to-${range.to}.csv`,
-                      performanceCsv(performance.branches, performance.tellers, range),
-                    )
-                  }
-                  disabled={performance.branches.length === 0 && performance.tellers.length === 0}
-                >
-                  {t("Export activity (CSV)")}
-                </Button>
-              }
-            >
-              <BranchTable rows={performance.branches} />
-            </SectionCard>
-            <SectionCard title={t("Teller performance breakdown")}>
-              <TellerTable rows={performance.tellers} />
-            </SectionCard>
-          </div>
-
-          <div className="mt-6">
-            <SectionCard title={t("Cash reconciliation report")}>
-              {(() => {
-                const cashRows = (report?.trial.rows ?? []).filter((row) => row.code === "1000");
-                if (cashRows.length === 0) {
-                  return (
-                    <p className="px-4 py-6 text-sm text-muted-foreground">
-                      No cash account (1000) found in this period.
-                    </p>
-                  );
+              <StatCard
+                label="Net profit"
+                value={formatMoney(report.netProfit)}
+                hint={
+                  comparedHint ??
+                  (report.netProfit.minor < 0n ? "Loss in this period" : "Income less expenses")
                 }
-                return (
-                  <div className="divide-y text-sm">
-                    {cashRows.map((row) => {
-                      const balance = signedBalance({
-                        normalBalance: row.normalBalance,
-                        debit: row.debit,
-                        credit: row.credit,
-                      });
-                      return (
-                        <div key={row.code} className="flex items-center justify-between px-4 py-3">
-                          <div>
-                            <div className="font-medium">
-                              {row.code} · {row.name}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {ACCOUNT_TYPE_LABELS[row.type]}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="tabular font-medium">
-                              Balance: {formatMoney(balance)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Debits {formatMoney(row.debit)} · Credits {formatMoney(row.credit)}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                delta={profitChange?.delta}
+                tone={profitChange?.direction === "down" ? "negative" : "positive"}
+              />
+              <StatCard
+                label="Journal lines"
+                value={String(report.postedLines)}
+                hint={`${ledger.data?.entries ?? 0} entries`}
+              />
+            </div>
+
+            <div className="mt-6">
+              <SectionCard
+                title={t("Income versus expenses by month")}
+                action={
+                  trendRange && (
+                    <span className="text-xs text-muted-foreground">
+                      {t("Last {months} months to {date}", {
+                        months: TREND_MONTHS,
+                        date: range.to,
+                      })}
+                    </span>
+                  )
+                }
+              >
+                {trendLedger.isPending ? (
+                  <p className="px-5 pb-6 text-sm text-muted-foreground">
+                    {t("Loading the trend…")}
+                  </p>
+                ) : trendLedger.isError ? (
+                  <p className="px-5 pb-6 text-sm text-muted-foreground">
+                    {t("The monthly trend could not be loaded.")}
+                  </p>
+                ) : trendIsEmpty ? (
+                  <p className="px-5 pb-6 text-sm text-muted-foreground">
+                    {t("No income or expenses were posted in these months.")}
+                  </p>
+                ) : (
+                  <div className="px-2 pb-4 sm:px-4">
+                    <ChartContainer config={trendConfig} className="aspect-auto h-64 w-full">
+                      <BarChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                          fontSize={11}
+                          interval="preserveStartEnd"
+                        />
+                        <YAxis
+                          tickLine={false}
+                          axisLine={false}
+                          width={52}
+                          fontSize={11}
+                          tickFormatter={(value: number) => compactNumber.format(value)}
+                        />
+                        <ChartTooltip
+                          cursor={false}
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={(_label, payload) =>
+                                (payload?.[0]?.payload as { title?: string } | undefined)?.title ??
+                                ""
+                              }
+                              formatter={(value, name) => {
+                                const isIncome = String(name) === "income";
+                                const minor = BigInt(Math.round(Number(value) * MINOR_PER_UNIT));
+                                return (
+                                  <div className="flex w-full items-center justify-between gap-4">
+                                    <span className="text-muted-foreground">
+                                      {isIncome ? t("Income") : t("Expenses")}
+                                    </span>
+                                    <span className="tabular font-medium">
+                                      {formatMoney(money(minor, BASE_CURRENCY))}
+                                    </span>
+                                  </div>
+                                );
+                              }}
+                            />
+                          }
+                        />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar
+                          dataKey="income"
+                          fill="var(--color-income)"
+                          radius={[3, 3, 0, 0]}
+                          maxBarSize={26}
+                        />
+                        <Bar
+                          dataKey="expenses"
+                          fill="var(--color-expenses)"
+                          radius={[3, 3, 0, 0]}
+                          maxBarSize={26}
+                        />
+                      </BarChart>
+                    </ChartContainer>
                   </div>
-                );
-              })()}
-            </SectionCard>
-          </div>
-        </>
-      )}
+                )}
+              </SectionCard>
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              <SectionCard title={t("Income statement")}>
+                <StatementTable
+                  rows={report.income}
+                  emptyLabel="No income has been posted in this period."
+                  totalLabel="Total income"
+                  total={report.incomeTotal}
+                />
+              </SectionCard>
+              <SectionCard title={t("Expenses")}>
+                <StatementTable
+                  rows={report.expenses}
+                  emptyLabel="No expenses have been posted in this period."
+                  totalLabel="Total expenses"
+                  total={report.expenseTotal}
+                />
+              </SectionCard>
+            </div>
+
+            <div className="mt-6">
+              <SectionCard
+                title="Trial balance"
+                action={
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={
+                        report.trial.balanced
+                          ? "font-normal"
+                          : "border-destructive font-normal text-destructive"
+                      }
+                    >
+                      {report.trial.balanced ? "Balanced" : "Out of balance"}
+                    </Badge>
+                  </div>
+                }
+              >
+                <DataTable
+                  rows={report.trial.rows.filter(
+                    (row) => row.debit.minor !== 0n || row.credit.minor !== 0n,
+                  )}
+                  rowKey={(row) => row.code}
+                  columns={[
+                    {
+                      header: "Code",
+                      cell: (row) => <span className="tabular text-xs">{row.code}</span>,
+                    },
+                    { header: "Account", cell: (row) => row.name },
+                    { header: "Type", cell: (row) => ACCOUNT_TYPE_LABELS[row.type] },
+                    {
+                      header: "Debits",
+                      align: "right",
+                      cell: (row) => (
+                        <span className="tabular text-xs">
+                          {row.debit.minor === 0n ? "—" : formatMoney(row.debit)}
+                        </span>
+                      ),
+                    },
+                    {
+                      header: "Credits",
+                      align: "right",
+                      cell: (row) => (
+                        <span className="tabular text-xs">
+                          {row.credit.minor === 0n ? "—" : formatMoney(row.credit)}
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-xs text-muted-foreground">
+                  <span>
+                    Debits {formatMoney(report.trial.debitTotal)} · Credits{" "}
+                    {formatMoney(report.trial.creditTotal)}
+                  </span>
+                  <span>{periodLabel}</span>
+                </div>
+              </SectionCard>
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              <SectionCard title={t("Forex operations")}>
+                <div className="divide-y text-sm">
+                  <SummaryLine label="Trades" value={String(forexSummary.trades)} />
+                  <SummaryLine label="UGX turnover" value={formatMoney(forexSummary.turnover)} />
+                  <SummaryLine label="Margin earned" value={formatMoney(forexSummary.margin)} />
+                  {forexSummary.excluded > 0 && (
+                    <p className="px-4 py-3 text-xs text-muted-foreground">
+                      {forexSummary.excluded} corrected trade
+                      {forexSummary.excluded === 1 ? " is" : "s are"} left out, so nothing is
+                      counted twice.
+                    </p>
+                  )}
+                </div>
+              </SectionCard>
+              <SectionCard title={t("Mobile money operations")}>
+                <div className="divide-y text-sm">
+                  <SummaryLine label="Transactions" value={String(momoSummary.transactions)} />
+                  <SummaryLine label="Cash moved" value={formatMoney(momoSummary.cash)} />
+                  <SummaryLine
+                    label="Commission earned"
+                    value={formatMoney(momoSummary.commission)}
+                  />
+                  {momoSummary.excluded > 0 && (
+                    <p className="px-4 py-3 text-xs text-muted-foreground">
+                      {momoSummary.excluded} reversed transaction
+                      {momoSummary.excluded === 1 ? " is" : "s are"} left out, so nothing is counted
+                      twice.
+                    </p>
+                  )}
+                </div>
+              </SectionCard>
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              <SectionCard title={t("Branch performance breakdown")}>
+                <BranchTable rows={performance.branches} />
+              </SectionCard>
+              <SectionCard title={t("Teller performance breakdown")}>
+                <TellerTable rows={performance.tellers} />
+              </SectionCard>
+            </div>
+
+            <div className="mt-6">
+              <SectionCard title={t("Cash reconciliation report")}>
+                {(() => {
+                  const cashRows = (report?.trial.rows ?? []).filter((row) => row.code === "1000");
+                  if (cashRows.length === 0) {
+                    return (
+                      <p className="px-4 py-6 text-sm text-muted-foreground">
+                        No cash account (1000) found in this period.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="divide-y text-sm">
+                      {cashRows.map((row) => {
+                        const balance = signedBalance({
+                          normalBalance: row.normalBalance,
+                          debit: row.debit,
+                          credit: row.credit,
+                        });
+                        return (
+                          <div
+                            key={row.code}
+                            className="flex items-center justify-between px-4 py-3"
+                          >
+                            <div>
+                              <div className="font-medium">
+                                {row.code} · {row.name}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {ACCOUNT_TYPE_LABELS[row.type]}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="tabular font-medium">
+                                Balance: {formatMoney(balance)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Debits {formatMoney(row.debit)} · Credits {formatMoney(row.credit)}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </SectionCard>
+            </div>
+          </>
+        )}
+      </div>
     </AppShell>
   );
 }

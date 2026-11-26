@@ -14,7 +14,7 @@ import {
   type TrialBalance,
 } from "./ledger";
 import { momoCashMovement, type MomoType } from "./momo";
-import { formatMoney, money, toDecimalString, type Money } from "./money";
+import { money, type Money } from "./money";
 
 export interface ReportAccount {
   accountId: string;
@@ -432,117 +432,4 @@ export function buildTellerPerformance(sources: PerformanceSources): TellerPerfo
     if (a.value.minor === b.value.minor) return a.name.localeCompare(b.name);
     return b.value.minor > a.value.minor ? 1 : -1;
   });
-}
-
-export interface StatementRow {
-  code: string;
-  name: string;
-  amount: string;
-}
-
-/** Flat rows for CSV export, with amounts as plain decimals for spreadsheets. */
-export function statementRows(report: PeriodReport): StatementRow[] {
-  return [
-    ...report.income.map((row) => ({
-      code: row.code,
-      name: row.name,
-      amount: toDecimalString(row.amount),
-    })),
-    ...report.expenses.map((row) => ({
-      code: row.code,
-      name: row.name,
-      amount: toDecimalString(row.amount),
-    })),
-  ];
-}
-
-function csvCell(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-}
-
-export function profitAndLossCsv(
-  report: PeriodReport,
-  range: { from: string; to: string },
-): string {
-  const lines: string[][] = [
-    ["FinDesk profit and loss", `${range.from} to ${range.to}`, ""],
-    ["Section", "Account", "Amount (UGX)"],
-    ...report.income.map((row) => [
-      "Income",
-      `${row.code} ${row.name}`,
-      toDecimalString(row.amount),
-    ]),
-    ["Income total", "", toDecimalString(report.incomeTotal)],
-    ...report.expenses.map((row) => [
-      "Expense",
-      `${row.code} ${row.name}`,
-      toDecimalString(row.amount),
-    ]),
-    ["Expense total", "", toDecimalString(report.expenseTotal)],
-    ["Net profit", "", toDecimalString(report.netProfit)],
-  ];
-  return lines.map((cells) => cells.map(csvCell).join(",")).join("\n");
-}
-
-export function formatReportMoney(amount: Money): string {
-  return formatMoney(amount);
-}
-
-/** Trial balance for a spreadsheet, with the period and the balance check. */
-export function trialBalanceCsv(report: PeriodReport, range: DateRange): string {
-  const lines: string[][] = [
-    ["FinDesk trial balance", `${range.from} to ${range.to}`, ""],
-    ["Code", "Account", "Type", "Debits", "Credits"],
-    ...report.trial.rows
-      .filter((row) => row.debit.minor !== 0n || row.credit.minor !== 0n)
-      .map((row) => [
-        row.code,
-        row.name,
-        row.type,
-        toDecimalString(row.debit),
-        toDecimalString(row.credit),
-      ]),
-    [
-      "Total",
-      "",
-      "",
-      toDecimalString(report.trial.debitTotal),
-      toDecimalString(report.trial.creditTotal),
-    ],
-    [report.trial.balanced ? "Balanced" : "Out of balance", "", "", "", ""],
-  ];
-  return lines.map((cells) => cells.map(csvCell).join(",")).join("\n");
-}
-
-/** Branch and teller activity for a spreadsheet, in the order the screen shows. */
-export function performanceCsv(
-  branches: readonly BranchPerformance[],
-  tellers: readonly TellerPerformance[],
-  range: DateRange,
-): string {
-  const lines: string[][] = [
-    ["FinDesk branch and teller performance", `${range.from} to ${range.to}`, ""],
-    ["Branch", "Forex trades", "Forex UGX", "Mobile money", "Cash moved", "Income", "Expenses"],
-    ...branches.map((row) => [
-      row.label,
-      String(row.forexCount),
-      toDecimalString(row.forexTurnover),
-      String(row.momoCount),
-      toDecimalString(row.momoVolume),
-      toDecimalString(row.incomeTotal),
-      toDecimalString(row.expenseTotal),
-    ]),
-    ["", "", "", "", "", "", ""],
-    ["Teller", "Transactions", "Value", "", "", "", ""],
-    ...tellers.map((row) => [
-      row.name,
-      String(row.count),
-      toDecimalString(row.value),
-      "",
-      "",
-      "",
-      "",
-    ]),
-  ];
-  return lines.map((cells) => cells.map(csvCell).join(",")).join("\n");
 }

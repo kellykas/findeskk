@@ -8,8 +8,6 @@ import {
   changeVsPrevious,
   numericToMinor,
   previousPeriod,
-  profitAndLossCsv,
-  trialBalanceCsv,
 } from "./reports";
 
 const accounts = [
@@ -79,27 +77,6 @@ describe("period report", () => {
       { accountId: "a1", side: "credit", amount: "50000.00" },
     ]);
     expect(report.netProfit.minor).toBe(-50_000n);
-  });
-
-  it("exports a CSV statement with the period and totals", () => {
-    const csv = profitAndLossCsv(buildPeriodReport(accounts, lines), {
-      from: "2026-10-01",
-      to: "2026-10-31",
-    });
-    expect(csv).toContain("2026-10-01 to 2026-10-31");
-    expect(csv).toContain("Income,4000 Forex trading income,300000");
-    expect(csv).toContain("Expense total,,80000");
-    expect(csv).toContain("Net profit,,220000");
-  });
-
-  it("exports a trial balance with the totals and the balance check", () => {
-    const csv = trialBalanceCsv(buildPeriodReport(accounts, lines), {
-      from: "2026-10-01",
-      to: "2026-10-31",
-    });
-    expect(csv).toContain("Cash on hand");
-    expect(csv).toContain("Total,,,380000,380000");
-    expect(csv).toContain("Balanced");
   });
 });
 
