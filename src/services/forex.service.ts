@@ -274,6 +274,68 @@ export const fxAmendmentsQuery = queryOptions({
   queryFn: () => listFxAmendments(),
 });
 
+/**
+ * Delete a posted trade. Nothing is erased: the server reverses the trade's
+ * journal entry on today's date and records why, so the trade leaves the list
+ * while the ledger keeps an auditable trail.
+ */
+export async function voidFxTransaction(input: { id: string; reason: string }): Promise<string> {
+  const { data, error } = await supabase.rpc("void_fx_transaction", {
+    _fx_id: input.id,
+    _reason: input.reason,
+  } as never);
+  if (error) throw new Error(fxErrorMessage(error.message));
+  return data as string;
+}
+
+/** A deletion on record: which trade it removed, why, and who removed it. */
+export interface FxDeletion {
+  id: string;
+  fxId: string;
+  reason: string;
+  deletedBy: string | null;
+  createdAt: string;
+}
+
+interface FxDeletionRow {
+  id: string;
+  fx_id: string;
+  reason: string;
+  deleted_by: string | null;
+  created_at: string;
+}
+
+function mapFxDeletion(row: FxDeletionRow): FxDeletion {
+  return {
+    id: row.id,
+    fxId: row.fx_id,
+    reason: row.reason,
+    deletedBy: row.deleted_by ?? null,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listFxDeletions(limit = 200): Promise<FxDeletion[]> {
+  const { data, error } = await supabase
+    .from("fx_deletions")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  // Before the deletion migration is applied the table is missing; a report of
+  // nothing deleted is the honest reading rather than an error on every screen.
+  if (error) {
+    const text = error.message.toLowerCase();
+    if (text.includes("schema cache") || text.includes("could not find the table")) return [];
+    throw new Error(error.message);
+  }
+  return ((data ?? []) as unknown as FxDeletionRow[]).map(mapFxDeletion);
+}
+
+export const fxDeletionsQuery = queryOptions({
+  queryKey: ["forex", "deletions"],
+  queryFn: () => listFxDeletions(),
+});
+
 export interface SetFxRateInput {
   currency: FxCurrency;
   buyRate: string;
@@ -303,12 +365,18 @@ export function fxErrorMessage(message: string): string {
     return "Trade corrections need the latest database migration. Apply it, then try again.";
   if (text.includes("only a super admin can correct"))
     return "Only a super admin or the company owner can correct a posted trade.";
+  if (text.includes("only a super admin can delete"))
+    return "Only a super admin or the company owner can delete a posted trade.";
   if (text.includes("already been corrected"))
     return "That trade was already corrected. Refresh and edit the current version.";
+  if (text.includes("already been deleted"))
+    return "That trade was already deleted. Refresh the list.";
   if (text.includes("already been reversed")) return "That trade has already been reversed.";
   if (text.includes("nothing has changed")) return "Change something before saving the correction.";
   if (text.includes("no journal entry to correct"))
     return "That trade has no ledger entry to correct.";
+  if (text.includes("no journal entry to reverse"))
+    return "That trade has no ledger entry to reverse.";
   if (text.includes("unknown forex transaction")) return "That trade could not be found.";
   if (text.includes("give a reason")) return "Give a reason of at least 4 characters.";
   if (text.includes("reason can have at most"))

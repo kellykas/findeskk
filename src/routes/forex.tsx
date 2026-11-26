@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
-import { t } from "@/domain/i18n";
+import { DeleteFxTradeDialog } from "@/components/forex/DeleteFxTradeDialog";
 import { FxDialog, type FxAmendmentValues, type FxTradeValues } from "@/components/forex/FxDialog";
+import { t } from "@/domain/i18n";
 import { FxReceiptDialog } from "@/components/forex/FxReceiptDialog";
 import { FxCurrencyDialog } from "@/components/forex/FxCurrencyDialog";
 import { RateDialog } from "@/components/forex/RateDialog";
@@ -41,11 +43,13 @@ import { useSession } from "@/hooks/use-session";
 import {
   amendFxTransaction,
   fxAmendmentsQuery,
+  fxDeletionsQuery,
   fxQuery,
   fxRatesQuery,
   latestRates,
   recordFxTransaction,
   setFxRate,
+  voidFxTransaction,
   type FxRecord,
 } from "@/services/forex.service";
 import {
@@ -85,6 +89,8 @@ function Forex() {
   const { viewer } = useSession();
   const allowed = Boolean(viewer && can(viewer.roles, "forex.transact"));
   const canTransfer = Boolean(viewer && can(viewer.roles, "forex.transfer"));
+  // Correcting and deleting both rewrite what the ledger says happened, so they
+  // are held by the same roles: a super admin or the company owner.
   const canCorrect = Boolean(viewer && can(viewer.roles, "transactions.correct"));
   // Currencies and their rates are every staff member's job: a teller cannot wait
   // for a manager to be around. Adding a network stays a manager decision.
@@ -93,6 +99,8 @@ function Forex() {
   const [recordTrade, setRecordTrade] = useState(false);
   // Null when closed; a trade opens the dialog in correction mode.
   const [editTrade, setEditTrade] = useState<FxRecord | null>(null);
+  // Null when closed; a trade opens the confirmation to delete it.
+  const [deleteTrade, setDeleteTrade] = useState<FxRecord | null>(null);
   // Null when closed; an empty object opens on the first currency, and a code
   // opens it preselected from that currency's row.
   const [publishRate, setPublishRate] = useState<{ currency?: string } | null>(null);
@@ -106,6 +114,7 @@ function Forex() {
   const currencies = useQuery({ ...fxCurrenciesQuery, enabled: allowed });
   const trades = useQuery({ ...fxQuery(100), enabled: allowed });
   const amendments = useQuery({ ...fxAmendmentsQuery, enabled: allowed });
+  const deletions = useQuery({ ...fxDeletionsQuery, enabled: allowed });
   const branches = useQuery({ ...branchesQuery, enabled: allowed });
   const transfers = useQuery({ ...transfersQuery(100), enabled: allowed });
   const settings = useQuery(settingsQuery);
@@ -211,6 +220,17 @@ function Forex() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const removeTrade = useMutation({
+    mutationFn: (input: { id: string; reason: string }) => voidFxTransaction(input),
+    onSuccess: () => {
+      toast.success("Trade deleted. The cancelling entry is in the ledger.");
+      void queryClient.invalidateQueries({ queryKey: ["forex"] });
+      void queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      setDeleteTrade(null);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const saveRate = useMutation({
     mutationFn: (values: FxRateInput) => setFxRate(values),
     onSuccess: () => {
@@ -250,9 +270,18 @@ function Forex() {
     () => new Set((amendments.data ?? []).map((amendment) => amendment.replacementId)),
     [amendments.data],
   );
+  // A deleted trade has had its ledger entry reversed; it is gone from the list
+  // but its reversal and reason stay in the ledger for audit.
+  const deletedIds = useMemo(
+    () => new Set((deletions.data ?? []).map((deletion) => deletion.fxId)),
+    [deletions.data],
+  );
   const rows = useMemo(
-    () => (trades.data ?? []).filter((trade) => !supersededIds.has(trade.id)),
-    [trades.data, supersededIds],
+    () =>
+      (trades.data ?? []).filter(
+        (trade) => !supersededIds.has(trade.id) && !deletedIds.has(trade.id),
+      ),
+    [trades.data, supersededIds, deletedIds],
   );
 
   // Net holding per currency from the trades on screen: buys add to inventory,
@@ -572,14 +601,18 @@ function Forex() {
               branchNames={branchNames}
               correctedIds={correctedIds}
               canEdit={canCorrect}
+              canDelete={canCorrect}
               onEdit={(trade) => setEditTrade(trade)}
+              onDelete={(trade) => setDeleteTrade(trade)}
               onReceipt={(trade) => setReceipt(trade)}
             />
           )}
           {canCorrect && visibleRows.length > 0 && (
             <p className="px-5 py-3 text-xs text-muted-foreground">
               Correcting a trade reverses its ledger entry and posts the corrected trade in its
-              place. The original stays in the ledger for audit.
+              place; deleting one reverses its entry and removes it from this list. Either way
+              nothing is erased: the reversal, the reason and your name stay in the ledger for
+              audit.
             </p>
           )}
         </SectionCard>
@@ -650,6 +683,17 @@ function Forex() {
           }}
           onSave={() => undefined}
           onAmend={(values) => amendTrade.mutate(values)}
+        />
+      )}
+      {deleteTrade && (
+        <DeleteFxTradeDialog
+          trade={deleteTrade}
+          open
+          saving={removeTrade.isPending}
+          onOpenChange={(next) => {
+            if (!next) setDeleteTrade(null);
+          }}
+          onConfirm={(reason) => removeTrade.mutate({ id: deleteTrade.id, reason })}
         />
       )}
       {publishRate && (
@@ -740,14 +784,18 @@ function TradesTable({
   branchNames,
   correctedIds,
   canEdit,
+  canDelete,
   onEdit,
+  onDelete,
   onReceipt,
 }: {
   rows: FxRecord[];
   branchNames: Map<string, string>;
   correctedIds: Set<string>;
   canEdit: boolean;
+  canDelete: boolean;
   onEdit: (trade: FxRecord) => void;
+  onDelete: (trade: FxRecord) => void;
   onReceipt: (trade: FxRecord) => void;
 }) {
   return (
@@ -829,6 +877,18 @@ function TradesTable({
               <Button variant="ghost" size="sm" onClick={() => onReceipt(trade)}>
                 Receipt
               </Button>
+              {canDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  aria-label="Delete trade"
+                  title="Delete trade"
+                  onClick={() => onDelete(trade)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           ),
         },

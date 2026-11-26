@@ -452,6 +452,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      fx_deletions: {
+        Row: {
+          created_at: string;
+          deleted_by: string | null;
+          fx_id: string;
+          id: string;
+          reason: string;
+          reversal_entry_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          deleted_by?: string | null;
+          fx_id: string;
+          id?: string;
+          reason: string;
+          reversal_entry_id: string;
+        };
+        Update: {
+          created_at?: string;
+          deleted_by?: string | null;
+          fx_id?: string;
+          id?: string;
+          reason?: string;
+          reversal_entry_id?: string;
+        };
+        Relationships: [];
+      };
       fx_rates: {
         Row: {
           buy_rate: number;
@@ -1226,6 +1253,10 @@ export type Database = {
           _user_id: string;
         };
         Returns: undefined;
+      };
+      void_fx_transaction: {
+        Args: { _fx_id: string; _reason: string };
+        Returns: string;
       };
     };
     Enums: {

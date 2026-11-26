@@ -240,6 +240,20 @@ export const fxAmendmentSchema = fxSchema.extend({
 
 export type FxAmendmentInput = z.infer<typeof fxAmendmentSchema>;
 
+/**
+ * Deleting a posted trade needs a reason too: the ledger entry is reversed, not
+ * erased, so the audit trail has to say why.
+ */
+export const fxDeletionSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(4, "Give a reason of at least 4 characters")
+    .max(300, "Reason can have at most 300 characters"),
+});
+
+export type FxDeletionInput = z.infer<typeof fxDeletionSchema>;
+
 export const fxRateSchema = z
   .object({
     currency: currencyCodeField,
